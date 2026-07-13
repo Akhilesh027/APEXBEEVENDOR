@@ -49,16 +49,14 @@ export const Orders: React.FC = () => {
     rejectReturn,
     vendorSubscriptions,
     assignSubscriptionDelivery,
+    currentPage,
   } = useVendor();
 
-  const [mainView, setMainViewState] = useState<'orders' | 'localshop' | 'subscription'>(() => {
-    return (localStorage.getItem('orders_active_tab') as any) || 'orders';
-  });
-
-  const setMainView = (view: 'orders' | 'localshop' | 'subscription') => {
-    localStorage.setItem('orders_active_tab', view);
-    setMainViewState(view);
-  };
+  const mainView = React.useMemo(() => {
+    if (currentPage === 'orders-localshop') return 'localshop';
+    if (currentPage === 'orders-subscriptions') return 'subscription';
+    return 'orders';
+  }, [currentPage]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -68,6 +66,95 @@ export const Orders: React.FC = () => {
   const [subAgentType, setSubAgentType] = useState<AgentType>('Platform');
   const [subAgentId, setSubAgentId] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Packing Checklist and PDF Download states/methods
+  const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (selectedOrder) {
+      setCheckedItems((selectedOrder as any).packingChecklist || []);
+    } else {
+      setCheckedItems([]);
+    }
+  }, [selectedOrder]);
+
+  const handleDownloadInvoice = async (orderId: string, filename: string) => {
+    try {
+      setDownloadingPdf('invoice');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/orders/${orderId}/invoice`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Invoice file generation failed.');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${filename}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
+
+  const handleDownloadPackingSlip = async (orderId: string, filename: string) => {
+    try {
+      setDownloadingPdf('slip');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/orders/${orderId}/packing-slip`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Packing slip file generation failed.');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PackingSlip_${filename}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
+
+  const handleToggleChecklist = async (productId: string) => {
+    if (!selectedOrder) return;
+    const updated = checkedItems.includes(productId)
+      ? checkedItems.filter(id => id !== productId)
+      : [...checkedItems, productId];
+    
+    setCheckedItems(updated);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/orders/${selectedOrder.id}/packing-checklist`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ checklist: updated })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        (selectedOrder as any).packingChecklist = updated;
+        if (data.order?.orderStatus) {
+          selectedOrder.deliveryStatus = data.order.orderStatus;
+          selectedOrder.timeline = data.order.timeline;
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const refreshSelectedOrder = (orderId: string) => {
     const updated = orders.find((o) => o.id === orderId);
@@ -221,32 +308,6 @@ export const Orders: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-border/80 pb-1 gap-1 select-none">
-        <button
-          onClick={() => setMainView('orders')}
-          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${
-            mainView === 'orders' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
-          }`}
-        >
-          🏪 Normal Orders
-        </button>
-        <button
-          onClick={() => setMainView('localshop')}
-          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${
-            mainView === 'localshop' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
-          }`}
-        >
-          🔄 LocalShop Orders
-        </button>
-        <button
-          onClick={() => setMainView('subscription')}
-          className={`px-4 py-2 text-xs font-bold border-b-2 bg-transparent border-0 cursor-pointer transition ${
-            mainView === 'subscription' ? 'border-primary text-primary font-extrabold' : 'border-transparent text-muted-foreground'
-          }`}
-        >
-          🔁 Subscription Orders
-        </button>
-      </div>
 
       {mainView !== 'localshop' ? (
         <>
@@ -431,9 +492,19 @@ export const Orders: React.FC = () => {
                 <span className="font-bold text-sm text-foreground">
                   {selectedOrder.customerName}
                 </span>
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Phone className="h-3.5 w-3.5" /> {selectedOrder.customerPhone}
-                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5" /> {selectedOrder.customerPhone}
+                  </span>
+                  <a
+                    href={`https://wa.me/91${selectedOrder.customerPhone}?text=Hello%20${selectedOrder.customerName},%20this%20is%20regarding%20your%20ApexBee%20order%20%23${selectedOrder.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 hover:text-emerald-700 font-extrabold flex items-center gap-1 text-[11px]"
+                  >
+                    💬 WhatsApp Chat
+                  </a>
+                </div>
               </div>
 
               <div className="border border-border p-3.5 rounded-xl bg-muted/20 flex flex-col gap-1.5 text-xs">
@@ -480,11 +551,19 @@ export const Orders: React.FC = () => {
                     className="p-3 flex items-center justify-between gap-3 text-xs"
                   >
                     <div className="flex items-center gap-2.5">
-                      <img
-                        src={item.image}
-                        alt={item.productName}
-                        className="h-9 w-9 rounded object-cover border border-border flex-shrink-0"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems.includes(item.productId)}
+                          onChange={() => handleToggleChecklist(item.productId)}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <img
+                          src={item.image}
+                          alt={item.productName}
+                          className="h-9 w-9 rounded object-cover border border-border flex-shrink-0"
+                        />
+                      </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-foreground line-clamp-1">
                           {item.productName}
@@ -560,6 +639,25 @@ export const Orders: React.FC = () => {
                     <div className="flex justify-between items-center text-xs font-black text-indigo-600 dark:text-indigo-400 border-t border-border/30 pt-1.5 mt-0.5">
                       <span>Net Vendor Earnings</span>
                       <span>₹{payout}</span>
+                    </div>
+
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-border/30">
+                      <Button
+                        onClick={() => handleDownloadInvoice(selectedOrder.id, selectedOrder.id)}
+                        disabled={downloadingPdf !== null}
+                        variant="outline"
+                        className="flex-1 text-[10px] font-bold h-7.5 border-border hover:bg-secondary cursor-pointer"
+                      >
+                        {downloadingPdf === 'invoice' ? 'Generating...' : '🖨️ Tax Invoice PDF'}
+                      </Button>
+                      <Button
+                        onClick={() => handleDownloadPackingSlip(selectedOrder.id, selectedOrder.id)}
+                        disabled={downloadingPdf !== null}
+                        variant="outline"
+                        className="flex-1 text-[10px] font-bold h-7.5 border-border hover:bg-secondary cursor-pointer"
+                      >
+                        {downloadingPdf === 'slip' ? 'Generating...' : '📋 Packing Slip PDF'}
+                      </Button>
                     </div>
                   </div>
                 );

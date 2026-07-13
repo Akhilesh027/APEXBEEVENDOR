@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 
-import { AlertTriangle, ShieldCheck, CheckCircle2, Save, Search, TrendingUp, Clock } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, CheckCircle2, Save, Search, TrendingUp, Clock, Plus, Minus, History } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -26,28 +26,113 @@ export const Inventory: React.FC = () => {
   // Bulk edit states
   const [isBulkEditMode, setIsBulkEditMode] = useState(false);
   const [bulkStocks, setBulkStocks] = useState<Record<string, number>>({});
+  const [adjustmentReason, setAdjustmentReason] = useState<string>('Periodic Audit Count');
+
+  // Ledger history logs state
+  const [movementLogs, setMovementLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   // Threshold config
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
+
+  const fetchMovementLogs = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      setLoadingLogs(true);
+      const res = await fetch('https://server.apexbee.in/api/products/inventory/movements', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMovementLogs(data.movements || []);
+      }
+    } catch (err) {
+      console.error('Error fetching inventory movements:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMovementLogs();
+  }, [products]);
+
+  const logMovement = async (productId: string, quantityChanged: number, type: string, reason: string, batchNo: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      await fetch('https://server.apexbee.in/api/products/inventory/movements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId,
+          quantityChanged,
+          type,
+          reason,
+          batchNo
+        })
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleBulkChange = (id: string, val: number) => {
     setBulkStocks(prev => ({ ...prev, [id]: val }));
   };
 
-  const handleSaveBulk = () => {
-    Object.entries(bulkStocks).forEach(([id, stockVal]) => {
-      updateProductStock(id, stockVal);
-    });
+  const handleSaveBulk = async () => {
+    for (const [id, stockVal] of Object.entries(bulkStocks)) {
+      const original = products.find(p => p.id === id || p._id === id);
+      if (original) {
+        const diff = stockVal - original.stock;
+        if (diff !== 0) {
+          updateProductStock(id, stockVal);
+          await logMovement(
+            id,
+            diff,
+            diff > 0 ? 'Inbound' : 'Outbound',
+            adjustmentReason,
+            original.batchNo || 'N/A'
+          );
+        }
+      }
+    }
     setIsBulkEditMode(false);
     setBulkStocks({});
+    setTimeout(() => {
+      fetchMovementLogs();
+    }, 800);
+  };
+
+  const handleQuickAdjust = async (id: string, increment: number) => {
+    const original = products.find(p => p.id === id || p._id === id);
+    if (!original) return;
+
+    const targetStock = Math.max(0, original.stock + increment);
+    updateProductStock(id, targetStock);
+    
+    await logMovement(
+      id,
+      increment,
+      increment > 0 ? 'Inbound' : 'Outbound',
+      'Quick Stock Adjustment',
+      original.batchNo || 'N/A'
+    );
+    
+    setTimeout(() => {
+      fetchMovementLogs();
+    }, 800);
   };
 
   // Helper: calculate forecasting velocity and reorder quantities
   const getProductForecastDetails = (prodId: string, stock: number) => {
-    // Generate a pseudo-random sales velocity (daily rate) based on product ID char code
     const seed = prodId.charCodeAt(prodId.length - 1) || 5;
     const velocity = parseFloat(((seed % 4) + 1.2).toFixed(1)); // 1.2 to 4.2 units/day
-    
     const daysRemaining = stock === 0 ? 0 : Math.round(stock / velocity);
     const reorderQty = stock <= lowStockThreshold ? Math.max(50, Math.ceil(velocity * 30)) : 0;
     
@@ -59,7 +144,9 @@ export const Inventory: React.FC = () => {
   };
 
   const filteredProducts = products.filter(p => {
-    if (p.status !== 'Approved') return false; // Only manage live inventory
+    // Matches live approved status or backend 'Live' casing
+    const matchesStatus = p.status === 'Approved' || p.status === 'Live';
+    if (!matchesStatus) return false;
     
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -79,7 +166,7 @@ export const Inventory: React.FC = () => {
   
   // Recharts data for inventory stock distribution
   const chartData = products
-    .filter(p => p.status === 'Approved')
+    .filter(p => p.status === 'Approved' || p.status === 'Live')
     .slice(0, 5)
     .map(p => ({
       name: p.name.split(' ').slice(0, 2).join(' '),
@@ -88,14 +175,14 @@ export const Inventory: React.FC = () => {
 
   // Critical stock out list for highlights card
   const criticalList = products
-    .filter(p => p.status === 'Approved')
+    .filter(p => p.status === 'Approved' || p.status === 'Live')
     .map(p => ({ ...p, ...getProductForecastDetails(p.id, p.stock) }))
     .filter(p => p.stock <= lowStockThreshold)
     .sort((a, b) => a.daysRemaining - b.daysRemaining)
     .slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-left text-foreground">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5 text-left">
@@ -104,21 +191,31 @@ export const Inventory: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {isBulkEditMode ? (
-            <>
+            <div className="flex items-center gap-2">
+              <select
+                value={adjustmentReason}
+                onChange={(e) => setAdjustmentReason(e.target.value)}
+                className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground"
+              >
+                <option value="Periodic Audit Count">📊 Periodic Audit Count</option>
+                <option value="Damaged / Broken Goods">🗑️ Damaged / Broken Goods</option>
+                <option value="Return Restocking">↩️ Return Restocking</option>
+                <option value="Promotional Write-off">🎁 Promotional Write-off</option>
+              </select>
               <Button onClick={() => setIsBulkEditMode(false)} variant="outline" size="sm" className="cursor-pointer font-bold">
                 Cancel
               </Button>
-              <Button onClick={handleSaveBulk} size="sm" className="flex items-center gap-1.5 cursor-pointer font-bold">
+              <Button onClick={handleSaveBulk} size="sm" className="flex items-center gap-1.5 cursor-pointer font-bold bg-primary text-white">
                 <Save className="h-4 w-4" /> Save Bulk Changes
               </Button>
-            </>
+            </div>
           ) : (
             <Button onClick={() => {
               const initialStocks: Record<string, number> = {};
-              filteredProducts.forEach(p => { initialStocks[p.id] = p.stock; });
+              filteredProducts.forEach(p => { initialStocks[p.id || p._id] = p.stock; });
               setBulkStocks(initialStocks);
               setIsBulkEditMode(true);
-            }} variant="outline" size="sm" className="cursor-pointer font-bold">
+            }} variant="outline" size="sm" className="cursor-pointer font-bold border-border">
               Bulk Update Stock
             </Button>
           )}
@@ -318,24 +415,26 @@ export const Inventory: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="border-none rounded-none shadow-none">
+            <Table className="border-none rounded-none shadow-none text-xs">
               <TableHeader className="bg-transparent border-b border-border/40">
                 <TableRow>
                   <TableHead>Listing</TableHead>
                   <TableHead>SKU</TableHead>
+                  <TableHead>Batch Specs</TableHead>
                   <TableHead>Reserved Stock</TableHead>
                   <TableHead>Available (Sellable)</TableHead>
                   <TableHead>Total Stock</TableHead>
+                  <TableHead>Quick Adjust</TableHead>
                   <TableHead>Est. Velocity / Day</TableHead>
                   <TableHead>Days to Stock-out</TableHead>
-                  <TableHead>Recommended Reorder</TableHead>
+                  <TableHead>Reorder Recommendations</TableHead>
                   <TableHead>Inventory Health</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                       No approved listings found matching search criteria.
                     </TableCell>
                   </TableRow>
@@ -346,33 +445,57 @@ export const Inventory: React.FC = () => {
                     const isOut = p.stock === 0;
 
                     // Forecasting
-                    const forecast = getProductForecastDetails(p.id, p.stock);
+                    const forecast = getProductForecastDetails(p.id || p._id, p.stock);
 
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow key={p.id || p._id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <img src={p.images[0]} alt={p.name} className="h-8 w-8 rounded object-cover border border-border flex-shrink-0" />
+                            <img src={p.images?.[0] || ''} alt={p.name} className="h-8 w-8 rounded object-cover border border-border flex-shrink-0" />
                             <div className="flex flex-col text-left">
                               <span className="font-bold text-foreground text-xs line-clamp-1">{p.name}</span>
                               <span className="text-[10px] text-muted-foreground">{p.brand}</span>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{p.sku}</TableCell>
-                        <TableCell className="text-xs font-semibold text-muted-foreground">{p.reservedStock} units</TableCell>
+                        <TableCell className="font-mono text-[11px] text-muted-foreground">{p.sku}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-left">
+                            <span className="font-bold text-foreground">Batch: {p.batchNo || 'N/A'}</span>
+                            <span className="text-[10px] text-muted-foreground">Exp: {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-muted-foreground">{p.reservedStock || 0} units</TableCell>
                         <TableCell className="text-xs font-semibold text-foreground">{availableStock} units</TableCell>
                         <TableCell>
                           {isBulkEditMode ? (
                             <input
                               type="number"
-                              value={bulkStocks[p.id] !== undefined ? bulkStocks[p.id] : p.stock}
-                              onChange={(e) => handleBulkChange(p.id, Math.max(0, Number(e.target.value)))}
+                              value={bulkStocks[p.id || p._id] !== undefined ? bulkStocks[p.id || p._id] : p.stock}
+                              onChange={(e) => handleBulkChange(p.id || p._id, Math.max(0, Number(e.target.value)))}
                               className="w-20 border border-border rounded px-1.5 py-0.5 text-xs bg-background text-foreground"
                             />
                           ) : (
                             <span className="text-xs font-bold text-foreground">{p.stock} units</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleQuickAdjust(p.id || p._id, 10)}
+                              className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded cursor-pointer"
+                              title="Add 10 Units"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => handleQuickAdjust(p.id || p._id, -10)}
+                              className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded cursor-pointer"
+                              title="Deduct 10 Units"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                          </div>
                         </TableCell>
                         <TableCell className="text-xs font-semibold text-muted-foreground">{forecast.velocity} units</TableCell>
                         <TableCell>
@@ -411,6 +534,78 @@ export const Inventory: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* STOCK LEDGER HISTORY AUDIT LOGS */}
+      <Card className="glass text-left">
+        <CardHeader className="pb-3 border-b border-border/40">
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Stock Ledger Audit History
+          </CardTitle>
+          <CardDescription>Trace physical inventory movements, purchase orders, and adjustment notes in real-time</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loadingLogs ? (
+            <div className="p-8 text-center text-xs text-muted-foreground italic flex flex-col items-center justify-center gap-2">
+              <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              Loading stock ledger logs...
+            </div>
+          ) : movementLogs.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted-foreground italic">
+              No stock movements logged. Adjust inventory levels to create audit trail logs.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="text-xs">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Logged Time</TableHead>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Qty Changed</TableHead>
+                    <TableHead>Flow Type</TableHead>
+                    <TableHead>Adjustment Reason</TableHead>
+                    <TableHead>Batch No</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movementLogs.map((log: any) => {
+                    const isPositive = log.quantityChanged > 0;
+                    return (
+                      <TableRow key={log._id}>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-bold text-foreground">
+                          {log.productId?.name || 'Deleted Product'}
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground">
+                          {log.productId?.sku || 'N/A'}
+                        </TableCell>
+                        <TableCell className={`font-bold ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {isPositive ? `+${log.quantityChanged}` : log.quantityChanged} units
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={log.type === 'Inbound' ? 'success' : log.type === 'Outbound' ? 'destructive' : 'outline'} className="text-[9px] font-bold uppercase">
+                            {log.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold text-foreground">
+                          {log.reason}
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground">
+                          {log.batchNo}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+export default Inventory;

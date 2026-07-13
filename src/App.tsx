@@ -90,7 +90,7 @@ const MainLayout: React.FC = () => {
       return <Inventory />;
     }
 
-    if (['orders-new', 'orders-all', 'orders-returns'].includes(currentPage)) {
+    if (['orders-new', 'orders-all', 'orders-localshop', 'orders-subscriptions', 'orders-returns'].includes(currentPage)) {
       return <Orders />;
     }
 

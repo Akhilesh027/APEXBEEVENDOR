@@ -80,12 +80,12 @@ export const Sidebar: React.FC = () => {
   // Badge calculations
   const draftProductsCount = products.filter(p => p.status === 'Draft').length;
   const pendingApprovalCount = products.filter(p => p.status === 'Pending Review').length;
-  const awaitingVendorCount = products.filter(p => p.status === 'Awaiting Vendor Approval').length;
-  const changeRequestsCount = products.filter(p => p.status === 'Awaiting Reapproval').length;
-  const approvedCount = products.filter(p => p.status === 'Approved').length;
+  const awaitingVendorCount = products.filter(p => p.status === 'Awaiting Seller Approval' || p.status === 'Awaiting Vendor Approval').length;
+  const changeRequestsCount = products.filter(p => p.status === 'Negotiation Requested' || p.status === 'Awaiting Reapproval').length;
+  const approvedCount = products.filter(p => p.status === 'Live' || p.status === 'Approved').length;
   const rejectedCount = products.filter(p => p.status === 'Rejected').length;
 
-  const lowStockCount = products.filter(p => p.status === 'Approved' && p.stock <= 10 && p.stock > 0).length;
+  const lowStockCount = products.filter(p => (p.status === 'Live' || p.status === 'Approved') && p.stock <= 10 && p.stock > 0).length;
   const outOfStockCount = products.filter(p => p.stock === 0).length;
   const newOrdersCount = orders.filter(o => o.deliveryStatus === 'New').length;
   const returnRequestsCount = orders.filter(o => o.refundStatus === 'Pending').length;
@@ -257,7 +257,9 @@ export const Sidebar: React.FC = () => {
       icon: <ShoppingBag className="h-4 w-4" />,
       subItems: [
         { id: 'orders-new', label: 'New Orders', icon: <Sparkles className="h-3.5 w-3.5 text-sky-500 animate-pulse" />, count: newOrdersCount },
-        { id: 'orders-all', label: 'All Orders', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
+        { id: 'orders-all', label: 'Normal Orders', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
+        { id: 'orders-localshop', label: 'LocalShop Orders', icon: <Store className="h-3.5 w-3.5" /> },
+        { id: 'orders-subscriptions', label: 'Subscription Orders', icon: <Calendar className="h-3.5 w-3.5" /> },
         { id: 'orders-returns', label: 'Return Requests', icon: <XCircle className="h-3.5 w-3.5" />, count: returnRequestsCount }
       ]
     },

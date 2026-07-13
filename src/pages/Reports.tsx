@@ -23,13 +23,75 @@ export const Reports: React.FC = () => {
   const [timeframe, setTimeframe] = useState('monthly');
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
-  const handleExport = (format: string) => {
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    const fetchAnalytics = async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = user.id || user._id;
+      const token = localStorage.getItem("token");
+
+      if (!userId || !token) return;
+
+      try {
+        setLoading(true);
+        const res = await fetch(
+          `https://server.apexbee.in/api/vendor/dashboard/analytics/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const resJson = await res.json();
+        if (res.ok && resJson.success) {
+          setAnalyticsData(resJson.data);
+        }
+      } catch (err) {
+        console.error("Error fetching analytics in reports:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  const handleExport = async (format: string) => {
     setIsExporting(format);
-    setTimeout(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user.id || user._id;
+      const token = localStorage.getItem('token');
+      if (!userId || !token) return;
+
+      const url = `https://server.apexbee.in/api/vendor/reports/export/${userId}?format=${format.toLowerCase()}&reportType=${reportType}&timeframe=${timeframe}`;
+      
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) throw new Error('Failed to generate report file.');
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      let ext = format.toLowerCase();
+      if (ext === 'excel') ext = 'xlsx';
+      link.setAttribute('download', `Report_${reportType}_${timeframe}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err: any) {
+      alert(err.message || 'Error downloading report');
+    } finally {
       setIsExporting(null);
-      // Trigger a mock file download notification
-      alert(`Report successfully compiled! Exported Apex_${reportType}_report_${timeframe}.${format.toLowerCase()}`);
-    }, 1500);
+    }
   };
 
   // Mock report table data for all 8 categories
@@ -126,7 +188,10 @@ export const Reports: React.FC = () => {
   const reportData = getReportData();
 
   // Graph data representing monthly sales trend inside report
-  const chartData = [
+  const chartData = analyticsData?.monthlyRevenue?.map((m: any) => ({
+    name: m.name,
+    sales: m.revenue
+  })) || [
     { name: 'Wk 1', sales: 34000 },
     { name: 'Wk 2', sales: 48000 },
     { name: 'Wk 3', sales: 29000 },

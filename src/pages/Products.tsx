@@ -9,6 +9,8 @@ import {
   Package,
   Wand2,
   ImageIcon,
+  Copy,
+  Archive,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
@@ -108,6 +110,137 @@ export const ProductManagement: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Inline editing states
+  const [inlineStockId, setInlineStockId] = useState<string | null>(null);
+  const [inlineStockVal, setInlineStockVal] = useState<number>(0);
+  const [inlinePriceId, setInlinePriceId] = useState<string | null>(null);
+  const [inlinePriceVal, setInlinePriceVal] = useState<number>(0);
+
+  // AI & action loading states
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  const handleGenerateAiDescription = async () => {
+    if (!form.name) {
+      alert("Please provide a product name before generating suggestions.");
+      return;
+    }
+    try {
+      setAiGenerating(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('https://server.apexbee.in/api/products/ai-generator', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: form.name,
+          categoryName: finalSelectedCategory?.name || 'General Product'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setForm(prev => ({ ...prev, description: data.description }));
+      } else {
+        alert("Failed to generate AI suggestion copy.");
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleDuplicateProduct = async (id: string) => {
+    try {
+      setDuplicatingId(id);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/products/${id}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setSuccessMsg("Product successfully cloned!");
+        fetchData();
+      } else {
+        alert("Failed to duplicate product.");
+      }
+    } catch (err: any) {
+      alert("Error duplicating: " + err.message);
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
+  const handleToggleArchiveProduct = async (id: string, currentlyArchived: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/products/${id}/archive`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isArchived: !currentlyArchived })
+      });
+      if (res.ok) {
+        setSuccessMsg(currentlyArchived ? "Product restored successfully!" : "Product archived!");
+        fetchData();
+      } else {
+        alert("Failed to toggle archive status.");
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleSaveStockInline = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ stock: inlineStockVal })
+      });
+      if (res.ok) {
+        setInlineStockId(null);
+        fetchData();
+      } else {
+        alert("Failed to update stock.");
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleSavePriceInline = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ baseSellingPrice: inlinePriceVal })
+      });
+      if (res.ok) {
+        setInlinePriceId(null);
+        fetchData();
+      } else {
+        alert("Failed to update price.");
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
 
   const [form, setForm] = useState({
     name: '',
@@ -640,11 +773,79 @@ export const ProductManagement: React.FC = () => {
                       .join(' / ') || '-'}
                   </td>
 
-                  <td className="p-3 font-bold">{product.stock}</td>
+                  <td className="p-3 font-bold">
+                    {inlineStockId === product._id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={inlineStockVal}
+                          onChange={(e) => setInlineStockVal(Number(e.target.value))}
+                          className="w-16 p-1 border rounded text-xs bg-background text-foreground focus:outline-none"
+                        />
+                        <button
+                          onClick={() => handleSaveStockInline(product._id)}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={() => setInlineStockId(null)}
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className="group flex items-center gap-1.5 cursor-pointer hover:bg-secondary/40 px-1.5 py-0.5 rounded"
+                        onClick={() => {
+                          setInlineStockId(product._id);
+                          setInlineStockVal(product.stock);
+                        }}
+                        title="Click to quick-edit stock"
+                      >
+                        <span>{product.stock}</span>
+                        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100">✏️</span>
+                      </div>
+                    )}
+                  </td>
 
                   <td className="p-3">
                     <div>MRP: ₹{product.baseMrp}</div>
-                    <div>Selling: ₹{product.baseSellingPrice}</div>
+                    {inlinePriceId === product._id ? (
+                      <div className="flex items-center gap-1 mt-1">
+                        <input
+                          type="number"
+                          value={inlinePriceVal}
+                          onChange={(e) => setInlinePriceVal(Number(e.target.value))}
+                          className="w-16 p-1 border rounded text-xs bg-background text-foreground focus:outline-none"
+                        />
+                        <button
+                          onClick={() => handleSavePriceInline(product._id)}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          onClick={() => setInlinePriceId(null)}
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className="group flex items-center gap-1.5 cursor-pointer hover:bg-secondary/40 px-1.5 py-0.5 rounded mt-0.5"
+                        onClick={() => {
+                          setInlinePriceId(product._id);
+                          setInlinePriceVal(product.baseSellingPrice);
+                        }}
+                        title="Click to quick-edit price"
+                      >
+                        <span>Selling: ₹{product.baseSellingPrice}</span>
+                        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100">✏️</span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="p-3">
@@ -677,22 +878,46 @@ export const ProductManagement: React.FC = () => {
                     >
                       {product.status}
                     </span>
+                    {product.isArchived && (
+                      <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 text-[8px] font-bold rounded uppercase">
+                        Archived
+                      </span>
+                    )}
                   </td>
 
                   <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        onClick={() => handleDuplicateProduct(product._id)}
+                        disabled={duplicatingId === product._id}
+                        title="Duplicate Product (SKU changes)"
+                        className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-60 cursor-pointer"
+                      >
+                        <Copy size={13} />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleArchiveProduct(product._id, product.isArchived || false)}
+                        title={product.isArchived ? "Restore product" : "Soft-archive product"}
+                        className={`p-2 rounded-lg ${
+                          product.isArchived ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-600'
+                        } hover:bg-amber-100/80 cursor-pointer`}
+                      >
+                        <Archive size={13} />
+                      </button>
+
                       <button
                         onClick={() => openEdit(product)}
-                        className="p-2 rounded-lg bg-secondary text-foreground"
+                        className="p-2 rounded-lg bg-secondary text-foreground cursor-pointer"
                       >
-                        <Edit size={14} />
+                        <Edit size={13} />
                       </button>
 
                       <button
                         onClick={() => handleDelete(product._id)}
-                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500"
+                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500 cursor-pointer"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </td>
@@ -1273,10 +1498,20 @@ export const ProductManagement: React.FC = () => {
                 )}
 
                 <div className="rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase">6. Media & Description</h3>
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="text-xs font-bold uppercase">6. Media & Description</h3>
+                    <button
+                      type="button"
+                      disabled={aiGenerating}
+                      onClick={handleGenerateAiDescription}
+                      className="text-[10px] bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer transition"
+                    >
+                      {aiGenerating ? '🤖 Generating copy...' : '🤖 AI Generate Copy'}
+                    </button>
+                  </div>
 
                   <textarea
-                    placeholder="Description"
+                    placeholder="Provide details about product features, batch numbers, or manufacturing/expiry specs..."
                     value={form.description}
                     onChange={(e) =>
                       setForm({ ...form, description: e.target.value })

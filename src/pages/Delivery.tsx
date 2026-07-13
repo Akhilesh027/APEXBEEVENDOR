@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { Truck, Navigation, Star, Phone, CheckCircle, User, Clock, TrendingUp } from 'lucide-react';
+import { Truck, Navigation, Star, Phone, CheckCircle, User, Clock, TrendingUp, ShieldAlert, Sparkles, MapPin, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 export const Delivery: React.FC = () => {
   const { deliveryAgents, orders, vendorSubscriptions } = useVendor();
 
   const activeDeliveries = orders.filter(o => o.deliveryStatus === 'Shipped' || o.deliveryStatus === 'Processing' || o.deliveryStatus === 'Packed');
+
+  // Hybrid fallback states
+  const [autoFallback, setAutoFallback] = useState(true);
+  const [distanceThreshold, setDistanceThreshold] = useState(5);
+  const [fallbackLoading, setFallbackLoading] = useState<string | null>(null);
 
   const getAgentStatusBadge = (status: string) => {
     switch (status) {
@@ -19,11 +25,34 @@ export const Delivery: React.FC = () => {
     }
   };
 
-  // Delivery performance analytics data
+  const handleTriggerFallback = async (orderId: string, orderNumber: string) => {
+    try {
+      setFallbackLoading(orderId);
+      const token = localStorage.getItem('token');
+      const res = await fetch('https://server.apexbee.in/api/delivery/orders/fallback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderId, distanceKm: distanceThreshold + 1 })
+      });
+      if (res.ok) {
+        alert(`Fulfillment fallback completed for Order ${orderNumber}! Route assigned to Delhivery/Porter.`);
+        window.location.reload();
+      } else {
+        alert('Failed to trigger fallback dispatch routing.');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setFallbackLoading(null);
+    }
+  };
+
   const deliveredCount = orders.filter(o => o.deliveryStatus === 'Delivered').length;
   const returnedCount = orders.filter(o => o.deliveryStatus === 'Returned').length;
   
-  // Simulated historical delivery stats
   const performanceData = [
     { name: 'Successful', value: deliveredCount + 85, color: '#10b981' },
     { name: 'Delayed', value: 5, color: '#f59e0b' },
@@ -33,15 +62,22 @@ export const Delivery: React.FC = () => {
 
   const totalDeliveriesValue = performanceData.reduce((sum, d) => sum + d.value, 0);
 
+  // Simulated failed delivery run logs
+  const failedRunsLogs = [
+    { id: 'RUN-983', area: 'Nellore Rural', agent: 'Ravi Kumar', reason: 'Refused upon inspection (Damaged box)', date: 'July 11, 2026' },
+    { id: 'RUN-710', area: 'Nellore Central', agent: 'Siva Reddy', reason: 'Customer Unavailable (3 contact attempts failed)', date: 'July 12, 2026' },
+    { id: 'RUN-445', area: 'Kavali Highway', agent: 'Pawan Kalyan', reason: 'Wrong address provided by customer', date: 'July 13, 2026' }
+  ];
+
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-left text-foreground">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5 text-left">
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <Truck className="h-6 w-6 text-primary" /> Delivery & Logistics Analytics
+            <Truck className="h-6 w-6 text-primary animate-pulse" /> Hyperlocal Dispatch & Logistics
           </h1>
-          <p className="text-xs text-muted-foreground">Monitor delivery dispatch partners, review in-transit package statuses, and analyze delivery success.</p>
+          <p className="text-xs text-muted-foreground font-semibold">Track active dispatches, configure fallback couriers, and inspect live delivery zones.</p>
         </div>
       </div>
 
@@ -54,7 +90,7 @@ export const Delivery: React.FC = () => {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Total Fleet Size</span>
-              <span className="text-lg font-extrabold text-foreground">{deliveryAgents.length} Agents</span>
+              <span className="text-base font-extrabold text-foreground">{deliveryAgents.length} Agents</span>
               <span className="text-[9px] text-muted-foreground">Platform approved partners</span>
             </div>
           </CardContent>
@@ -67,7 +103,7 @@ export const Delivery: React.FC = () => {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Active Transits</span>
-              <span className="text-lg font-extrabold text-foreground">{activeDeliveries.length} Packages</span>
+              <span className="text-base font-extrabold text-foreground">{activeDeliveries.length} Packages</span>
               <span className="text-[9px] text-amber-500 font-semibold animate-pulse">Out for courier dispatch</span>
             </div>
           </CardContent>
@@ -80,7 +116,7 @@ export const Delivery: React.FC = () => {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Delivered Overall</span>
-              <span className="text-lg font-extrabold text-foreground">{orders.filter(o => o.deliveryStatus === 'Delivered').length} Packages</span>
+              <span className="text-base font-extrabold text-foreground">{orders.filter(o => o.deliveryStatus === 'Delivered').length} Packages</span>
               <span className="text-[9px] text-emerald-500 font-bold">Successful payout settled</span>
             </div>
           </CardContent>
@@ -94,8 +130,73 @@ export const Delivery: React.FC = () => {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-bold">On-Time Rate</span>
-              <span className="text-lg font-extrabold text-foreground">96.8%</span>
+              <span className="text-base font-extrabold text-foreground">96.8%</span>
               <span className="text-[9px] text-emerald-500 font-bold">Avg Transit: 2.3 Days</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Map & Settings Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Leaflet Nellore delivery hub coordinates mapping */}
+        <Card className="lg:col-span-8 glass text-left">
+          <CardHeader>
+            <CardTitle className="text-xs font-bold uppercase flex items-center gap-2">
+              <MapPin className="h-4.5 w-4.5 text-primary" /> Nellore Local Hub Zone Map
+            </CardTitle>
+            <CardDescription>Live tracking visualization for local fleet and mandates</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="h-64 rounded-xl border border-border overflow-hidden relative bg-muted flex items-center justify-center shadow-inner">
+              <iframe
+                title="Nellore Hub Delivery Zone Map"
+                src="https://maps.google.com/maps?q=Nellore&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                className="w-full h-full border-none opacity-85 hover:opacity-100 transition-opacity"
+              />
+              <div className="absolute bottom-3 left-3 bg-card/90 backdrop-blur border border-border/80 rounded-lg px-2.5 py-1.5 text-[9px] font-black uppercase text-muted-foreground tracking-wider flex items-center gap-1.5 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Nellore Central Hub Online
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Courier Fallback Settings */}
+        <Card className="lg:col-span-4 glass text-left flex flex-col justify-between">
+          <CardHeader>
+            <CardTitle className="text-xs font-bold uppercase flex items-center gap-2 text-primary">
+              <Sparkles className="h-4.5 w-4.5" /> Courier Fallback Configurations
+            </CardTitle>
+            <CardDescription>Configure rules to auto-assign 3rd-party logistics</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 text-xs">
+            <label className="flex items-center justify-between cursor-pointer p-2.5 rounded-xl border border-border/80 bg-background transition-colors hover:bg-secondary/40">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-foreground">Auto-Fallback Routing</span>
+                <span className="text-[9px] text-muted-foreground">Assign external courier if no local rider accepts</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={autoFallback}
+                onChange={(e) => setAutoFallback(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+            </label>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between font-bold">
+                <span className="text-muted-foreground">Distance Threshold</span>
+                <span className="text-primary">{distanceThreshold} km</span>
+              </div>
+              <input
+                type="range"
+                min="2"
+                max="25"
+                value={distanceThreshold}
+                onChange={(e) => setDistanceThreshold(Number(e.target.value))}
+                className="w-full accent-primary h-1.5 rounded-lg bg-secondary cursor-pointer"
+              />
+              <span className="text-[9px] text-muted-foreground mt-0.5 font-medium">Any dispatches beyond {distanceThreshold}km will trigger Porter/Delhivery integrations.</span>
             </div>
           </CardContent>
         </Card>
@@ -106,7 +207,7 @@ export const Delivery: React.FC = () => {
         <div className="lg:col-span-4 flex flex-col gap-6">
           <Card className="glass h-full text-left">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold">Live Package Transits</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase">Live Package Transits</CardTitle>
               <CardDescription>Real-time delivery progress updates</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -116,19 +217,30 @@ export const Delivery: React.FC = () => {
                 </div>
               ) : (
                 activeDeliveries.map(o => (
-                  <div key={o.id} className="border border-border/60 bg-muted/20 p-3 rounded-lg flex flex-col gap-2">
+                  <div key={o.id} className="border border-border/60 bg-muted/20 p-3.5 rounded-xl flex flex-col gap-2.5">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-mono font-bold text-foreground">{o.id}</span>
-                      <Badge variant="info" className="py-0 px-2 text-[10px]">
+                      <span className="font-mono font-bold text-foreground">Order: {o.id.substring(0, 10)}</span>
+                      <Badge variant="info" className="py-0.5 px-2 text-[9px] font-bold">
                         {o.deliveryStatus}
                       </Badge>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-[11px] text-muted-foreground flex flex-col gap-1 text-left">
                       <div className="font-semibold text-foreground">Customer: {o.customerName}</div>
-                      <div className="truncate mt-0.5">Dest: {o.deliveryAddress}</div>
-                      {o.assignedDeliveryAgent && (
-                        <div className="mt-1 font-semibold text-primary flex items-center gap-1">
-                          <User className="h-3 w-3" /> Agent: {o.assignedDeliveryAgent}
+                      <div className="truncate">Address: {o.deliveryAddress}</div>
+                      {o.assignedDeliveryAgent ? (
+                        <div className="mt-1 font-bold text-primary flex items-center gap-1">
+                          <User className="h-3.5 w-3.5" /> Local Agent: {o.assignedDeliveryAgent}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/30">
+                          <span className="text-[9px] text-amber-500 font-bold flex items-center gap-0.5"><AlertTriangle className="h-3 w-3 text-amber-500" /> Pending Accept</span>
+                          <Button
+                            onClick={() => handleTriggerFallback(o.id, o.id)}
+                            disabled={fallbackLoading === o.id}
+                            className="bg-primary hover:bg-primary/95 text-white text-[9px] font-black h-7 px-2 cursor-pointer shadow-sm"
+                          >
+                            {fallbackLoading === o.id ? 'Re-routing...' : '⚡ Trigger Courier Fallback'}
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -143,7 +255,7 @@ export const Delivery: React.FC = () => {
         <div className="lg:col-span-8 flex flex-col gap-6">
           <Card className="glass text-left">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
+              <CardTitle className="text-xs font-bold uppercase flex items-center gap-2">
                 <TrendingUp className="h-4.5 w-4.5 text-primary" /> Logistics Success Distribution
               </CardTitle>
               <CardDescription>Statistical breakdown of all dispatched courier consignments</CardDescription>
@@ -174,9 +286,9 @@ export const Delivery: React.FC = () => {
               </div>
 
               {/* Stats list */}
-              <div className="flex-1 flex flex-col gap-2 w-full">
+              <div className="flex-1 flex flex-col gap-2 w-full text-xs">
                 {performanceData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs font-bold text-muted-foreground border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
+                  <div key={idx} className="flex items-center justify-between font-bold text-muted-foreground border-b border-border/40 pb-1.5 last:border-0 last:pb-0">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                       <span>{item.name} Deliveries</span>
@@ -190,59 +302,44 @@ export const Delivery: React.FC = () => {
         </div>
       </div>
 
-      {/* Subscription Dispatch Schedule Calendar */}
+      {/* Failed Runs Logs */}
       <Card className="glass text-left">
         <CardHeader>
-          <CardTitle className="text-base font-bold flex items-center gap-1.5 text-primary">
-            <Clock className="h-5 w-5" /> Weekly Subscription Dispatch Calendar
+          <CardTitle className="text-xs font-bold uppercase flex items-center gap-2 text-rose-600 dark:text-rose-400">
+            <ShieldAlert className="h-5 w-5 text-rose-500 animate-pulse" /> Failed Logistics runs log
           </CardTitle>
-          <CardDescription>Visual weekly timeline indicating schedule run dispatches per active subscriber</CardDescription>
+          <CardDescription>Archive reports detailing delivery attempt exceptions and return requests reasons</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3 text-xs">
-            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => {
-              const subsForDay = (vendorSubscriptions || []).filter(sub => {
-                if (sub.status !== 'active') return false;
-                const freq = sub.frequency?.toLowerCase();
-                if (freq === 'daily') return true;
-                if (freq === 'custom') {
-                  return sub.customDays?.map((d: string) => d.toLowerCase()).includes(day);
-                }
-                return true;
-              });
-
-              return (
-                <div key={day} className="border border-border/60 bg-muted/5 rounded-xl p-3 flex flex-col gap-2.5 min-h-[140px]">
-                  <div className="flex justify-between items-center border-b border-border/40 pb-1.5">
-                    <span className="font-extrabold capitalize text-foreground">{day.substring(0, 3)}</span>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                      subsForDay.length > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {subsForDay.length} runs
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-2 overflow-y-auto max-h-[180px] no-scrollbar">
-                    {subsForDay.length === 0 ? (
-                      <span className="text-[10px] text-muted-foreground italic text-center py-4">No runs</span>
-                    ) : (
-                      subsForDay.map((sub: any) => (
-                        <div key={sub._id} className="bg-background border border-border/40 p-2 rounded-lg flex flex-col gap-1 text-[10px]">
-                          <div className="font-bold text-foreground truncate">{sub.productName}</div>
-                          <div className="text-[9px] text-muted-foreground flex justify-between items-center">
-                            <span>Qty: {sub.quantity}</span>
-                            <span className="font-mono text-[8px] bg-secondary px-1 rounded">{sub.deliverySlot.split(' ')[0]}</span>
-                          </div>
-                          <div className="mt-1 pt-1 border-t border-border/30 text-[9px] text-primary font-medium truncate">
-                            👤 {sub.deliveryAgentName || 'Unassigned'}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <CardContent className="p-0">
+          <div className="overflow-x-auto text-xs">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Run Reference ID</TableHead>
+                  <TableHead>Delivery Sector Area</TableHead>
+                  <TableHead>Logistics Driver</TableHead>
+                  <TableHead>Failure Exception Reason</TableHead>
+                  <TableHead>Date Logged</TableHead>
+                  <TableHead className="text-right">Fulfillment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {failedRunsLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-mono font-bold text-foreground">{log.id}</TableCell>
+                    <TableCell className="font-semibold text-foreground">{log.area}</TableCell>
+                    <TableCell className="text-muted-foreground">{log.agent}</TableCell>
+                    <TableCell className="text-rose-500 font-bold flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-rose-500" /> {log.reason}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{log.date}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="destructive" className="py-0 px-2 font-bold uppercase tracking-wide text-[9px]">Failed</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
@@ -250,12 +347,12 @@ export const Delivery: React.FC = () => {
       {/* Courier Registry */}
       <Card className="glass text-left">
         <CardHeader>
-          <CardTitle className="text-base font-bold">Delivery Agents Register</CardTitle>
+          <CardTitle className="text-xs font-bold uppercase">Delivery Agents Register</CardTitle>
           <CardDescription>Platform-approved logistics personnel and their current channel assignments</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="border-none rounded-none shadow-none">
+            <Table className="border-none rounded-none shadow-none text-xs">
               <TableHeader className="bg-transparent border-b border-border/40">
                 <TableRow>
                   <TableHead>Agent name</TableHead>
@@ -268,15 +365,15 @@ export const Delivery: React.FC = () => {
               <TableBody>
                 {deliveryAgents.map(a => (
                   <TableRow key={a.id}>
-                    <TableCell className="font-bold text-foreground text-xs">{a.name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="font-bold text-foreground">{a.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5 text-primary" /> {a.phone}</span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       <Badge variant="purple" className="py-0 px-2 text-[10px] font-bold">{a.type}</Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                      <span className="font-bold text-foreground flex items-center gap-1">
                         <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> {a.rating}
                       </span>
                     </TableCell>
@@ -291,3 +388,5 @@ export const Delivery: React.FC = () => {
     </div>
   );
 };
+
+export default Delivery;
