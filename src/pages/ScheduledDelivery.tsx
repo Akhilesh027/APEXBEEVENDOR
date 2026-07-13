@@ -11,7 +11,7 @@ export const ScheduledDelivery: React.FC = () => {
   const [address, setAddress] = useState(' Nellore Warehouse Main Gate, Sector 3');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slot, setSlot] = useState('09:00 AM - 12:00 PM');
-  
+
   // Slot capacity info from DB
   const [maxOrders, setMaxOrders] = useState<number>(20);
   const [bookedCount, setBookedCount] = useState<number>(0);
@@ -22,7 +22,18 @@ export const ScheduledDelivery: React.FC = () => {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  
+
+  // Specs States
+  const [selectedAreaGroup, setSelectedAreaGroup] = useState<string | null>(null);
+  const [areaGroups, setAreaGroups] = useState([
+    { id: 'sec-1', name: 'Nellore North Sector A (Grand Trunk Rd)', orders: 8, driver: 'Ramesh K (Platform)', status: 'Routed' },
+    { id: 'sec-2', name: 'Nellore Downtown Sector B (VRC Centre)', orders: 14, driver: 'None (Unassigned)', status: 'Pending Assign' },
+    { id: 'sec-3', name: 'Nellore West Sector C (Podalakur Rd)', orders: 5, driver: 'Suresh M (Vendor Partner)', status: 'Routed' }
+  ]);
+
+  const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
+  const [tempDriver, setTempDriver] = useState('Ramesh K (Platform)');
+
   // Custom 7-day calendar sliding window starting from today
   const calendarDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -178,7 +189,7 @@ export const ScheduledDelivery: React.FC = () => {
                     <CheckCircle className="h-4 w-4 text-emerald-500" /> {msg}
                   </div>
                 )}
-                
+
                 <div className="flex flex-col gap-1">
                   <label className="font-bold text-muted-foreground">Warehouse Point *</label>
                   <textarea
@@ -267,7 +278,7 @@ export const ScheduledDelivery: React.FC = () => {
                 {calendarDays.map((c) => {
                   const hasSchedules = scheduledPickups.some(p => p.pickupDate === c.dateString);
                   const isSelected = selectedCalendarDate === c.dateString;
-                  
+
                   return (
                     <button
                       key={c.dateString}
@@ -275,11 +286,10 @@ export const ScheduledDelivery: React.FC = () => {
                         setSelectedCalendarDate(c.dateString);
                         setDate(c.dateString);
                       }}
-                      className={`flex flex-col items-center p-2 rounded-xl border transition cursor-pointer relative ${
-                        isSelected
+                      className={`flex flex-col items-center p-2 rounded-xl border transition cursor-pointer relative ${isSelected
                           ? 'border-primary bg-primary/10 text-primary font-black shadow-sm ring-1 ring-primary'
                           : 'border-border bg-background hover:bg-secondary/50 text-foreground'
-                      }`}
+                        }`}
                     >
                       <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{c.dayName}</span>
                       <span className="text-base font-extrabold mt-1">{c.dayNum}</span>
@@ -320,13 +330,12 @@ export const ScheduledDelivery: React.FC = () => {
               {/* Progress bar */}
               <div className="w-full bg-secondary/80 rounded-full h-3.5 overflow-hidden border border-border/30">
                 <div
-                  className={`h-full transition-all duration-350 ${
-                    capacityPercent > 80
+                  className={`h-full transition-all duration-350 ${capacityPercent > 80
                       ? 'bg-rose-500'
                       : capacityPercent > 50
-                      ? 'bg-amber-500'
-                      : 'bg-emerald-500'
-                  }`}
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
+                    }`}
                   style={{ width: `${capacityPercent}%` }}
                 />
               </div>

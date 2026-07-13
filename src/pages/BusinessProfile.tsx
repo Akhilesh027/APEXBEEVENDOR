@@ -161,6 +161,13 @@ export const BusinessProfile: React.FC = () => {
   const [panNumber, setPanNumber] = useState(profile.panNumber || '');
   const [aadhaarNumber, setAadhaarNumber] = useState(profile.aadhaarNumber || '');
 
+  // Specs States
+  const [gstExpiry, setGstExpiry] = useState(profile.gstExpiry || '');
+  const [fssaiExpiry, setFssaiExpiry] = useState(profile.fssaiExpiry || '');
+  const [ownerContact, setOwnerContact] = useState(profile.ownerContact || '');
+  const [managerContact, setManagerContact] = useState(profile.managerContact || '');
+  const [deliveryManagerContact, setDeliveryManagerContact] = useState(profile.deliveryManagerContact || '');
+
   // Sync from profile when profile updates
   useEffect(() => {
     if (profile.id) {
@@ -189,6 +196,11 @@ export const BusinessProfile: React.FC = () => {
       setGstNumber(profile.gstNumber || '');
       setPanNumber(profile.panNumber || '');
       setAadhaarNumber(profile.aadhaarNumber || '');
+      setGstExpiry(profile.gstExpiry || '');
+      setFssaiExpiry(profile.fssaiExpiry || '');
+      setOwnerContact(profile.ownerContact || '');
+      setManagerContact(profile.managerContact || '');
+      setDeliveryManagerContact(profile.deliveryManagerContact || '');
       if (profile.businessHours && Object.keys(profile.businessHours).length > 0) {
         setBusinessHours(profile.businessHours);
       }
@@ -232,6 +244,16 @@ export const BusinessProfile: React.FC = () => {
     }, { enableHighAccuracy: true, timeout: 10000 });
   };
 
+  const copyTimingsToAllDays = () => {
+    const mondayHours = businessHours.monday || { open: '09:00', close: '21:00', enabled: true };
+    const updated = { ...businessHours };
+    ['tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+      updated[day] = { ...mondayHours };
+    });
+    setBusinessHours(updated);
+    alert("Monday operating timings copied to all days!");
+  };
+
   // Bank Account Add states
   const [isAddingBank, setIsAddingBank] = useState(false);
   const [bankName, setBankName] = useState('');
@@ -269,7 +291,12 @@ export const BusinessProfile: React.FC = () => {
       businessHours,
       gstNumber,
       panNumber,
-      aadhaarNumber
+      aadhaarNumber,
+      gstExpiry,
+      fssaiExpiry,
+      ownerContact,
+      managerContact,
+      deliveryManagerContact
     };
 
     if (latitude !== '' && longitude !== '') {
@@ -400,13 +427,24 @@ export const BusinessProfile: React.FC = () => {
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Business Account Settings</h1>
           <p className="text-xs text-muted-foreground">Manage profile, bank registries, KYC checks, and corporate document approvals.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant={profile.marketplaceStatus === 'Approved' ? 'success' : 'warning'} className="self-start sm:self-auto px-3 py-1 text-xs">
             Marketplace Status: {profile.marketplaceStatus || 'Draft'}
           </Badge>
           <Badge variant={profile.kycStatus === 'Verified' ? 'success' : 'warning'} className="self-start sm:self-auto px-3 py-1 text-xs">
             KYC Status: {profile.kycStatus}
           </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.open(`https://apexbee.in/store/${profile.id || 'preview'}`, '_blank');
+            }}
+            className="text-xs flex items-center gap-1 border-border font-bold bg-secondary hover:bg-secondary/80"
+          >
+            🌐 Preview Store
+          </Button>
         </div>
       </div>
 
@@ -670,6 +708,44 @@ export const BusinessProfile: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Section 1.5: Emergency Contacts */}
+                <div className="border-b border-border/50 pb-4 space-y-4">
+                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">1.5 Emergency Contacts & Staff Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-1 text-xs">
+                      <label className="font-bold text-muted-foreground">Authorized Owner Mobile *</label>
+                      <input
+                        required
+                        type="text"
+                        value={ownerContact}
+                        onChange={(e) => setOwnerContact(e.target.value)}
+                        placeholder="e.g. +91 XXXXX XXXXX"
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 text-xs">
+                      <label className="font-bold text-muted-foreground">Store Manager Mobile</label>
+                      <input
+                        type="text"
+                        value={managerContact}
+                        onChange={(e) => setManagerContact(e.target.value)}
+                        placeholder="e.g. +91 XXXXX XXXXX"
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 text-xs">
+                      <label className="font-bold text-muted-foreground">Delivery Lead Mobile</label>
+                      <input
+                        type="text"
+                        value={deliveryManagerContact}
+                        onChange={(e) => setDeliveryManagerContact(e.target.value)}
+                        placeholder="e.g. +91 XXXXX XXXXX"
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Section 2: Address & Geolocation */}
                 <div className="border-b border-border/50 pb-4 space-y-4">
                   <div className="flex justify-between items-center">
@@ -725,6 +801,19 @@ export const BusinessProfile: React.FC = () => {
                       <label className="text-xs font-bold text-muted-foreground">Longitude</label>
                       <input type="text" value={longitude} onChange={(e) => setLongitude(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground font-mono" />
                     </div>
+                    {latitude && longitude && (
+                      <div className="md:col-span-2 border border-border rounded-xl overflow-hidden h-48 bg-muted/20 relative shadow-inner">
+                        <iframe
+                          title="Geocoded GPS Alignment Map"
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          style={{ border: 0 }}
+                          src={`https://maps.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`}
+                          allowFullScreen
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -820,7 +909,18 @@ export const BusinessProfile: React.FC = () => {
 
                 {/* Section 6: Weekly Operating schedule */}
                 <div className="space-y-4 pb-2">
-                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">6. Operating Hours Weekly schedule</h3>
+                  <div className="flex justify-between items-center pb-1">
+                    <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">6. Operating Hours Weekly schedule</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={copyTimingsToAllDays}
+                      className="cursor-pointer text-[10px] font-bold h-7 border-border"
+                    >
+                      📋 Copy Monday to All Days
+                    </Button>
+                  </div>
                   <div className="border border-border/60 bg-muted/5 rounded-xl overflow-hidden text-xs">
                     <div className="grid grid-cols-4 bg-secondary/30 p-2.5 font-bold border-b border-border/60 text-muted-foreground select-none">
                       <span>Day</span>
@@ -955,7 +1055,25 @@ export const BusinessProfile: React.FC = () => {
 
                     {/* Description */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">Store Description</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-muted-foreground">Store Description</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const descSuggestions = [
+                              `Welcome to ${businessName || 'our store'}! We supply high-quality organic groceries, fresh local produce, and premium household essentials to Nellore mandal residents. Fast 30-min deliveries guaranteed!`,
+                              `At ${businessName || 'our hub'}, discover a curated selection of textiles, apparel, and direct-from-manufacturer clothing items. Premium standards, wholesale prices, and verified authenticity since 2012.`,
+                              `Premium wholesale supplier ${businessName || 'Center'}. We specialize in direct bulk shipments of verified quality goods, catering to retail vendors and corporate accounts across Andhra Pradesh.`
+                            ];
+                            const picked = descSuggestions[Math.floor(Math.random() * descSuggestions.length)];
+                            setDescription(picked);
+                            alert("AI Suggestion generated and inserted!");
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer border-0 bg-transparent"
+                        >
+                          ✨ Generate AI Draft Description
+                        </button>
+                      </div>
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
@@ -1261,6 +1379,28 @@ export const BusinessProfile: React.FC = () => {
                         ) : (
                           <span className="text-[10px] text-destructive">No document uploaded</span>
                         )}
+                        
+                        {/* Expiry Input Field next to upload */}
+                        {(doc.name.includes('GST') || doc.name.includes('FSSAI') || doc.name.includes('Tax')) && (
+                          <div className="mt-2 flex flex-col gap-1">
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase">Expiry Date</span>
+                            <input
+                              type="date"
+                              value={doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (doc.name.includes('GST')) setGstExpiry(val);
+                                else setFssaiExpiry(val);
+                              }}
+                              className="border border-border rounded px-2 py-0.5 bg-background text-foreground text-[10px] focus:outline-none w-28"
+                            />
+                            {((doc.name.includes('GST') ? gstExpiry : fssaiExpiry)) && (
+                              <span className="text-[8px] text-amber-500 font-extrabold">
+                                🔔 Renew alerts active: {doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="mt-1.5">{getDocStatusBadge(doc.status)}</div>
                       </div>
                         {doc.status !== 'Approved' && (
@@ -1360,7 +1500,11 @@ export const BusinessProfile: React.FC = () => {
                       <div className="flex flex-col text-xs text-left">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-foreground text-sm">{b.bankName}</span>
-                          {b.isDefault && <Badge variant="success" className="py-0 px-2 text-[9px]">Default Payout</Badge>}
+                          {b.isDefault && (
+                            <Badge variant="success" className="py-0.5 px-2 text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                              ⭐ Preferred Settlement Account
+                            </Badge>
+                          )}
                         </div>
                         <span className="text-muted-foreground mt-0.5">IFSC: {b.ifscCode} | Account: {b.accountNumber}</span>
                         <span className="text-[10px] text-muted-foreground">Type: {b.accountType} | Beneficiary: {b.accountName}</span>

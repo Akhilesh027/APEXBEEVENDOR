@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Star, MessageSquare, Reply, TrendingUp, Sparkles, Smile, Frown } from 'lucide-react';
+import { Star, MessageSquare, Reply, TrendingUp, Sparkles, Smile, Frown, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+
+const API_BASE = 'https://server.apexbee.in/api';
+
+interface StoreReview {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  date: string;
+  reply?: string;
+  replyDate?: string;
+}
 
 export const ReviewsRatings: React.FC = () => {
   const { reviews, products, submitReviewReply, profile } = useVendor();
@@ -12,26 +24,78 @@ export const ReviewsRatings: React.FC = () => {
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
 
-  // Store overall stats
-  const totalReviews = reviews.length + 12; // baseline mock reviews
-  const avgRating = 4.4;
+  // Real store reviews from API
+  const [storeReviews, setStoreReviews] = useState<StoreReview[]>([]);
+  const [storeReviewsLoading, setStoreReviewsLoading] = useState(false);
+
+  // Compute real stats from context reviews (product reviews)
+  const totalReviews = reviews.length;
+  const avgRating = reviews.length > 0
+    ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+    : 0;
+
+  // Build rating distribution from real reviews
   const ratingDistribution = [
-    { stars: '5 Stars', count: 32, fill: '#10b981' },
-    { stars: '4 Stars', count: 12, fill: '#34d399' },
-    { stars: '3 Stars', count: 4, fill: '#f59e0b' },
-    { stars: '2 Stars', count: 2, fill: '#fbbf24' },
-    { stars: '1 Star', count: 1, fill: '#ef4444' }
+    { stars: '5 Stars', count: reviews.filter(r => r.rating === 5).length, fill: '#10b981' },
+    { stars: '4 Stars', count: reviews.filter(r => r.rating === 4).length, fill: '#34d399' },
+    { stars: '3 Stars', count: reviews.filter(r => r.rating === 3).length, fill: '#f59e0b' },
+    { stars: '2 Stars', count: reviews.filter(r => r.rating === 2).length, fill: '#fbbf24' },
+    { stars: '1 Star',  count: reviews.filter(r => r.rating === 1).length, fill: '#ef4444' },
   ];
 
-  // Store reviews mock
-  const storeReviews = [
-    { id: 'SREV-1', customerName: 'Ramesh Patil', rating: 5, comment: `Very fast dispatch. Ordered items were packaged extremely well. ${profile.businessName} is one of the most reliable apparel suppliers on the platform.`, date: '2026-06-10', reply: 'Thank you Ramesh! We do our best to dispatch within 24 hours.' },
-    { id: 'SREV-2', customerName: 'Priyanka Sen', rating: 4, comment: 'Product design is lovely, return policies are very straightforward. Sizing fits well.', date: '2026-06-07' }
-  ];
+  const positiveCount = reviews.filter(r => r.rating >= 4).length;
+  const positivePercent = reviews.length > 0
+    ? Math.round((positiveCount / reviews.length) * 100)
+    : 0;
 
-  // Most loved / lowest rated products calculations
-  const lovedProducts = products.slice(0, 2);
-  const lowestProducts = products.slice(2, 3);
+  // Products sorted by rating (real data)
+  const lovedProducts = [...products]
+    .filter(p => p.rating !== undefined && p.rating >= 4)
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 3);
+
+  const lowestProducts = [...products]
+    .filter(p => p.rating !== undefined && p.rating < 3)
+    .sort((a, b) => (a.rating || 0) - (b.rating || 0))
+    .slice(0, 3);
+
+  // Fetch store-level reviews from API
+  useEffect(() => {
+    const fetchStoreReviews = async () => {
+      const token = localStorage.getItem('token');
+      const vendorId = profile?.id || profile?._id || (profile as any)?.userId;
+      if (!vendorId || !token) return;
+
+      setStoreReviewsLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/vendors/${vendorId}/reviews`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data?.reviews) ? data.reviews : [];
+          setStoreReviews(list.map((r: any) => ({
+            id: r._id || r.id,
+            customerName: r.customerName || r.user?.name || 'Anonymous',
+            rating: r.rating || 0,
+            comment: r.comment || r.review || '',
+            date: r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '',
+            reply: r.vendorReply || r.reply,
+            replyDate: r.replyDate ? new Date(r.replyDate).toLocaleDateString('en-IN') : undefined,
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch store reviews:', err);
+      } finally {
+        setStoreReviewsLoading(false);
+      }
+    };
+
+    fetchStoreReviews();
+  }, [profile]);
+
+  // Most loved product (highest rating among real products)
+  const topProduct = lovedProducts[0];
 
   const handleReplySubmit = (reviewId: string) => {
     const replyText = replyInputs[reviewId];
@@ -61,7 +125,7 @@ export const ReviewsRatings: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Reviews & Ratings</h1>
+          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Reviews &amp; Ratings</h1>
           <p className="text-xs text-muted-foreground">Interact with customer feedback, analyze rating metrics, and inspect product reviews.</p>
         </div>
       </div>
@@ -93,8 +157,8 @@ export const ReviewsRatings: React.FC = () => {
         <Card className="flex items-center justify-between p-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] uppercase font-bold text-muted-foreground">Store Rating</span>
-            <span className="text-2xl font-black text-foreground">{avgRating} / 5.0</span>
-            <div className="mt-1">{getStarRating(4)}</div>
+            <span className="text-2xl font-black text-foreground">{avgRating > 0 ? `${avgRating} / 5.0` : '—'}</span>
+            <div className="mt-1">{getStarRating(Math.round(avgRating))}</div>
           </div>
           <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl">
             <Star className="h-6 w-6 fill-amber-500/35" />
@@ -105,7 +169,9 @@ export const ReviewsRatings: React.FC = () => {
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Reviews</span>
             <span className="text-2xl font-black text-foreground">{totalReviews} Received</span>
-            <span className="text-[10px] text-emerald-500 font-medium">94.5% positive rating</span>
+            <span className="text-[10px] text-emerald-500 font-medium">
+              {totalReviews > 0 ? `${positivePercent}% positive rating` : 'No reviews yet'}
+            </span>
           </div>
           <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 rounded-xl">
             <MessageSquare className="h-6 w-6" />
@@ -114,9 +180,15 @@ export const ReviewsRatings: React.FC = () => {
 
         <Card className="flex items-center justify-between p-4">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground">Loved Product</span>
-            <span className="text-sm font-black text-foreground truncate max-w-[200px] block">Classic Silk Nehru Jacket</span>
-            <span className="text-[10px] text-amber-500 font-bold">★ 4.8 Rating (38 reviews)</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground">Top Loved Product</span>
+            {topProduct ? (
+              <>
+                <span className="text-sm font-black text-foreground truncate max-w-[200px] block">{topProduct.name}</span>
+                <span className="text-[10px] text-amber-500 font-bold">★ {topProduct.rating?.toFixed(1) || '—'} Rating</span>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">No rated products yet</span>
+            )}
           </div>
           <div className="p-3 bg-purple-500/10 border border-purple-500/20 text-purple-500 rounded-xl">
             <Sparkles className="h-6 w-6" />
@@ -128,7 +200,9 @@ export const ReviewsRatings: React.FC = () => {
       <div className="flex flex-col gap-4">
         {activeTab === 'product' && (
           <div className="flex flex-col gap-4">
-            {reviews.map(rev => (
+            {reviews.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No product reviews received yet.</div>
+            ) : reviews.map(rev => (
               <Card key={rev.id} className="border border-border/80 hover:border-muted-foreground/30 transition-all">
                 <CardContent className="p-4 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
@@ -140,7 +214,7 @@ export const ReviewsRatings: React.FC = () => {
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    "{rev.comment}"
+                    &quot;{rev.comment}&quot;
                   </p>
 
                   {/* Reply timeline */}
@@ -152,7 +226,7 @@ export const ReviewsRatings: React.FC = () => {
                         </span>
                         {rev.replyDate && <span className="text-[10px] text-muted-foreground">{rev.replyDate}</span>}
                       </div>
-                      <p className="text-muted-foreground mt-0.5">"{rev.reply}"</p>
+                      <p className="text-muted-foreground mt-0.5">&quot;{rev.reply}&quot;</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2 pt-1">
@@ -194,7 +268,14 @@ export const ReviewsRatings: React.FC = () => {
 
         {activeTab === 'store' && (
           <div className="flex flex-col gap-4">
-            {storeReviews.map(rev => (
+            {storeReviewsLoading ? (
+              <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading store reviews...</span>
+              </div>
+            ) : storeReviews.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No store reviews received yet.</div>
+            ) : storeReviews.map(rev => (
               <Card key={rev.id} className="border border-border/80">
                 <CardContent className="p-4 flex flex-col gap-2">
                   <div className="flex justify-between items-start">
@@ -204,13 +285,13 @@ export const ReviewsRatings: React.FC = () => {
                     </div>
                     <div>{getStarRating(rev.rating)}</div>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">"{rev.comment}"</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">&quot;{rev.comment}&quot;</p>
                   {rev.reply && (
                     <div className="bg-secondary/45 border-l-2 border-primary p-3 rounded-r-lg flex flex-col gap-1 text-xs mt-2">
                       <span className="font-bold text-primary flex items-center gap-1">
                         <Reply className="h-3.5 w-3.5" /> Store Response
                       </span>
-                      <p className="text-muted-foreground mt-0.5">"{rev.reply}"</p>
+                      <p className="text-muted-foreground mt-0.5">&quot;{rev.reply}&quot;</p>
                     </div>
                   )}
                 </CardContent>
@@ -227,19 +308,23 @@ export const ReviewsRatings: React.FC = () => {
                 <CardDescription>Breakdown of ratings count received across catalog items.</CardDescription>
               </CardHeader>
               <CardContent className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ratingDistribution} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border/40" />
-                    <XAxis type="number" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} />
-                    <YAxis dataKey="stars" type="category" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                      {ratingDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {ratingDistribution.every(d => d.count === 0) ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No review data yet.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={ratingDistribution} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border/40" />
+                      <XAxis type="number" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} />
+                      <YAxis dataKey="stars" type="category" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {ratingDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -251,10 +336,12 @@ export const ReviewsRatings: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 divide-y divide-border/40">
-                  {lovedProducts.map(p => (
+                  {lovedProducts.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground">No high-rated products yet.</div>
+                  ) : lovedProducts.map(p => (
                     <div key={p.id} className="p-3 flex items-center justify-between text-xs">
                       <span className="font-bold text-foreground truncate max-w-[180px]">{p.name}</span>
-                      <Badge variant="success" className="font-bold">★ 4.8 Rating</Badge>
+                      <Badge variant="success" className="font-bold">★ {p.rating?.toFixed(1)} Rating</Badge>
                     </div>
                   ))}
                 </CardContent>
@@ -267,15 +354,14 @@ export const ReviewsRatings: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 divide-y divide-border/40">
-                  {lowestProducts.map(p => (
+                  {lowestProducts.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground">No critical rating alerts.</div>
+                  ) : lowestProducts.map(p => (
                     <div key={p.id} className="p-3 flex items-center justify-between text-xs">
                       <span className="font-bold text-foreground truncate max-w-[180px]">{p.name}</span>
-                      <Badge variant="destructive" className="font-bold">★ 2.0 Rating</Badge>
+                      <Badge variant="destructive" className="font-bold">★ {p.rating?.toFixed(1)} Rating</Badge>
                     </div>
                   ))}
-                  {lowestProducts.length === 0 && (
-                    <div className="p-4 text-center text-xs text-muted-foreground">No critical rating alerts.</div>
-                  )}
                 </CardContent>
               </Card>
             </div>

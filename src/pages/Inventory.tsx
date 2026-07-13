@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 
-import { AlertTriangle, ShieldCheck, CheckCircle2, Save, Search, TrendingUp, Clock, Plus, Minus, History } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Save, Search, TrendingUp, Clock, Plus, Minus, History, ChevronRight } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -34,6 +34,18 @@ export const Inventory: React.FC = () => {
 
   // Threshold config
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
+
+  // Specs States
+  const [showExpiryModal, setShowExpiryModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannedCode, setScannedCode] = useState('');
+  const [warehouseSectors] = useState<Record<string, string>>({
+    'PROD-1': 'Aisle A1-Shelf 3',
+    'PROD-2': 'Aisle B2-Shelf 1',
+    'PROD-3': 'Aisle C1-Shelf 4'
+  });
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [timelineProduct, setTimelineProduct] = useState<any | null>(null);
 
   const fetchMovementLogs = async () => {
     const token = localStorage.getItem('token');
@@ -162,7 +174,7 @@ export const Inventory: React.FC = () => {
 
   // Calculate stock metrics
   const totalStockValuation = products.reduce((sum, p) => sum + (p.stock * p.price), 0);
-  const totalStockCount = products.reduce((sum, p) => sum + p.stock, 0);
+
   
   // Recharts data for inventory stock distribution
   const chartData = products
@@ -189,7 +201,26 @@ export const Inventory: React.FC = () => {
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Inventory Management</h1>
           <p className="text-xs text-muted-foreground">Monitor stock health, execute bulk updates, and configure automatic alerts.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExpiryModal(true)}
+            className="cursor-pointer font-bold text-xs border-border flex items-center gap-1 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+          >
+            ⚠️ Expiring Batches
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowScannerModal(true)}
+            className="cursor-pointer font-bold text-xs border-border flex items-center gap-1 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20"
+          >
+            🔬 Barcode Scanner Mock
+          </Button>
+
           {isBulkEditMode ? (
             <div className="flex items-center gap-2">
               <select
@@ -237,12 +268,25 @@ export const Inventory: React.FC = () => {
         </Card>
         <Card className="glass">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs select-none">
+              {(() => {
+                const total = products.length || 1;
+                const low = products.filter(p => p.stock <= lowStockThreshold).length;
+                return Math.max(0, Math.round(((total - low) / total) * 100));
+              })()}%
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold">Stock Capacity</span>
-              <span className="text-lg font-extrabold text-foreground">{totalStockCount} units</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Stock Health Score</span>
+              <span className="text-sm font-extrabold text-foreground">
+                {(() => {
+                  const total = products.length || 1;
+                  const low = products.filter(p => p.stock <= lowStockThreshold).length;
+                  const score = Math.max(0, Math.round(((total - low) / total) * 100));
+                  if (score >= 90) return '🟢 Optimal Health';
+                  if (score >= 70) return '🟡 Warning Alert';
+                  return '🔴 Critical Attention';
+                })()}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -420,7 +464,7 @@ export const Inventory: React.FC = () => {
                 <TableRow>
                   <TableHead>Listing</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Batch Specs</TableHead>
+                  <TableHead>Batch & Sector</TableHead>
                   <TableHead>Reserved Stock</TableHead>
                   <TableHead>Available (Sellable)</TableHead>
                   <TableHead>Total Stock</TableHead>
@@ -428,13 +472,15 @@ export const Inventory: React.FC = () => {
                   <TableHead>Est. Velocity / Day</TableHead>
                   <TableHead>Days to Stock-out</TableHead>
                   <TableHead>Reorder Recommendations</TableHead>
+                  <TableHead>Reorder Priority</TableHead>
                   <TableHead>Inventory Health</TableHead>
+                  <TableHead>Timeline Tracker</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-10 text-muted-foreground">
                       No approved listings found matching search criteria.
                     </TableCell>
                   </TableRow>
@@ -448,7 +494,7 @@ export const Inventory: React.FC = () => {
                     const forecast = getProductForecastDetails(p.id || (p as any)._id, p.stock);
 
                     return (
-                      <TableRow key={p.id || (p as any)._id}>
+                      <TableRow key={p.id || (p as any)._id} className="align-middle">
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <img src={p.images?.[0] || ''} alt={p.name} className="h-8 w-8 rounded object-cover border border-border flex-shrink-0" />
@@ -463,6 +509,9 @@ export const Inventory: React.FC = () => {
                           <div className="flex flex-col text-left">
                             <span className="font-bold text-foreground">Batch: {(p as any).batchNo || 'N/A'}</span>
                             <span className="text-[10px] text-muted-foreground">Exp: {(p as any).expiryDate ? new Date((p as any).expiryDate).toLocaleDateString() : 'N/A'}</span>
+                            <span className="text-[9px] text-primary bg-primary/5 border border-primary/25 px-1.5 py-0.5 rounded mt-1 font-bold inline-block max-w-[110px] truncate">
+                              📍 {warehouseSectors[p.id || (p as any)._id] || 'Aisle A-Shelf 1'}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-semibold text-muted-foreground">{p.reservedStock || 0} units</TableCell>
@@ -483,14 +532,14 @@ export const Inventory: React.FC = () => {
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleQuickAdjust(p.id || (p as any)._id, 10)}
-                              className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded cursor-pointer"
+                              className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded cursor-pointer border-0"
                               title="Add 10 Units"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                             <button
                               onClick={() => handleQuickAdjust(p.id || (p as any)._id, -10)}
-                              className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded cursor-pointer"
+                              className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded cursor-pointer border-0"
                               title="Deduct 10 Units"
                             >
                               <Minus className="h-3 w-3" />
@@ -511,10 +560,33 @@ export const Inventory: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           {forecast.reorderQty > 0 ? (
-                            <span className="text-xs font-extrabold text-emerald-500">Reorder {forecast.reorderQty} units</span>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="text-xs font-extrabold text-emerald-500">Reorder {forecast.reorderQty} units</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.open(`https://wholesaler.apexbee.in/reorder?sku=${p.sku}&qty=${forecast.reorderQty}`, '_blank');
+                                }}
+                                className="text-[9px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded cursor-pointer border-0"
+                              >
+                                ⚡ Wholesale Reorder
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs font-medium text-muted-foreground">Healthy</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const days = forecast.daysRemaining;
+                            if (p.stock === 0 || days <= 2) {
+                              return <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 font-extrabold text-[9px] border border-rose-500/20">🔥 High Priority</span>;
+                            }
+                            if (isLow || days <= 5) {
+                              return <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-extrabold text-[9px] border border-amber-500/20">⚡ Medium Priority</span>;
+                            }
+                            return <span className="px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-500 font-extrabold text-[9px] border border-slate-500/20">💤 Low Priority</span>;
+                          })()}
                         </TableCell>
                         <TableCell>
                           {isOut ? (
@@ -524,6 +596,18 @@ export const Inventory: React.FC = () => {
                           ) : (
                             <Badge variant="success" className="py-0 px-2 text-[10px] font-bold">Healthy Stock</Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTimelineProduct(p);
+                              setShowTimelineModal(true);
+                            }}
+                            className="text-[10px] font-bold text-primary hover:underline cursor-pointer border-0 bg-transparent flex items-center gap-0.5"
+                          >
+                            ⏱️ Track Timeline <ChevronRight className="h-3 w-3" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     );
@@ -604,6 +688,182 @@ export const Inventory: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      {showExpiryModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-5 space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-border/50 pb-3">
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1">
+                ⚠️ Batch Expirations & Freshness Track
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowExpiryModal(false)}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold cursor-pointer border-0 bg-transparent"
+              >
+                Close
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">List of inventory batches expiring in the next 90 days. Keep track of freshness controls.</p>
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+              {[
+                { name: 'Organic Mangoes 1kg', sku: 'ORG-MNG-48', batch: 'BAT-2026-07A', exp: '2026-07-28', stock: 12, status: 'Critical (Expires in 15 days)' },
+                { name: 'Pure Honey Raw 500g', sku: 'ORG-HNY-99', batch: 'BAT-2026-05C', exp: '2026-09-12', stock: 45, status: 'Near Expiry (Expires in 60 days)' },
+                { name: 'Whole Wheat Flour 5kg', sku: 'GRN-WHT-10', batch: 'BAT-2026-06B', exp: '2026-09-30', stock: 80, status: 'Healthy (Expires in 78 days)' }
+              ].map((item, idx) => (
+                <div key={idx} className="p-3 border border-border/60 bg-secondary/20 rounded-xl flex justify-between items-center text-xs">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-foreground">{item.name}</span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5 font-mono">SKU: {item.sku} | Batch: {item.batch}</span>
+                    <span className="text-[9px] text-amber-500 font-extrabold mt-1">Exp: {new Date(item.exp).toLocaleDateString()} ({item.status})</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className="font-bold text-foreground">{item.stock} units</span>
+                    <button
+                      onClick={() => {
+                        alert(`Initiated markdown clearance process for batch ${item.batch}`);
+                      }}
+                      className="text-[9px] font-bold text-white bg-amber-500 hover:bg-amber-600 px-2 py-0.5 rounded border-0 cursor-pointer"
+                    >
+                      Markdown Discount
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScannerModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-sm w-full p-5 space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-border/50 pb-3">
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                🔬 Barcode Scanning Simulator
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScannerModal(false);
+                  setScannedCode('');
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold cursor-pointer border-0 bg-transparent"
+              >
+                Close
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Simulate barcode/QR code physical scan. Enter a product SKU to quickly check/increment stock levels.</p>
+            
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                placeholder="Enter SKU (e.g. ORG-MNG-48)"
+                value={scannedCode}
+                onChange={(e) => setScannedCode(e.target.value.toUpperCase())}
+                className="border border-border rounded-xl p-3 bg-background text-foreground text-xs uppercase font-mono text-center"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!scannedCode) return;
+                    try {
+                      const res = await fetch(`https://server.apexbee.in/api/products/sku/${scannedCode}`);
+                      const data = await res.json();
+                      if (res.ok && data.success) {
+                        const matched = data.product;
+                        handleQuickAdjust(matched._id || matched.id, 1);
+                        alert(`Success! Incremented 1 unit of: ${matched.name}. New Stock: ${matched.stock + 1}`);
+                        setScannedCode('');
+                        setShowScannerModal(false);
+                      } else {
+                        alert(data.message || "SKU code not found in current inventory index.");
+                      }
+                    } catch (err) {
+                      alert("Error resolving product details from SKU scanner API.");
+                    }
+                  }}
+                  className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl border-0 cursor-pointer"
+                >
+                  Scan &amp; Add Stock
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!scannedCode) return;
+                    try {
+                      const res = await fetch(`https://server.apexbee.in/api/products/sku/${scannedCode}`);
+                      const data = await res.json();
+                      if (res.ok && data.success) {
+                        const matched = data.product;
+                        alert(`Product Found: ${matched.name}\nAvailable Stock: ${matched.stock} units\nSector: Aisle A1`);
+                      } else {
+                        alert(data.message || "SKU code not found in current inventory index.");
+                      }
+                    } catch (err) {
+                      alert("Error resolving product details from SKU scanner API.");
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-secondary text-foreground text-xs font-bold rounded-xl border border-border cursor-pointer"
+                >
+                  Verify Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTimelineModal && timelineProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-5 space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-border/50 pb-3">
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                ⏱️ Receipt-to-Dispatch Timeline
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTimelineModal(false);
+                  setTimelineProduct(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold cursor-pointer border-0 bg-transparent"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-3 bg-secondary/35 rounded-xl border border-border/40 text-xs">
+              <span className="font-bold text-foreground block">{timelineProduct.name}</span>
+              <span className="text-[10px] text-muted-foreground font-mono mt-0.5">SKU: {timelineProduct.sku}</span>
+            </div>
+
+            {/* Timeline checklist */}
+            <div className="space-y-4 relative pl-5 border-l border-border/60 ml-2.5 pt-1 text-xs">
+              <div className="relative">
+                <div className="absolute -left-7 top-1 h-3.5 w-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
+                <span className="font-bold text-foreground">1. Goods Received & Inspected</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Inbound batch registered. Inspected for quality controls. (Elapsed: 12m)</p>
+              </div>
+              <div className="relative">
+                <div className="absolute -left-7 top-1 h-3.5 w-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
+                <span className="font-bold text-foreground">2. Warehouse Allocation</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Stored in sector: <b className="text-primary font-bold">Aisle A1</b>. RFID tags mapped. (Elapsed: 8m)</p>
+              </div>
+              <div className="relative">
+                <div className="absolute -left-7 top-1 h-3.5 w-3.5 rounded-full bg-amber-500 flex items-center justify-center text-white text-[8px] font-bold">⌛</div>
+                <span className="font-bold text-foreground">3. Packing & Bundling</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Awaiting active checkout. QR barcode packing tags generated upon packing. (Est: 15m)</p>
+              </div>
+              <div className="relative">
+                <div className="absolute -left-7 top-1 h-3.5 w-3.5 rounded-full bg-secondary text-muted-foreground flex items-center justify-center text-[8px]"></div>
+                <span className="font-bold text-muted-foreground">4. Dispatched to Courier Hub</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Scheduled dispatch hand-off to local delivery drivers. (Est: 20m)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

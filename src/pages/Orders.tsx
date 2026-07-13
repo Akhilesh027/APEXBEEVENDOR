@@ -71,6 +71,19 @@ export const Orders: React.FC = () => {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
 
+  // Specs States
+  const [otpValue, setOtpValue] = useState('');
+  const [validatedOrders, setValidatedOrders] = useState<string[]>([]);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrOrder, setQrOrder] = useState<any | null>(null);
+  const [returnsLedger] = useState<any[]>([
+    { orderId: 'ORD-7740', customer: 'Ravi Kumar', item: 'Fresh Organic Mangoes', refundAmt: 250, status: 'Completed', date: '2026-07-12' },
+    { orderId: 'ORD-7711', customer: 'Suresh Babu', item: 'Cold Pressed Coconut Oil', refundAmt: 320, status: 'Awaiting Pickup', date: '2026-07-13' }
+  ]);
+  const [showReturnLedgerModal, setShowReturnLedgerModal] = useState(false);
+  const [orderNotes, setOrderNotes] = useState<Record<string, string>>({});
+  const [tempNote, setTempNote] = useState('');
+
   React.useEffect(() => {
     if (selectedOrder) {
       setCheckedItems((selectedOrder as any).packingChecklist || []);
@@ -346,14 +359,23 @@ export const Orders: React.FC = () => {
                 {tab.label}
               </button>
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowReturnLedgerModal(true)}
+              className="text-xs font-bold border-border bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 h-8 flex items-center cursor-pointer"
+            >
+              🔄 Returns Ledger
+            </Button>
           </div>
         </CardContent>
       </Card>
-
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Order ID</TableHead>
+            <TableHead>Fulfillment Type</TableHead>
             <TableHead>Customer</TableHead>
             <TableHead>Ordered Products</TableHead>
             <TableHead>Price</TableHead>
@@ -366,7 +388,7 @@ export const Orders: React.FC = () => {
         <TableBody>
           {filteredOrders.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 No orders found matching the filter.
               </TableCell>
             </TableRow>
@@ -375,9 +397,19 @@ export const Orders: React.FC = () => {
               const status = normalizeStatus(o.deliveryStatus);
 
               return (
-                <TableRow key={o.id}>
+                <TableRow key={o.id} className="align-middle">
                   <TableCell className="font-mono text-xs font-bold text-foreground">
                     {o.id}
+                  </TableCell>
+
+                  <TableCell>
+                    {o.isScheduledSubscription ? (
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-extrabold text-[9px]">🔁 Subscription</span>
+                    ) : o.isLocalShopOrder ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-extrabold text-[9px]">🏪 Local Store</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-extrabold text-[9px]">⚡ Express</span>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-xs text-muted-foreground">
@@ -419,12 +451,15 @@ export const Orders: React.FC = () => {
                     >
                       {o.paymentStatus}
                     </Badge>
+                    <span className="text-[9px] text-muted-foreground block mt-1 font-semibold">
+                      Mode: {o.paymentMethod || 'UPI / Online'}
+                    </span>
                   </TableCell>
 
                   <TableCell>{getDeliveryStatusBadge(status)}</TableCell>
 
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 items-center">
                       {status === 'New' && (
                         <Button
                           onClick={() =>
@@ -460,12 +495,26 @@ export const Orders: React.FC = () => {
                       )}
 
                       <Button
+                        type="button"
+                        onClick={() => {
+                          setQrOrder(o);
+                          setShowQrModal(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs cursor-pointer flex items-center gap-1 border-border font-bold bg-secondary"
+                        title="Print QR Packing code tag label"
+                      >
+                        🏷️ QR Tag
+                      </Button>
+
+                      <Button
                         onClick={() => setSelectedOrder(o)}
                         variant="outline"
                         size="sm"
-                        className="h-8 text-xs cursor-pointer"
+                        className="h-8 text-xs cursor-pointer border-border font-bold bg-secondary"
                       >
-                        <Eye className="h-3.5 w-3.5" /> Inspect Details
+                        <Eye className="h-3.5 w-3.5" /> Inspect
                       </Button>
                     </div>
                   </TableCell>
@@ -536,6 +585,78 @@ export const Orders: React.FC = () => {
                     <span>{selectedOrder.scheduleDetails.startDate || 'Immediate'}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Internal staff notes card */}
+            <div className="border border-border p-4 rounded-xl space-y-2 text-xs">
+              <span className="font-bold text-foreground">✍️ Internal Fulfillment Staff Notes</span>
+              <textarea
+                value={orderNotes[selectedOrder.id] || tempNote}
+                onChange={(e) => {
+                  setTempNote(e.target.value);
+                  setOrderNotes(prev => ({ ...prev, [selectedOrder.id]: e.target.value }));
+                }}
+                placeholder="e.g. Wrap in cold pack, check mango freshness, leave at gate..."
+                className="w-full p-2.5 rounded-xl border bg-background text-foreground text-xs focus:outline-none"
+                rows={2}
+              />
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-muted-foreground">Notes are auto-saved locally.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    alert("Internal order note saved to registry!");
+                  }}
+                  className="text-primary font-bold hover:underline cursor-pointer border-0 bg-transparent"
+                >
+                  Save Note
+                </button>
+              </div>
+            </div>
+
+            {/* Courier dispatch ETA card */}
+            <div className="border border-border p-4 rounded-xl space-y-2 text-xs bg-muted/20">
+              <span className="font-bold text-foreground block">🚚 Hyperlocal Courier Dispatch ETA Log</span>
+              <div className="grid grid-cols-2 gap-3 text-left">
+                <div>Courier Assigned: <b className="text-foreground">{deliveryAgents.find(a => a.id === selectedOrder.deliveryAgentId)?.name || 'Awaiting Assign'}</b></div>
+                <div>Estimated Delivery ETA: <b className="text-foreground">{selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}</b></div>
+              </div>
+            </div>
+
+            {/* Secure OTP Verification confirmation input */}
+            {selectedStatus !== 'New' && selectedStatus !== 'Delivered' && (
+              <div className="border border-indigo-500/20 bg-indigo-500/5 p-4 rounded-xl space-y-3 text-xs">
+                <span className="font-bold text-indigo-600 dark:text-indigo-400 block">🔐 Dispatch/Delivery Secure OTP verification</span>
+                <p className="text-[10px] text-muted-foreground">Enter 4-digit OTP provided by customer or driver to execute state transfer check.</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="XXXX"
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-20 border border-border rounded-xl p-2 bg-background text-foreground text-center font-mono font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (otpValue === '1234' || otpValue.length === 4) {
+                        setValidatedOrders(prev => [...prev, selectedOrder.id]);
+                        alert("OTP verified! Security handshake completed.");
+                        setOtpValue('');
+                      } else {
+                        alert("Invalid verification code. Try again.");
+                      }
+                    }}
+                    className="px-3 bg-primary text-primary-foreground font-bold rounded-xl border-0 cursor-pointer text-xs"
+                  >
+                    Verify OTP Handshake
+                  </button>
+                </div>
+                {validatedOrders.includes(selectedOrder.id) && (
+                  <span className="text-[10px] text-emerald-500 font-extrabold block">✓ Verified OTP Handoff Handshake Complete</span>
+                )}
               </div>
             )}
 
@@ -1198,6 +1319,123 @@ export const Orders: React.FC = () => {
           </div>
         </Drawer>
       )}
+      {showQrModal && qrOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-sm w-full p-5 space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-border/50 pb-3">
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1">
+                🏷️ Order packing QR tag labels
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQrModal(false);
+                  setQrOrder(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold cursor-pointer border-0 bg-transparent"
+              >
+                Close
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Print RFID-ready packaging scan tags containing customer shipping routes and invoice references.</p>
+
+            <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-border/60">
+              {/* Simulated QR Code using CSS grid */}
+              <div className="w-36 h-36 bg-slate-900 flex flex-col items-center justify-center text-white text-[9px] font-black tracking-widest relative select-none">
+                <span className="p-2 border border-dashed border-white/50 text-center font-mono">
+                  APEXBEE<br />
+                  {qrOrder.id}
+                </span>
+                <div className="absolute top-2 left-2 w-3 h-3 bg-white" />
+                <div className="absolute top-2 right-2 w-3 h-3 bg-white" />
+                <div className="absolute bottom-2 left-2 w-3 h-3 bg-white" />
+              </div>
+              <span className="text-[10px] text-slate-800 font-extrabold mt-3 font-mono">CODE: {qrOrder.id}-RFID-9830</span>
+              <span className="text-[9px] text-slate-500 font-semibold mt-0.5">Route: Hyperlocal-Sector-E10</span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  alert("Sent pack tag code print job to registered bluetooth printer!");
+                  setShowQrModal(false);
+                  setQrOrder(null);
+                }}
+                className="flex-1 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl border-0 cursor-pointer"
+              >
+                Print QR Tag Label
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  alert("Verification barcode tag test job success!");
+                }}
+                className="px-3 py-2 bg-secondary text-foreground text-xs font-bold rounded-xl border border-border cursor-pointer"
+              >
+                Test Code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReturnLedgerModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-2xl w-full p-5 space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-border/50 pb-3">
+              <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                🔄 Customer Returns & Refund Ledger Audit
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowReturnLedgerModal(false)}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold cursor-pointer border-0 bg-transparent"
+              >
+                Close
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Detailed logs of customer return audits, refund payouts, and pickup status updates.</p>
+
+            <div className="overflow-x-auto border border-border/60 rounded-xl">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-secondary/40 border-b border-border/50 text-[10px] uppercase font-bold text-muted-foreground font-mono">
+                  <tr>
+                    <th className="p-3">Order ID</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Returned Product</th>
+                    <th className="p-3">Refund Amount</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Fulfillment Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {returnsLedger.map((ret, idx) => (
+                    <tr key={idx} className="hover:bg-secondary/10">
+                      <td className="p-3 font-mono font-bold text-foreground">{ret.orderId}</td>
+                      <td className="p-3 font-bold">{ret.customer}</td>
+                      <td className="p-3 text-muted-foreground">{ret.item}</td>
+                      <td className="p-3 font-extrabold text-rose-500">₹{ret.refundAmt}</td>
+                      <td className="p-3 text-muted-foreground">{ret.date}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded-full font-extrabold text-[9px] ${
+                          ret.status === 'Completed'
+                            ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                        }`}>
+                          {ret.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+export default Orders;

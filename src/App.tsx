@@ -70,7 +70,8 @@ const MainLayout: React.FC = () => {
       return <Dashboard />;
     }
 
-    if (['profile', 'bank', 'documents'].includes(currentPage)) {
+    // 'business' is the parent nav item for My Business section
+    if (['business', 'profile', 'bank', 'documents'].includes(currentPage)) {
       return <BusinessProfile />;
     }
 
@@ -82,23 +83,28 @@ const MainLayout: React.FC = () => {
       return <StoreDesign />;
     }
 
-    if (['add-product', 'products-all', 'products-draft', 'products-pending', 'products-awaiting-vendor', 'products-approved', 'products-rejected', 'products-change-requests'].includes(currentPage)) {
+    // 'products' is the parent nav item for Product Management
+    if (['products', 'add-product', 'products-all', 'products-draft', 'products-pending', 'products-awaiting-vendor', 'products-approved', 'products-rejected', 'products-change-requests'].includes(currentPage)) {
       return <ProductManagement />;
     }
 
-    if (['inventory-stock', 'inventory-low', 'inventory-out'].includes(currentPage)) {
+    // 'inventory' is the parent nav item for Inventory Management
+    if (['inventory', 'inventory-stock', 'inventory-low', 'inventory-out'].includes(currentPage)) {
       return <Inventory />;
     }
 
-    if (['orders-new', 'orders-all', 'orders-localshop', 'orders-subscriptions', 'orders-returns'].includes(currentPage)) {
+    // 'orders' is the parent nav item for Order Management
+    if (['orders', 'orders-new', 'orders-all', 'orders-localshop', 'orders-subscriptions', 'orders-returns'].includes(currentPage)) {
       return <Orders />;
     }
 
-    if (['delivery-agents', 'delivery-assign'].includes(currentPage)) {
+    // 'delivery' is the parent nav item for Delivery Management
+    if (['delivery', 'delivery-agents', 'delivery-assign'].includes(currentPage)) {
       return <Delivery />;
     }
 
-    if (currentPage === 'wallet-dashboard') {
+    // 'wallet' is the parent nav item for Wallet & Withdrawals
+    if (['wallet', 'wallet-dashboard'].includes(currentPage)) {
       return <WalletPage />;
     }
 
@@ -110,7 +116,8 @@ const MainLayout: React.FC = () => {
       return <Referrals />;
     }
 
-    if (['reports-sales', 'reports-products', 'reports-earnings', 'reports-inventory'].includes(currentPage)) {
+    // 'reports' is the parent nav item for Reports & Analytics
+    if (['reports', 'reports-sales', 'reports-products', 'reports-earnings', 'reports-inventory'].includes(currentPage)) {
       return <Reports />;
     }
 
@@ -118,7 +125,8 @@ const MainLayout: React.FC = () => {
       return <EarningsCommissions />;
     }
 
-    if (['reviews-products', 'reviews-store', 'reviews-analytics'].includes(currentPage)) {
+    // 'reviews' is the parent nav item for Reviews & Ratings
+    if (['reviews', 'reviews-products', 'reviews-store', 'reviews-analytics'].includes(currentPage)) {
       return <ReviewsRatings />;
     }
 

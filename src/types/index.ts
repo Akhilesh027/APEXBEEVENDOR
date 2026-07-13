@@ -58,6 +58,11 @@ export interface VendorProfile {
   pincode?: string;
   businessHours?: any;
   gallery?: string[];
+  gstExpiry?: string;
+  fssaiExpiry?: string;
+  ownerContact?: string;
+  managerContact?: string;
+  deliveryManagerContact?: string;
   refundPolicy?: string;
   replacementPolicy?: string;
   verifiedBadge?: boolean;
@@ -138,6 +143,8 @@ export interface Order {
   refundStatus?: 'Pending' | 'Approved' | 'Rejected' | 'None';
   isScheduledSubscription?: boolean;
   scheduleDetails?: any;
+  isLocalShopOrder?: boolean;
+  deliveryAgentId?: string;
 }
 
 export interface DeliveryAgent {
