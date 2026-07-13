@@ -80,12 +80,12 @@ export const Sidebar: React.FC = () => {
   // Badge calculations
   const draftProductsCount = products.filter(p => p.status === 'Draft').length;
   const pendingApprovalCount = products.filter(p => p.status === 'Pending Review').length;
-  const awaitingVendorCount = products.filter(p => p.status === 'Awaiting Seller Approval' || p.status === 'Awaiting Vendor Approval').length;
-  const changeRequestsCount = products.filter(p => p.status === 'Negotiation Requested' || p.status === 'Awaiting Reapproval').length;
-  const approvedCount = products.filter(p => p.status === 'Live' || p.status === 'Approved').length;
+  const awaitingVendorCount = products.filter(p => (p.status as string) === 'Awaiting Seller Approval' || p.status === 'Awaiting Vendor Approval').length;
+  const changeRequestsCount = products.filter(p => (p.status as string) === 'Negotiation Requested' || p.status === 'Awaiting Reapproval').length;
+  const approvedCount = products.filter(p => (p.status as string) === 'Live' || p.status === 'Approved').length;
   const rejectedCount = products.filter(p => p.status === 'Rejected').length;
 
-  const lowStockCount = products.filter(p => (p.status === 'Live' || p.status === 'Approved') && p.stock <= 10 && p.stock > 0).length;
+  const lowStockCount = products.filter(p => ((p.status as string) === 'Live' || p.status === 'Approved') && p.stock <= 10 && p.stock > 0).length;
   const outOfStockCount = products.filter(p => p.stock === 0).length;
   const newOrdersCount = orders.filter(o => o.deliveryStatus === 'New').length;
   const returnRequestsCount = orders.filter(o => o.refundStatus === 'Pending').length;

@@ -173,11 +173,11 @@ export const Dashboard: React.FC = () => {
 
   // Filter Today's real order details
   const todayStr = new Date().toDateString();
-  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === todayStr);
+  const todayOrders = orders.filter(o => new Date(o.orderDate).toDateString() === todayStr);
   const todayOrdersCount = todayOrders.length;
   const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const todayCancelled = todayOrders.filter(o => o.orderStatus === 'Cancelled').length;
-  const todayReturns = todayOrders.filter(o => o.orderStatus === 'Returned').length;
+  const todayCancelled = todayOrders.filter(o => o.deliveryStatus === 'Cancelled').length;
+  const todayReturns = todayOrders.filter(o => o.deliveryStatus === 'Returned').length;
   const todayVisitors = todayOrdersCount * 3 + (stats.productsListed || 5); // Pseudo-realistic correlation
 
   const StatCard = ({

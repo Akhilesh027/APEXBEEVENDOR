@@ -15,7 +15,6 @@ export const ScheduledDelivery: React.FC = () => {
   // Slot capacity info from DB
   const [maxOrders, setMaxOrders] = useState<number>(20);
   const [bookedCount, setBookedCount] = useState<number>(0);
-  const [loadingCapacity, setLoadingCapacity] = useState(false);
   const [success, setSuccess] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -38,7 +37,6 @@ export const ScheduledDelivery: React.FC = () => {
 
   const fetchSlotCapacity = async () => {
     try {
-      setLoadingCapacity(true);
       const token = localStorage.getItem('token');
       const res = await fetch(`https://server.apexbee.in/api/delivery/slots?date=${date}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -56,8 +54,6 @@ export const ScheduledDelivery: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoadingCapacity(false);
     }
   };
 

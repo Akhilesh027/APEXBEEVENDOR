@@ -24,8 +24,6 @@ export const Reports: React.FC = () => {
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
   React.useEffect(() => {
     const fetchAnalytics = async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -35,7 +33,6 @@ export const Reports: React.FC = () => {
       if (!userId || !token) return;
 
       try {
-        setLoading(true);
         const res = await fetch(
           `https://server.apexbee.in/api/vendor/dashboard/analytics/${userId}`,
           {
@@ -50,8 +47,6 @@ export const Reports: React.FC = () => {
         }
       } catch (err) {
         console.error("Error fetching analytics in reports:", err);
-      } finally {
-        setLoading(false);
       }
     };
 

@@ -87,7 +87,7 @@ export const Inventory: React.FC = () => {
 
   const handleSaveBulk = async () => {
     for (const [id, stockVal] of Object.entries(bulkStocks)) {
-      const original = products.find(p => p.id === id || p._id === id);
+      const original = products.find(p => p.id === id || (p as any)._id === id);
       if (original) {
         const diff = stockVal - original.stock;
         if (diff !== 0) {
@@ -97,7 +97,7 @@ export const Inventory: React.FC = () => {
             diff,
             diff > 0 ? 'Inbound' : 'Outbound',
             adjustmentReason,
-            original.batchNo || 'N/A'
+            (original as any).batchNo || 'N/A'
           );
         }
       }
@@ -110,7 +110,7 @@ export const Inventory: React.FC = () => {
   };
 
   const handleQuickAdjust = async (id: string, increment: number) => {
-    const original = products.find(p => p.id === id || p._id === id);
+    const original = products.find(p => p.id === id || (p as any)._id === id);
     if (!original) return;
 
     const targetStock = Math.max(0, original.stock + increment);
@@ -121,7 +121,7 @@ export const Inventory: React.FC = () => {
       increment,
       increment > 0 ? 'Inbound' : 'Outbound',
       'Quick Stock Adjustment',
-      original.batchNo || 'N/A'
+      (original as any).batchNo || 'N/A'
     );
     
     setTimeout(() => {
@@ -145,7 +145,7 @@ export const Inventory: React.FC = () => {
 
   const filteredProducts = products.filter(p => {
     // Matches live approved status or backend 'Live' casing
-    const matchesStatus = p.status === 'Approved' || p.status === 'Live';
+    const matchesStatus = p.status === 'Approved' || (p.status as string) === 'Live';
     if (!matchesStatus) return false;
     
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -166,7 +166,7 @@ export const Inventory: React.FC = () => {
   
   // Recharts data for inventory stock distribution
   const chartData = products
-    .filter(p => p.status === 'Approved' || p.status === 'Live')
+    .filter(p => p.status === 'Approved' || (p.status as string) === 'Live')
     .slice(0, 5)
     .map(p => ({
       name: p.name.split(' ').slice(0, 2).join(' '),
@@ -175,7 +175,7 @@ export const Inventory: React.FC = () => {
 
   // Critical stock out list for highlights card
   const criticalList = products
-    .filter(p => p.status === 'Approved' || p.status === 'Live')
+    .filter(p => p.status === 'Approved' || (p.status as string) === 'Live')
     .map(p => ({ ...p, ...getProductForecastDetails(p.id, p.stock) }))
     .filter(p => p.stock <= lowStockThreshold)
     .sort((a, b) => a.daysRemaining - b.daysRemaining)
@@ -212,7 +212,7 @@ export const Inventory: React.FC = () => {
           ) : (
             <Button onClick={() => {
               const initialStocks: Record<string, number> = {};
-              filteredProducts.forEach(p => { initialStocks[p.id || p._id] = p.stock; });
+              filteredProducts.forEach(p => { initialStocks[p.id || (p as any)._id] = p.stock; });
               setBulkStocks(initialStocks);
               setIsBulkEditMode(true);
             }} variant="outline" size="sm" className="cursor-pointer font-bold border-border">
@@ -445,10 +445,10 @@ export const Inventory: React.FC = () => {
                     const isOut = p.stock === 0;
 
                     // Forecasting
-                    const forecast = getProductForecastDetails(p.id || p._id, p.stock);
+                    const forecast = getProductForecastDetails(p.id || (p as any)._id, p.stock);
 
                     return (
-                      <TableRow key={p.id || p._id}>
+                      <TableRow key={p.id || (p as any)._id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <img src={p.images?.[0] || ''} alt={p.name} className="h-8 w-8 rounded object-cover border border-border flex-shrink-0" />
@@ -461,8 +461,8 @@ export const Inventory: React.FC = () => {
                         <TableCell className="font-mono text-[11px] text-muted-foreground">{p.sku}</TableCell>
                         <TableCell>
                           <div className="flex flex-col text-left">
-                            <span className="font-bold text-foreground">Batch: {p.batchNo || 'N/A'}</span>
-                            <span className="text-[10px] text-muted-foreground">Exp: {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : 'N/A'}</span>
+                            <span className="font-bold text-foreground">Batch: {(p as any).batchNo || 'N/A'}</span>
+                            <span className="text-[10px] text-muted-foreground">Exp: {(p as any).expiryDate ? new Date((p as any).expiryDate).toLocaleDateString() : 'N/A'}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-semibold text-muted-foreground">{p.reservedStock || 0} units</TableCell>
@@ -471,8 +471,8 @@ export const Inventory: React.FC = () => {
                           {isBulkEditMode ? (
                             <input
                               type="number"
-                              value={bulkStocks[p.id || p._id] !== undefined ? bulkStocks[p.id || p._id] : p.stock}
-                              onChange={(e) => handleBulkChange(p.id || p._id, Math.max(0, Number(e.target.value)))}
+                              value={bulkStocks[p.id || (p as any)._id] !== undefined ? bulkStocks[p.id || (p as any)._id] : p.stock}
+                              onChange={(e) => handleBulkChange(p.id || (p as any)._id, Math.max(0, Number(e.target.value)))}
                               className="w-20 border border-border rounded px-1.5 py-0.5 text-xs bg-background text-foreground"
                             />
                           ) : (
@@ -482,14 +482,14 @@ export const Inventory: React.FC = () => {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => handleQuickAdjust(p.id || p._id, 10)}
+                              onClick={() => handleQuickAdjust(p.id || (p as any)._id, 10)}
                               className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded cursor-pointer"
                               title="Add 10 Units"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                             <button
-                              onClick={() => handleQuickAdjust(p.id || p._id, -10)}
+                              onClick={() => handleQuickAdjust(p.id || (p as any)._id, -10)}
                               className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded cursor-pointer"
                               title="Deduct 10 Units"
                             >

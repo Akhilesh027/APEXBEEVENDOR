@@ -8,7 +8,7 @@ import { Truck, Navigation, Star, Phone, CheckCircle, User, Clock, TrendingUp, S
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 export const Delivery: React.FC = () => {
-  const { deliveryAgents, orders, vendorSubscriptions } = useVendor();
+  const { deliveryAgents, orders } = useVendor();
 
   const activeDeliveries = orders.filter(o => o.deliveryStatus === 'Shipped' || o.deliveryStatus === 'Processing' || o.deliveryStatus === 'Packed');
 
