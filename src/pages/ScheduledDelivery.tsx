@@ -23,16 +23,7 @@ export const ScheduledDelivery: React.FC = () => {
     new Date().toISOString().split('T')[0]
   );
 
-  // Specs States
-  const [selectedAreaGroup, setSelectedAreaGroup] = useState<string | null>(null);
-  const [areaGroups, setAreaGroups] = useState([
-    { id: 'sec-1', name: 'Nellore North Sector A (Grand Trunk Rd)', orders: 8, driver: 'Ramesh K (Platform)', status: 'Routed' },
-    { id: 'sec-2', name: 'Nellore Downtown Sector B (VRC Centre)', orders: 14, driver: 'None (Unassigned)', status: 'Pending Assign' },
-    { id: 'sec-3', name: 'Nellore West Sector C (Podalakur Rd)', orders: 5, driver: 'Suresh M (Vendor Partner)', status: 'Routed' }
-  ]);
 
-  const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
-  const [tempDriver, setTempDriver] = useState('Ramesh K (Platform)');
 
   // Custom 7-day calendar sliding window starting from today
   const calendarDays = Array.from({ length: 7 }, (_, i) => {

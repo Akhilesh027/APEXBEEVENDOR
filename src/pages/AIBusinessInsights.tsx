@@ -22,7 +22,6 @@ export const AIBusinessInsights: React.FC = () => {
   // Build monthly revenue from real orders (last 6 months)
   const forecastData = useMemo(() => {
     const today = new Date();
-    const currentYear = today.getFullYear();
 
     // Aggregate revenue per month from orders
     const monthlyRevenue: Record<string, number> = {};

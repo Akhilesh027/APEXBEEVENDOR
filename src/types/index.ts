@@ -92,7 +92,7 @@ export interface Product {
   weight: number; // in kg
   shippingCharges: number;
   packingCharges: number;
-  status: 'Draft' | 'Pending Review' | 'Approved' | 'Rejected' | 'Awaiting Reapproval' | 'Awaiting Vendor Approval';
+  status: 'Draft' | 'Pending Review' | 'Approved' | 'Live' | 'Rejected' | 'Awaiting Reapproval' | 'Awaiting Vendor Approval';
   commissionRate: number; // percentage (admin set)
   adminReviewNotes?: string;
   isVariantProduct: boolean;
@@ -101,6 +101,7 @@ export interface Product {
   isStoreProduct?: boolean;
   isSubscriptionAvailable?: boolean;
   badges?: string[];
+  rating?: number;
 }
 
 export interface OrderItem {

@@ -63,7 +63,7 @@ export const ReviewsRatings: React.FC = () => {
   useEffect(() => {
     const fetchStoreReviews = async () => {
       const token = localStorage.getItem('token');
-      const vendorId = profile?.id || profile?._id || (profile as any)?.userId;
+      const vendorId = profile?.id || (profile as any)?._id || (profile as any)?.userId;
       if (!vendorId || !token) return;
 
       setStoreReviewsLoading(true);
