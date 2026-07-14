@@ -69,12 +69,35 @@ export const Sidebar: React.FC = () => {
     hl: false,
     ent: false,
     fc: false,
-    acad: false
+    acad: false,
+    'business-academy': false
+  });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    '1. 📊 Dashboard': true,
+    '2. 🏪 Store Operations': false,
+    '3. 📈 Growth & Marketing': false,
+    '4. 🏭 Procurement': false,
+    '5. 👥 Customers': false,
+    '6. 💰 Finance': false,
+    '7. 🌐 Network': false,
+    '8. 🛡️ Business': false,
+    '9. Business(ApexBee) Academy': false
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleExpand = (menu: string) => {
     setExpandedMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
+  };
+
+  const toggleGroupExpand = (groupLabel: string) => {
+    setExpandedGroups(prev => ({ ...prev, [groupLabel]: !prev[groupLabel] }));
+  };
+
+  const isGroupActive = (group: MenuGroup) => {
+    return group.items.some(item => {
+      if (currentPage === item.id) return true;
+      return item.subItems.some(sub => sub.id === currentPage);
+    });
   };
 
   // Badge calculations
@@ -112,7 +135,7 @@ export const Sidebar: React.FC = () => {
 
   const menuGroups: MenuGroup[] = [
     {
-      groupLabel: 'Dashboard',
+      groupLabel: '1. 📊 Dashboard',
       items: [
         {
           id: 'dashboard',
@@ -140,26 +163,8 @@ export const Sidebar: React.FC = () => {
       ]
     },
     {
-      groupLabel: 'Store Operations',
+      groupLabel: '2. 🏪 Store Operations',
       items: [
-        {
-          id: 'business',
-          label: 'My Business',
-          icon: <Building2 className="h-4 w-4" />,
-          subItems: [
-            { id: 'profile', label: 'Business Profile', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'kyc', label: 'KYC Verification', icon: <ShieldCheck className="h-3.5 w-3.5" />, badge: profile.kycStatus === 'Verified' ? null : 'Pending' },
-            { id: 'bank', label: 'Bank Accounts', icon: <CreditCard className="h-3.5 w-3.5" /> },
-            { id: 'documents', label: 'Business Documents', icon: <FolderOpen className="h-3.5 w-3.5" /> },
-            { id: 'store-design', label: 'My Store', icon: <Store className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'staff-management',
-          label: 'Staff Management',
-          icon: <UserCheck className="h-4 w-4 text-teal-500" />,
-          subItems: []
-        },
         {
           id: 'products',
           label: 'Product Management',
@@ -214,12 +219,7 @@ export const Sidebar: React.FC = () => {
           label: 'Scheduled Deliveries',
           icon: <Clock className="h-4 w-4 text-primary" />,
           subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: 'Delivery',
-      items: [
+        },
         {
           id: 'delivery',
           label: 'Delivery Management',
@@ -228,31 +228,17 @@ export const Sidebar: React.FC = () => {
             { id: 'delivery-agents', label: 'Delivery Agents', icon: <Users className="h-3.5 w-3.5" /> },
             { id: 'delivery-assign', label: 'Assign & Tracking', icon: <Truck className="h-3.5 w-3.5" /> }
           ]
-        }
-      ]
-    },
-    {
-      groupLabel: 'Finance',
-      items: [
-        {
-          id: 'wallet',
-          label: 'Wallet & Withdrawals',
-          icon: <Wallet className="h-4 w-4 text-primary" />,
-          subItems: [
-            { id: 'wallet-dashboard', label: 'Wallet Ledger', icon: <Wallet className="h-3.5 w-3.5" /> },
-            { id: 'withdrawals-request', label: 'Withdrawal Requests', icon: <ArrowDownCircle className="h-3.5 w-3.5" /> }
-          ]
         },
         {
-          id: 'settlements',
-          label: 'Settlements',
-          icon: <Coins className="h-4 w-4 text-emerald-500" />,
+          id: 'staff-management',
+          label: 'Staff Management',
+          icon: <UserCheck className="h-4 w-4 text-teal-500" />,
           subItems: []
         }
       ]
     },
     {
-      groupLabel: 'Growth',
+      groupLabel: '3. 📈 Growth & Marketing',
       items: [
         {
           id: 'coupons',
@@ -299,7 +285,7 @@ export const Sidebar: React.FC = () => {
       ]
     },
     {
-      groupLabel: 'Partner Programs',
+      groupLabel: '4. 🏭 Procurement',
       items: [
         {
           id: 'b2b',
@@ -319,19 +305,45 @@ export const Sidebar: React.FC = () => {
           ]
         },
         {
-          id: 'qr',
-          label: 'QR Merchant Center',
-          icon: <QrCode className="h-4 w-4 text-primary" />,
-          subItems: [
-            { id: 'qr-my', label: 'My QR', icon: <QrCode className="h-3.5 w-3.5" /> },
-            { id: 'qr-txns', label: 'QR Transactions', icon: <Clock className="h-3.5 w-3.5" /> },
-            { id: 'qr-analytics', label: 'QR Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-            { id: 'qr-settlements', label: 'QR Settlements', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'qr-customers', label: 'QR Customers', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'qr-cashback', label: 'QR Cashback', icon: <Gift className="h-3.5 w-3.5" /> },
-            { id: 'qr-referrals', label: 'QR Referral Earnings', icon: <Share2 className="h-3.5 w-3.5" /> },
-            { id: 'qr-growth', label: 'QR Merchant Growth', icon: <TrendingUp className="h-3.5 w-3.5" /> }
-          ]
+          id: 'procurement-hub',
+          label: 'Procurement Hub',
+          icon: <Boxes className="h-4 w-4 text-amber-500" />,
+          subItems: []
+        },
+        {
+          id: 'supply-chain',
+          label: 'Supply Chain Hub',
+          icon: <Network className="h-4 w-4 text-blue-500" />,
+          subItems: []
+        },
+        {
+          id: 'quotation-management',
+          label: 'Quotation Management',
+          icon: <FileSpreadsheet className="h-4 w-4 text-teal-500" />,
+          subItems: []
+        },
+        {
+          id: 'supplier-network',
+          label: 'Supplier Network',
+          icon: <Users className="h-4 w-4 text-indigo-500" />,
+          subItems: []
+        },
+        {
+          id: 'manufacturer-connect',
+          label: 'Manufacturer Connect',
+          icon: <Building2 className="h-4 w-4 text-violet-500" />,
+          subItems: []
+        }
+      ]
+    },
+    {
+      groupLabel: '5. 👥 Customers',
+      items: [
+        {
+          id: 'customer-management',
+          label: 'Customer Management',
+          icon: <Users className="h-4 w-4 text-sky-500" />,
+          subItems: []
         },
         {
           id: 'crm',
@@ -348,6 +360,68 @@ export const Sidebar: React.FC = () => {
             { id: 'crm-conversions', label: 'Conversions', icon: <TrendingUp className="h-3.5 w-3.5" /> },
             { id: 'crm-sources', label: 'Lead Sources', icon: <Compass className="h-3.5 w-3.5" /> }
           ]
+        },
+        {
+          id: 'qr',
+          label: 'QR Merchant Center',
+          icon: <QrCode className="h-4 w-4 text-primary" />,
+          subItems: [
+            { id: 'qr-my', label: 'My QR', icon: <QrCode className="h-3.5 w-3.5" /> },
+            { id: 'qr-txns', label: 'QR Transactions', icon: <Clock className="h-3.5 w-3.5" /> },
+            { id: 'qr-analytics', label: 'QR Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+            { id: 'qr-settlements', label: 'QR Settlements', icon: <Coins className="h-3.5 w-3.5" /> },
+            { id: 'qr-customers', label: 'QR Customers', icon: <Users className="h-3.5 w-3.5" /> },
+            { id: 'qr-cashback', label: 'QR Cashback', icon: <Gift className="h-3.5 w-3.5" /> },
+            { id: 'qr-referrals', label: 'QR Referral Earnings', icon: <Share2 className="h-3.5 w-3.5" /> },
+            { id: 'qr-growth', label: 'QR Merchant Growth', icon: <TrendingUp className="h-3.5 w-3.5" /> }
+          ]
+        }
+      ]
+    },
+    {
+      groupLabel: '6. 💰 Finance',
+      items: [
+        {
+          id: 'wallet',
+          label: 'Wallet & Withdrawals',
+          icon: <Wallet className="h-4 w-4 text-primary" />,
+          subItems: [
+            { id: 'wallet-dashboard', label: 'Wallet Ledger', icon: <Wallet className="h-3.5 w-3.5" /> },
+            { id: 'withdrawals-request', label: 'Withdrawal Requests', icon: <ArrowDownCircle className="h-3.5 w-3.5" /> }
+          ]
+        },
+        {
+          id: 'settlements',
+          label: 'Settlements',
+          icon: <Coins className="h-4 w-4 text-emerald-500" />,
+          subItems: []
+        },
+        {
+          id: 'earnings',
+          label: 'Earnings & Commissions',
+          icon: <Coins className="h-4 w-4 text-amber-500" />,
+          subItems: [
+            { id: 'earnings-breakdown', label: 'Earnings Breakdown', icon: <Coins className="h-3.5 w-3.5" /> },
+            { id: 'earnings-products', label: 'Product Earnings', icon: <Package className="h-3.5 w-3.5" /> },
+            { id: 'earnings-settlements', label: 'Settlement History', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> }
+          ]
+        },
+        {
+          id: 'credit-management',
+          label: 'Credit Management',
+          icon: <CreditCard className="h-4 w-4 text-rose-500" />,
+          subItems: []
+        }
+      ]
+    },
+    {
+      groupLabel: '7. 🌐 Network',
+      items: [
+        {
+          id: 'my-network',
+          label: 'My Network',
+          icon: <Network className="h-4 w-4 text-sky-500" />,
+          subItems: []
         },
         {
           id: 'hl',
@@ -390,6 +464,52 @@ export const Sidebar: React.FC = () => {
           ]
         },
         {
+          id: 'franchise',
+          label: 'Franchise Relationship',
+          icon: <Building2 className="h-4 w-4 text-blue-500" />,
+          subItems: []
+        },
+        {
+          id: 'territory-coverage',
+          label: 'Territory Coverage',
+          icon: <MapPin className="h-4 w-4 text-emerald-500" />,
+          subItems: []
+        }
+      ]
+    },
+    {
+      groupLabel: '8. 🛡️ Business',
+      items: [
+        {
+          id: 'business',
+          label: 'My Business',
+          icon: <Building2 className="h-4 w-4" />,
+          subItems: [
+            { id: 'profile', label: 'Business Profile', icon: <Building2 className="h-3.5 w-3.5" /> },
+            { id: 'kyc', label: 'KYC Verification', icon: <ShieldCheck className="h-3.5 w-3.5" />, badge: profile.kycStatus === 'Verified' ? null : 'Pending' },
+            { id: 'bank', label: 'Bank Accounts', icon: <CreditCard className="h-3.5 w-3.5" /> },
+            { id: 'documents', label: 'Business Documents', icon: <FolderOpen className="h-3.5 w-3.5" /> },
+            { id: 'store-design', label: 'My Store', icon: <Store className="h-3.5 w-3.5" /> }
+          ]
+        },
+        {
+          id: 'security',
+          label: 'Security Settings',
+          icon: <Lock className="h-4 w-4 text-rose-500" />,
+          subItems: []
+        },
+        {
+          id: 'support',
+          label: 'Support Center',
+          icon: <HelpCircle className="h-4 w-4 text-zinc-500" />,
+          subItems: []
+        }
+      ]
+    },
+    {
+      groupLabel: '9. Business(ApexBee) Academy',
+      items: [
+        {
           id: 'business-academy',
           label: 'Business Academy',
           icon: <BookOpen className="h-4 w-4 text-violet-500" />,
@@ -404,23 +524,6 @@ export const Sidebar: React.FC = () => {
             { id: 'acad-entrepreneurship', label: 'Entrepreneurship', icon: <Users className="h-3.5 w-3.5" /> },
             { id: 'acad-certs', label: 'Certifications', icon: <Award className="h-3.5 w-3.5" /> }
           ]
-        }
-      ]
-    },
-    {
-      groupLabel: 'Settings & Support',
-      items: [
-        {
-          id: 'support',
-          label: 'Support Center',
-          icon: <HelpCircle className="h-4 w-4" />,
-          subItems: []
-        },
-        {
-          id: 'security',
-          label: 'Security Settings',
-          icon: <Lock className="h-4 w-4 text-rose-500" />,
-          subItems: []
         }
       ]
     }
@@ -470,91 +573,111 @@ export const Sidebar: React.FC = () => {
 
           if (filteredItems.length === 0) return null;
 
-          return (
-            <div key={group.groupLabel} className="flex flex-col gap-1.5">
-              <span className="px-3 py-1 text-[10px] uppercase font-extrabold text-muted-foreground/60 tracking-wider">
-                {group.groupLabel}
-              </span>
-              <div className="flex flex-col gap-1">
-                {filteredItems.map(item => {
-                  const hasSubItems = item.subItems.length > 0;
-                  const isSelected = currentPage === item.id || item.subItems.some(s => s.id === currentPage);
-                  const isExpanded = expandedMenus[item.id];
+          const isGroupSelected = isGroupActive(group);
+          const isGroupExpanded = expandedGroups[group.groupLabel];
 
-                  return (
-                    <div key={item.id} className="flex flex-col">
-                      {hasSubItems ? (
-                        <>
+          return (
+            <div key={group.groupLabel} className="flex flex-col gap-1">
+              <button
+                onClick={() => toggleGroupExpand(group.groupLabel)}
+                className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors duration-200 cursor-pointer ${
+                  isGroupSelected
+                    ? 'bg-primary/5 text-primary'
+                    : 'text-foreground/90 hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                <span className="flex items-center gap-2.5 normal-case">
+                  {group.groupLabel}
+                </span>
+                {isGroupExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground/80" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/80" />
+                )}
+              </button>
+
+              {isGroupExpanded && (
+                <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-border/40 ml-4">
+                  {filteredItems.map(item => {
+                    const hasSubItems = item.subItems.length > 0;
+                    const isSelected = currentPage === item.id || item.subItems.some(s => s.id === currentPage);
+                    const isExpanded = expandedMenus[item.id];
+
+                    return (
+                      <div key={item.id} className="flex flex-col">
+                        {hasSubItems ? (
+                          <>
+                            <button
+                              onClick={() => toggleExpand(item.id)}
+                              className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors duration-200 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary/5 text-primary font-semibold'
+                                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                {item.icon}
+                                <span>{item.label}</span>
+                              </div>
+                              {isExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+
+                            {isExpanded && (
+                              <div className="flex flex-col gap-0.5 pl-6 mt-1 border-l border-border/60 ml-5">
+                                {item.subItems.map(sub => {
+                                  const isSubSelected = currentPage === sub.id;
+                                  return (
+                                    <button
+                                      key={sub.id}
+                                      onClick={() => handlePageClick(sub.id)}
+                                      className={`flex items-center justify-between w-full px-3 py-1.5 text-xs rounded-lg transition-all duration-150 cursor-pointer ${
+                                        isSubSelected
+                                          ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {sub.icon}
+                                        <span>{sub.label}</span>
+                                      </div>
+                                      {sub.count !== undefined && sub.count > 0 && (
+                                        <Badge variant={sub.id.includes('low') || sub.id.includes('out') ? 'destructive' : 'default'} className="px-1.5 py-0">
+                                          {sub.count}
+                                        </Badge>
+                                      )}
+                                      {sub.badge && (
+                                        <Badge variant="warning" className="px-1.5 py-0 text-[9px]">
+                                          {sub.badge}
+                                        </Badge>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <button
-                            onClick={() => toggleExpand(item.id)}
-                            className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors duration-200 cursor-pointer ${
-                              isSelected
-                                ? 'bg-primary/5 text-primary font-semibold'
+                            onClick={() => handlePageClick(item.id)}
+                            className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer ${
+                              currentPage === item.id
+                                ? 'bg-primary text-primary-foreground font-bold shadow-sm'
                                 : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              {item.icon}
-                              <span>{item.label}</span>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
+                            {item.icon}
+                            <span className="flex-1 text-left">{item.label}</span>
                           </button>
-
-                          {isExpanded && (
-                            <div className="flex flex-col gap-0.5 pl-6 mt-1 border-l border-border/60 ml-5">
-                              {item.subItems.map(sub => {
-                                const isSubSelected = currentPage === sub.id;
-                                return (
-                                  <button
-                                    key={sub.id}
-                                    onClick={() => handlePageClick(sub.id)}
-                                    className={`flex items-center justify-between w-full px-3 py-1.5 text-xs rounded-lg transition-all duration-150 cursor-pointer ${
-                                      isSubSelected
-                                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      {sub.icon}
-                                      <span>{sub.label}</span>
-                                    </div>
-                                    {sub.count !== undefined && sub.count > 0 && (
-                                      <Badge variant={sub.id.includes('low') || sub.id.includes('out') ? 'destructive' : 'default'} className="px-1.5 py-0">
-                                        {sub.count}
-                                      </Badge>
-                                    )}
-                                    {sub.badge && (
-                                      <Badge variant="warning" className="px-1.5 py-0 text-[9px]">
-                                        {sub.badge}
-                                      </Badge>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => handlePageClick(item.id)}
-                          className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer ${
-                            currentPage === item.id
-                              ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                          }`}
-                        >
-                          {item.icon}
-                          <span className="flex-1 text-left">{item.label}</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
