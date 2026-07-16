@@ -283,6 +283,60 @@ export const Dashboard: React.FC = () => {
     "Acknowledge new orders within 15 minutes to improve store rating and delivery performance score."
   ];
 
+  // AI CEO Dashboard calculations
+  const yesterdayRevenue = useMemo(() => {
+    const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+    return orders
+      .filter(o => new Date(o.orderDate).toDateString() === yesterdayStr)
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+  }, [orders]);
+
+  const predictionToday = useMemo(() => {
+    if (orders.length === 0) return 0;
+    const total = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const dates = orders.map(o => new Date(o.orderDate).getTime());
+    const minDate = Math.min(...dates);
+    const daysDiff = Math.max(1, Math.ceil((Date.now() - minDate) / (1000 * 60 * 60 * 24)));
+    const avgDaily = total / daysDiff;
+    return Math.round(avgDaily * 1.15); // +15% AI increase projection
+  }, [orders]);
+
+  const topOpportunity = useMemo(() => {
+    const lowStock = products.filter(p => p.stock <= 15);
+    if (lowStock.length > 0) {
+      const sorted = [...lowStock].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      return `Increase ${sorted[0].name} Stock`;
+    }
+    return "Expand Local Catalog Items";
+  }, [products]);
+
+  const topRisk = useMemo(() => {
+    const outOfStock = products.filter(p => p.stock === 0);
+    if (outOfStock.length > 0) {
+      return `${outOfStock[0].name} Out of Stock`;
+    }
+    const lowStock = products.filter(p => p.stock <= 5);
+    if (lowStock.length > 0) {
+      return `${lowStock[0].name} Stock is Low`;
+    }
+    return "No major inventory risk";
+  }, [products]);
+
+  const recommendedAction = useMemo(() => {
+    const deadStock = products.filter(p => p.stock > 10 && !orders.some(o => o.items.some(it => it.productId === p.id)));
+    if (deadStock.length > 0) {
+      return `Launch Discount for ${deadStock[0].name}`;
+    }
+    return "Launch Weekend Promo Offer";
+  }, [products, orders]);
+
+  const timeGreeting = useMemo(() => {
+    const hr = new Date().getHours();
+    if (hr < 12) return "Good Morning!";
+    if (hr < 17) return "Good Afternoon!";
+    return "Good Evening!";
+  }, []);
+
   // Filter Today's real order details
   const todayStr = new Date().toDateString();
   const todayOrders = orders.filter(o => new Date(o.orderDate).toDateString() === todayStr);
@@ -361,6 +415,45 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* AI CEO Dashboard Card */}
+      <Card className="border border-primary/20 bg-primary/[0.02] shadow-sm">
+        <CardContent className="p-5 flex flex-col gap-4 text-left">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              <h2 className="text-sm font-extrabold text-foreground tracking-tight flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] uppercase font-black">AI CEO Insights</span>
+                {timeGreeting}
+              </h2>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-semibold">Active Assistant</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">Yesterday Revenue</span>
+              <span className="text-base font-extrabold text-foreground mt-1.5">{formatCurrency(yesterdayRevenue)}</span>
+            </div>
+            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">Prediction Today</span>
+              <span className="text-base font-extrabold text-primary mt-1.5">{formatCurrency(predictionToday)}</span>
+            </div>
+            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">Top Opportunity</span>
+              <span className="text-xs font-bold text-foreground mt-1.5 leading-snug line-clamp-2">{topOpportunity}</span>
+            </div>
+            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">Active Risk</span>
+              <span className="text-xs font-bold text-rose-500 mt-1.5 leading-snug line-clamp-2">{topRisk}</span>
+            </div>
+            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">Recommended Action</span>
+              <span className="text-xs font-bold text-indigo-500 mt-1.5 leading-snug line-clamp-2">{recommendedAction}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* STOCK ALERTS BANNERS */}
       {(lowStockCount > 0 || outOfStockCount > 0) && (

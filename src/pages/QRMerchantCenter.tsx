@@ -1,437 +1,421 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { QrCode, Download, RefreshCw, Smartphone, CheckCircle, ArrowRight, BarChart3, Coins, Users, Share2, TrendingUp, Clock } from 'lucide-react';
+import { 
+  QrCode, 
+  Download, 
+  RefreshCw, 
+  CheckCircle, 
+  Share2, 
+  Activity, 
+  DollarSign
+} from 'lucide-react';
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
 
 export const QRMerchantCenter: React.FC = () => {
-  const { profile, transactions } = useVendor();
+  const { profile, transactions = [], requestWithdrawal, stats } = useVendor();
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Tabs
+  const [qrTab, setQrTab] = useState<'store' | 'wallet-qr' | 'upi-qr' | 'dynamic-qr' | 'analytics'>('store');
+
+  // Input states
   const [amount, setAmount] = useState<string>('');
   const [note, setNote] = useState<string>('');
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  
+  // Wallet simulation modal states
+  const [showSimulateModal, setShowSimulateModal] = useState(false);
+  const [simAmount, setSimAmount] = useState('250');
+  const [simMethod, setSimMethod] = useState<'wallet' | 'upi'>('wallet');
 
-  // Submenu checks from path/context currentPage state
-  const { currentPage } = useVendor();
-  const isMyQr = currentPage === 'qr-my';
-  const isTxns = currentPage === 'qr-txns';
-  const isAnalytics = currentPage === 'qr-analytics';
-  const isSettlements = currentPage === 'qr-settlements';
-  const isCustomers = currentPage === 'qr-customers';
-  const isCashback = currentPage === 'qr-cashback';
-  const isReferrals = currentPage === 'qr-referrals';
-  const isGrowth = currentPage === 'qr-growth';
+  // Withdrawal/Settlement states
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
+  const triggerAlert = (msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 4000);
+  };
+
+  // Simulate counter scanning payment
   const handleSimulatePayment = () => {
-    const payAmount = parseFloat(amount) || 299;
-    setSuccessMsg(`Simulating scan payment of ₹${payAmount} completed!`);
-    setTimeout(() => {
-      setSuccessMsg(null);
-      setAmount('');
-      setNote('');
-      alert(`Demo payment of ₹${payAmount} processed successfully! Earning added to wallet.`);
-    }, 2000);
+    const amt = parseFloat(simAmount) || 100;
+    triggerAlert(`Simulating checkout! ₹${amt} successfully processed via ${simMethod === 'wallet' ? 'Apex Wallet' : 'UPI QR'}. Earnings credited to ledger.`);
+    setShowSimulateModal(false);
   };
 
-  // Filter QR UPI transactions
-  const qrTxns = transactions.filter(t => t.description.toLowerCase().includes('qr') || t.description.toLowerCase().includes('upi') || t.type.toLowerCase().includes('qr'));
+  // Trigger Settlement Request (Create withdrawal request in backend)
+  const handleTriggerSettlement = async () => {
+    const amt = parseFloat(withdrawAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Please enter a valid settlement amount.");
+      return;
+    }
 
-  // Mock analytics data
-  const qrSalesData = [
-    { date: '06-08', sales: 12400 },
-    { date: '06-09', sales: 14500 },
-    { date: '06-10', sales: 9800 },
-    { date: '06-11', sales: 18900 },
-    { date: '06-12', sales: 22400 },
-    { date: '06-13', sales: 15400 },
-    { date: '06-14', sales: 25800 }
-  ];
-
-  const getHeaderTitle = () => {
-    if (isMyQr) return "My Store QR codes";
-    if (isTxns) return "QR Payments Transactions Ledger";
-    if (isAnalytics) return "QR Sales Revenue Analytics";
-    if (isSettlements) return "UPI Bank Settlement Logs";
-    if (isCustomers) return "QR Customer Checkouts Directory";
-    if (isCashback) return "QR Cashback Promo Builder";
-    if (isReferrals) return "QR Referral Override Commissions";
-    if (isGrowth) return "QR Merchant Growth Score";
-    return "QR Merchant Operating Center";
+    try {
+      const ok = await requestWithdrawal(amt, 'Bank Transfer', 'Settling counter QR collections to bank accounts');
+      if (ok) {
+        triggerAlert(`Instant settlement of ₹${amt} requested! Funds will credit within 15 minutes.`);
+        setWithdrawAmount('');
+        setShowWithdrawModal(false);
+      } else {
+        alert("Failed to submit settlement request.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const getHeaderDesc = () => {
-    if (isMyQr) return "Download, print, or generate custom payment link QR codes for your retail counter.";
-    if (isTxns) return "Audit real-time incoming UPI digital receipts generated from counter checkouts.";
-    if (isAnalytics) return "Track daily, weekly, and monthly growth trends of physical scan checkouts.";
-    if (isSettlements) return "Monitor bank settlements status for all accumulated QR earnings.";
-    if (isCustomers) return "Trace repeat buyer loyalty points generated from digital checkouts.";
-    if (isCashback) return "Configure scan-back incentive rewards to attract local foot traffic.";
-    if (isReferrals) return "Track earnings generated from counter terminal referrals.";
-    if (isGrowth) return "Review your business expansion levels based on local digital acceptance rates.";
-    return "Unified digital payment engine accepting instant scan receipts from GPay, PhonePe, and Paytm.";
-  };
+  // Wallet collections calculated from transactions
+  const walletCollections = useMemo(() => {
+    const list = transactions.filter(t => t.description.toLowerCase().includes('qr') || t.description.toLowerCase().includes('upi') || t.description.toLowerCase().includes('wallet'));
+    const total = list.reduce((sum, t) => sum + t.amount, 0);
+    const balance = stats?.walletBalance || 38420;
+    return { list, total, balance };
+  }, [transactions, stats]);
+
+  // Dynamically group wallet collections by date for analytics charts
+  const salesChartData = useMemo(() => {
+    const dailyMap: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.amount > 0) {
+        const d = new Date(t.date).toLocaleDateString('en-IN', { month: '2-digit', day: '2-digit' }).replace('/', '-');
+        dailyMap[d] = (dailyMap[d] || 0) + t.amount;
+      }
+    });
+
+    const entries = Object.entries(dailyMap).map(([date, sales]) => ({ date, sales }));
+    if (entries.length === 0) {
+      return [
+        { date: new Date().toLocaleDateString('en-IN', { month: '2-digit', day: '2-digit' }).replace('/', '-'), sales: 0 }
+      ];
+    }
+    return entries.sort((a, b) => a.date.localeCompare(b.date));
+  }, [transactions]);
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left relative">
+      
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">{getHeaderTitle()}</h1>
-          <p className="text-xs text-muted-foreground">{getHeaderDesc()}</p>
+          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+            <QrCode className="h-6 w-6 text-primary" /> QR Merchant Payments &amp; Wallet Center
+          </h1>
+          <p className="text-xs text-muted-foreground">Manage physical counter QR codes, review wallet settlements, and trace scan checkouts.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowSimulateModal(true)} className="h-9 text-xs font-bold bg-primary text-white cursor-pointer">Simulate Checkout Scan</Button>
+          <Button onClick={() => setShowWithdrawModal(true)} className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">Request Settlement</Button>
         </div>
       </div>
 
-      {successMsg && (
+      {success && (
         <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center gap-1.5 font-semibold">
-          <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" /> {successMsg}
+          <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" /> {success}
         </div>
       )}
 
-      {/* Dynamic Tab Renderings */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* VIEW 1: My QR */}
-        {(isMyQr || currentPage === 'qr') && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <Card className="glass lg:col-span-5 flex flex-col justify-between text-left">
-              <CardHeader className="pb-3 border-b border-border/40">
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                  <QrCode className="h-4.5 w-4.5 text-primary" /> Active Counter QR
-                </CardTitle>
-                <CardDescription>Scan to pay directly via any UPI app (GPay, PhonePe, Paytm)</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center py-6 gap-4">
-                <div className="bg-white p-4 rounded-2xl shadow-xl border border-slate-200 relative">
-                  <svg className="w-44 h-44 text-slate-800" viewBox="0 0 100 100">
-                    <rect width="25" height="25" fill="currentColor" />
-                    <rect x="75" width="25" height="25" fill="currentColor" />
-                    <rect y="75" width="25" height="25" fill="currentColor" />
-                    <rect x="25" y="25" width="10" height="10" fill="currentColor" />
-                    <rect x="55" y="45" width="20" height="20" fill="currentColor" />
-                    <rect x="35" y="65" width="15" height="15" fill="currentColor" />
-                    <rect x="65" y="75" width="15" height="15" fill="currentColor" />
-                    <rect x="6" y="6" width="13" height="13" fill="white" />
-                    <rect x="81" y="6" width="13" height="13" fill="white" />
-                    <rect x="6" y="81" width="13" height="13" fill="white" />
-                    <rect x="8" y="8" width="9" height="9" fill="currentColor" />
-                    <rect x="83" y="8" width="9" height="9" fill="currentColor" />
-                    <rect x="8" y="83" width="9" height="9" fill="currentColor" />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="bg-primary text-white p-1.5 rounded-lg text-[10px] font-black shadow-md border border-white">
-                      ApexBee
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="text-xs font-bold text-foreground">{profile.businessName}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">VPA: {profile.ownerName.toLowerCase().replace(/\s+/g, '')}@apexbee</span>
-                </div>
-                <div className="flex gap-2 w-full mt-2">
-                  <Button size="sm" variant="secondary" className="flex-1 text-[10px] cursor-pointer flex items-center justify-center gap-1.5">
-                    <Download className="h-3 w-3" /> Download PDF
-                  </Button>
-                  <Button size="sm" variant="secondary" className="flex-1 text-[10px] cursor-pointer flex items-center justify-center gap-1.5">
-                    <RefreshCw className="h-3 w-3" /> Regenerate
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Wallet Summaries */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Today's collections</span>
+            <span className="text-lg font-black text-foreground mt-1">₹12,400</span>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Escrow Wallet Balance</span>
+            <span className="text-lg font-black text-primary mt-1">₹{walletCollections.balance.toLocaleString()}</span>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Pending Settlement</span>
+            <span className="text-lg font-black text-foreground mt-1">₹8,490</span>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Wallet Transacts</span>
+            <span className="text-lg font-black text-indigo-500 mt-1">{walletCollections.list.length} scans</span>
+          </CardContent>
+        </Card>
+      </div>
 
-            <Card className="glass lg:col-span-7">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                  <Smartphone className="h-4.5 w-4.5 text-primary" /> Simulate Customer QR Scan
-                </CardTitle>
-                <CardDescription>Trigger simulated instant UPI credits</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Amount (₹) *</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 499"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
+      {/* Sub-tabs Selection */}
+      <div className="flex gap-2 border-b border-border/30 pb-2 overflow-x-auto no-scrollbar shrink-0">
+        {[
+          { id: 'store', label: 'Store Front QR' },
+          { id: 'wallet-qr', label: 'Apex Wallet QR' },
+          { id: 'upi-qr', label: 'UPI Standee QR' },
+          { id: 'dynamic-qr', label: 'Generate Dynamic QR' },
+          { id: 'analytics', label: 'QR Analytics' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setQrTab(tab.id as any)}
+            className={`text-[10.5px] font-bold px-3 py-1 rounded cursor-pointer transition-colors whitespace-nowrap ${qrTab === tab.id ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-secondary'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-left">
+        
+        {/* Main Tabs view */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          
+          {/* Store front QR tab */}
+          {qrTab === 'store' && (
+            <Card className="glass flex flex-col items-center justify-between text-center p-6 gap-4">
+              <div className="flex flex-col gap-1 items-center">
+                <span className="text-sm font-black text-foreground">{profile?.businessName || "My Store"}</span>
+                <span className="text-[10px] text-muted-foreground">Retail counter standee QR terminal code</span>
+              </div>
+              <div className="p-3 bg-white rounded-2xl border border-border/60 shadow-lg flex items-center justify-center">
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://apexbee.in/store/default-id" 
+                  alt="Store QR Code" 
+                  className="h-44 w-44" 
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => triggerAlert("Downloading Store standee QR PDF...")} className="h-8 text-xs font-bold border-border flex items-center gap-1.5"><Download className="h-3.5 w-3.5" /> Download QR</Button>
+                <Button size="sm" onClick={() => triggerAlert("Printing counter QR...")} className="h-8 text-xs font-bold border-border flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Print QR</Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Apex Wallet QR tab */}
+          {qrTab === 'wallet-qr' && (
+            <Card className="glass flex flex-col items-center justify-between text-center p-6 gap-4">
+              <div className="flex flex-col gap-1 items-center">
+                <span className="text-sm font-black text-primary">Apex Wallet VIP QR Code</span>
+                <span className="text-[10px] text-muted-foreground">Scan with Apex Wallet app to receive cashback incentives</span>
+              </div>
+              <div className="p-3 bg-white rounded-2xl border-4 border-primary shadow-lg flex items-center justify-center relative">
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://apexbee.in/pay/wallet/default" 
+                  alt="Apex Wallet QR" 
+                  className="h-44 w-44" 
+                />
+                <div className="absolute inset-0 m-auto h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white font-black text-xs shadow">🐝</div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => triggerAlert("Downloading Apex Wallet QR image...")} className="h-8 text-xs font-bold border-border flex items-center gap-1.5"><Download className="h-3.5 w-3.5" /> Download QR</Button>
+                <Button size="sm" onClick={() => triggerAlert("Sharing QR link...")} className="h-8 text-xs font-bold border-border flex items-center gap-1.5"><Share2 className="h-3.5 w-3.5" /> Share QR</Button>
+              </div>
+            </Card>
+          )}
+
+          {/* UPI Standee QR tab */}
+          {qrTab === 'upi-qr' && (
+            <Card className="glass flex flex-col items-center justify-between text-center p-6 gap-4">
+              <div className="flex flex-col gap-1 items-center">
+                <span className="text-sm font-black text-foreground">Standard UPI Payments standee QR</span>
+                <span className="text-[10px] text-muted-foreground">Accept receipts from GPay, PhonePe, Paytm, and BHIM</span>
+              </div>
+              <div className="p-3 bg-white rounded-2xl border border-border shadow-lg flex items-center justify-center">
+                <img 
+                  src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=apexbee@sbi" 
+                  alt="UPI QR Code" 
+                  className="h-44 w-44" 
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => triggerAlert("Downloading UPI QR standee...")} className="h-8 text-xs font-bold border-border flex items-center gap-1.5"><Download className="h-3.5 w-3.5" /> Download QR</Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Dynamic QR tab */}
+          {qrTab === 'dynamic-qr' && (
+            <Card className="glass p-4 text-left flex flex-col gap-4">
+              <span className="text-xs font-bold text-foreground">Generate Payment-Specific Counter QR</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-muted-foreground">Amount (₹)</label>
+                  <input 
+                    type="number" 
+                    value={amount} 
+                    onChange={(e) => setAmount(e.target.value)} 
+                    placeholder="e.g. 450" 
+                    className="border border-border/80 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" 
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-muted-foreground">Payment Description</label>
+                  <input 
+                    type="text" 
+                    value={note} 
+                    onChange={(e) => setNote(e.target.value)} 
+                    placeholder="e.g. 5kg Basmati Rice" 
+                    className="border border-border/80 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              {amount && (
+                <div className="flex flex-col items-center justify-center gap-3 bg-secondary/20 p-4 border border-border/60 rounded-xl mt-2 text-center">
+                  <span className="text-[11px] font-bold text-foreground">Dynamic Payment QR for ₹{amount}</span>
+                  <div className="p-2 bg-white rounded-xl shadow border border-border flex items-center justify-center">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=apexbee@sbi%26am=${amount}%26tn=${encodeURIComponent(note)}`} 
+                      alt="Dynamic UPI QR" 
+                      className="h-32 w-32" 
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Reference/Note</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Counter Table 2"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
-                    />
-                  </div>
+                  <Button size="sm" onClick={() => triggerAlert("Dynamic QR printed for retail billing counter...")} className="h-8 text-xs font-bold border-border">Print Ticket QR</Button>
                 </div>
-                <Button
-                  onClick={handleSimulatePayment}
-                  className="w-full mt-2 bg-gradient-to-r from-primary to-purple-600 text-white font-bold h-9 shadow-md flex items-center justify-center gap-1.5"
-                >
-                  <span>Trigger QR Scan Simulation</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              </CardContent>
+              )}
             </Card>
-          </div>
-        )}
+          )}
 
-        {/* VIEW 2: QR Transactions */}
-        {isTxns && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <Clock className="h-4.5 w-4.5 text-primary" /> Instant UPI Credit Log
-              </CardTitle>
-              <CardDescription>Verified counter scan credits on our payment logs</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Transaction ID</TableHead>
-                    <TableHead>Reference Note</TableHead>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>Settlement status</TableHead>
-                    <TableHead className="text-right">Net Received (₹)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {qrTxns.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-xs text-muted-foreground">
-                        No counter payments logged. Simulate a payment scan in "My QR" tab to populate.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    qrTxns.map((t, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-mono text-xs font-bold text-foreground">{t.id}</TableCell>
-                        <TableCell className="text-xs text-foreground font-semibold">{t.description}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(t.date).toLocaleString()}</TableCell>
-                        <TableCell><Badge variant="success">Settled</Badge></TableCell>
-                        <TableCell className="text-right font-black text-emerald-500">₹{t.amount.toLocaleString('en-IN')}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 3: QR Analytics */}
-        {isAnalytics && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <BarChart3 className="h-4.5 w-4.5 text-primary" /> Daily QR Revenue Volume
-              </CardTitle>
-              <CardDescription>Daily sales volume collected via counter terminals</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-60 w-full">
+          {/* Analytics tab */}
+          {qrTab === 'analytics' && (
+            <Card className="glass p-4 text-left">
+              <span className="text-xs font-bold text-foreground">QR checkout revenue trends</span>
+              <div className="h-56 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={qrSalesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={salesChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorQrSales" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      <linearGradient id="qrColor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
-                    <XAxis dataKey="date" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                    <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }} />
-                    <Area type="monotone" dataKey="sales" name="QR Sales (₹)" stroke="var(--primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorQrSales)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)"/>
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false}/>
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false}/>
+                    <Tooltip contentStyle={{ background: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}/>
+                    <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#qrColor)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 4: QR Settlements */}
-        {isSettlements && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <Coins className="h-4.5 w-4.5 text-primary" /> UPI Settlement Accounts Ledger
-              </CardTitle>
-              <CardDescription>Daily automated settlements cleared to your default bank profile account</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Settlement Batch</TableHead>
-                    <TableHead>Date Cleared</TableHead>
-                    <TableHead>Default Bank Account</TableHead>
-                    <TableHead className="text-right">Volume Settled (₹)</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-mono text-xs font-bold text-foreground">SET-QR-0012</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">Today (03:30 AM)</TableCell>
-                    <TableCell className="text-xs text-foreground font-semibold">ICICI Bank Current (•••• 9232)</TableCell>
-                    <TableCell className="text-right font-black text-emerald-500">₹18,900</TableCell>
-                    <TableCell><Badge variant="success">Settled Successfully</Badge></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 5: QR Customers */}
-        {isCustomers && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <Users className="h-4.5 w-4.5 text-primary" /> Counter Customer Demographics
-              </CardTitle>
-              <CardDescription>Customers checking out via UPI QR scan payments</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Buyer Mobile</TableHead>
-                    <TableHead>Checkouts Count</TableHead>
-                    <TableHead>Cumulative Spend (₹)</TableHead>
-                    <TableHead>Loyalty Points</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-bold text-foreground">+91 99000 88210</TableCell>
-                    <TableCell className="text-xs text-foreground font-semibold">8 scans</TableCell>
-                    <TableCell className="font-bold">₹4,250</TableCell>
-                    <TableCell className="font-extrabold text-indigo-500">85 Points</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => alert("Simulating sending custom WhatsApp thank-you coupon!")} className="h-7 text-xs cursor-pointer border-border">Gift Coupon</Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 6: QR Cashback */}
-        {isCashback && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <Card className="lg:col-span-5 glass h-fit">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold">Launch QR Cashback campaign</CardTitle>
-                <CardDescription>Attract local foot traffic with instant UPI payouts scan rewards</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={(e) => { e.preventDefault(); alert("QR Cashback campaign deployed successfully!"); }} className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Cashback Rate (%) *</label>
-                    <input required type="number" step="0.5" placeholder="e.g. 2.5" className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Min. Billing Cart Size (₹) *</label>
-                    <input required type="number" placeholder="e.g. 500" className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" />
-                  </div>
-                  <Button type="submit" className="w-full mt-2 bg-primary text-white font-bold h-9">
-                    Deploy Cashback Rules
-                  </Button>
-                </form>
-              </CardContent>
             </Card>
+          )}
+        </div>
 
-            <Card className="lg:col-span-7 glass">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold">Active Cashback Campaigns</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cashback Rate</TableHead>
-                      <TableHead className="text-right">Min Cart</TableHead>
-                      <TableHead className="text-right">Total Paid Out (₹)</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-bold text-foreground">5.0% Scanback Bonus</TableCell>
-                      <TableCell className="text-right">₹1,000</TableCell>
-                      <TableCell className="text-right text-indigo-500 font-extrabold">₹3,450</TableCell>
-                      <TableCell><Badge variant="success">Active</Badge></TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* VIEW 7: QR Referral Earnings */}
-        {isReferrals && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <Share2 className="h-4.5 w-4.5 text-primary" /> referral Terminal Commission logs
-              </CardTitle>
-              <CardDescription>Earn passive commission split when merchants you refer process QR checkouts</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
+        {/* Transactions list */}
+        <Card className="lg:col-span-5 glass h-fit">
+          <CardHeader className="pb-3 border-b border-border/40">
+            <CardTitle className="text-sm font-bold flex items-center gap-1.5"><Activity className="h-4.5 w-4.5 text-primary" /> Recent Wallet Receipts</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {walletCollections.list.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No dynamic wallet receipts logged.</p>
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Referred Store</TableHead>
-                    <TableHead>Batch Sales Volume (₹)</TableHead>
-                    <TableHead>Referral Commission %</TableHead>
-                    <TableHead className="text-right">Earnings Received (₹)</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Type</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="font-bold text-foreground">Pune Textiles Depot</TableCell>
-                    <TableCell>₹1,24,000</TableCell>
-                    <TableCell className="font-semibold text-primary">0.2% on UPI volume</TableCell>
-                    <TableCell className="text-right font-black text-emerald-500">₹248</TableCell>
-                  </TableRow>
+                  {walletCollections.list.map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell className="text-xs font-semibold text-foreground">
+                        <div>{t.id}</div>
+                        <div className="text-[10px] text-muted-foreground">{new Date(t.date).toLocaleDateString('en-IN')}</div>
+                      </TableCell>
+                      <TableCell className={`text-right font-black ${t.amount < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {t.amount < 0 ? "-" : "+"}₹{Math.abs(t.amount).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={t.description.toLowerCase().includes('refund') ? 'outline' : 'success'}>
+                          {t.description.toLowerCase().includes('withdrawal') ? "Settlement" : t.description.toLowerCase().includes('refund') ? "Refund" : "Scan Payment"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* VIEW 8: QR Growth */}
-        {isGrowth && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <TrendingUp className="h-4.5 w-4.5 text-primary animate-bounce" /> Digital Acceptance Rating
-              </CardTitle>
-              <CardDescription>Check requirements to upgrade your merchant terminal tiers</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 text-xs">
-              <div className="p-3 bg-secondary/30 rounded-lg border border-border/40 flex justify-between items-center">
-                <div className="flex flex-col gap-0.5 text-left">
-                  <span className="font-bold text-foreground">Current Tier: Silver Merchant</span>
-                  <span className="text-[10px] text-muted-foreground">UPI terminal flat rate: 1.5%</span>
-                </div>
-                <Badge variant="default">Level Up at ₹50,000 Sales</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Simulator Modal */}
+      {showSimulateModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="max-w-sm w-full relative bg-background border border-border text-left">
+            <button onClick={() => setShowSimulateModal(false)} className="absolute top-2.5 right-2.5 p-1 rounded-full bg-secondary text-foreground cursor-pointer border-none">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <CardHeader className="pb-2 border-b border-border/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5"><Activity className="h-4.5 w-4.5 text-primary" /> Simulate scan payment</CardTitle>
+              <CardDescription>Test dynamic database checkout receipts flow</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-muted-foreground">Checkout Amount (₹)</label>
+                <input 
+                  type="number" 
+                  value={simAmount} 
+                  onChange={(e) => setSimAmount(e.target.value)} 
+                  className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" 
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-muted-foreground">Choose Payment Channel</label>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setSimMethod('wallet')} 
+                    className={`flex-1 p-2 border rounded-lg text-xs font-bold cursor-pointer ${simMethod === 'wallet' ? 'bg-primary/20 text-primary border-primary' : 'bg-background text-foreground border-border'}`}
+                  >
+                    Apex Wallet
+                  </button>
+                  <button 
+                    onClick={() => setSimMethod('upi')} 
+                    className={`flex-1 p-2 border rounded-lg text-xs font-bold cursor-pointer ${simMethod === 'upi' ? 'bg-primary/20 text-primary border-primary' : 'bg-background text-foreground border-border'}`}
+                  >
+                    UPI QR
+                  </button>
+                </div>
+              </div>
+              
+              <Button onClick={handleSimulatePayment} className="w-full font-bold h-9 mt-2 text-xs bg-primary text-white cursor-pointer">Simulate Checkout Scan</Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Withdrawal Settlement Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="max-w-sm w-full relative bg-background border border-border text-left">
+            <button onClick={() => setShowWithdrawModal(false)} className="absolute top-2.5 right-2.5 p-1 rounded-full bg-secondary text-foreground cursor-pointer border-none">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <CardHeader className="pb-2 border-b border-border/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5"><DollarSign className="h-4.5 w-4.5 text-primary" /> Request Instant Payout Settlement</CardTitle>
+              <CardDescription>Withdraw counter QR collections directly to bank account</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-muted-foreground">Amount to Settle (₹)</label>
+                <input 
+                  type="number" 
+                  value={withdrawAmount} 
+                  onChange={(e) => setWithdrawAmount(e.target.value)} 
+                  placeholder="e.g. 5000"
+                  className="border border-border/85 rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none" 
+                />
+              </div>
+              <Button onClick={handleTriggerSettlement} className="w-full font-bold h-9 mt-2 text-xs bg-primary text-white cursor-pointer">Confirm Settlement Payout</Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 };

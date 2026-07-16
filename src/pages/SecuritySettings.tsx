@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
@@ -15,12 +16,42 @@ interface LoginSession {
 }
 
 export const SecuritySettings: React.FC = () => {
+  const { profile } = useVendor();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showTwoFactorQR, setShowTwoFactorQR] = useState(false);
+
+  // New States for Security Completion Gaps
+  const [alertChannels, setAlertChannels] = useState({ email: true, sms: false, whatsapp: true });
+  const [backupEmail, setBackupEmail] = useState('contact@apexbee.in');
+  const [backupPhone, setBackupPhone] = useState('+91 99999 88888');
+  const [apiKeys, setApiKeys] = useState<Array<{ id: string; val: string; created: string }>>([
+    { id: 'API-771', val: 'ap_live_38d82f7c00e12a', created: '2026-07-02' }
+  ]);
+
+  const [rolesMatrix, setRolesMatrix] = useState<Record<string, Record<string, boolean>>>({
+    Owner: { Billing: true, Products: true, Reports: true, Settings: true },
+    Manager: { Billing: true, Products: true, Reports: true, Settings: false },
+    Cashier: { Billing: true, Products: false, Reports: false, Settings: false },
+    Inventory: { Billing: false, Products: true, Reports: false, Settings: false },
+    Delivery: { Billing: false, Products: false, Reports: false, Settings: false }
+  });
+
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { label: 'Empty', color: 'bg-zinc-200', score: 0 };
+    if (pass.length < 6) return { label: 'Weak', color: 'bg-rose-500', score: 1 };
+    const hasLetter = /[a-zA-Z]/.test(pass);
+    const hasNum = /[0-9]/.test(pass);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+    const count = [hasLetter, hasNum, hasSpecial].filter(Boolean).length;
+    if (pass.length >= 8 && count === 3) return { label: 'Strong', color: 'bg-emerald-500', score: 3 };
+    return { label: 'Medium', color: 'bg-amber-500', score: 2 };
+  };
+
+  const strength = getPasswordStrength(newPassword);
 
   const [sessions, setSessions] = useState<LoginSession[]>([
     { id: 'SESS-991', device: 'Windows Desktop', os: 'Chrome v125', ip: '103.45.120.10', location: 'Mumbai, Maharashtra', lastActive: 'Active Now', current: true },
@@ -62,6 +93,48 @@ export const SecuritySettings: React.FC = () => {
   const handleTerminateSession = (sessionId: string) => {
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     setSuccessMsg("Remote session terminated successfully.");
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  const handlePanicLogout = () => {
+    setSessions(prev => prev.filter(s => s.current));
+    setSuccessMsg("🚨 Panic Mode Activated: Terminated all remote devices instantly!");
+    setTimeout(() => setSuccessMsg(null), 5000);
+  };
+
+  const handleGenerateApiKey = () => {
+    const keyVal = `ap_live_${Math.random().toString(36).substring(2, 16)}`;
+    const newKey = { id: `API-${Math.floor(100 + Math.random() * 900)}`, val: keyVal, created: new Date().toISOString().split('T')[0] };
+    setApiKeys(prev => [...prev, newKey]);
+    setSuccessMsg("Developer Live API Key generated successfully.");
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  const handleRevokeApiKey = (keyId: string) => {
+    setApiKeys(prev => prev.filter(k => k.id !== keyId));
+    setSuccessMsg("Developer API Key revoked successfully.");
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  const handleRoleToggle = (roleKey: string, permKey: string) => {
+    setRolesMatrix(prev => ({
+      ...prev,
+      [roleKey]: {
+        ...prev[roleKey],
+        [permKey]: !prev[roleKey][permKey]
+      }
+    }));
+  };
+
+  const handleGdprExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ profile, sessions, twoFactorEnabled, alertChannels }));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "apexbee_vendor_security_export.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setSuccessMsg("GDPR Profile & Access Logs downloaded successfully.");
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 
@@ -113,6 +186,19 @@ export const SecuritySettings: React.FC = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
                   />
+                  {newPassword && (
+                    <div className="flex flex-col gap-1 mt-1">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground">
+                        <span>Strength Rating:</span>
+                        <span className={strength.label === 'Strong' ? 'text-emerald-500' : strength.label === 'Medium' ? 'text-amber-500' : 'text-rose-500'}>
+                          {strength.label}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div className={`h-full ${strength.color} transition-all duration-300`} style={{ width: `${(strength.score / 3) * 100}%` }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-muted-foreground">Confirm New Password</label>
@@ -260,6 +346,213 @@ export const SecuritySettings: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
+        {/* Left Col: Security Alerts & Risk Score & API Rotation */}
+        <div className="lg:col-span-5 flex flex-col gap-6 text-xs text-left">
+          {/* Security Risk Score Card */}
+          <Card className="glass border border-primary/20 bg-primary/[0.01]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-black uppercase text-primary tracking-wider">Business Security Risk Score</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 font-semibold">
+              <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                <span className="text-muted-foreground">Security Rating</span>
+                <span className={`text-base font-black ${twoFactorEnabled ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  {twoFactorEnabled ? '96/100 (Excellent)' : '72/100 (Fair)'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-muted-foreground leading-normal font-medium">
+                <span>* Enable 2FA and use a complex password to reach 100/100.</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Alert Channels Checklist Toggles */}
+          <Card className="glass">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-muted-foreground">Notification Alert Channels</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 font-semibold text-muted-foreground">
+              <p className="text-[10px]">Select channels to receive security access and payout alerts:</p>
+              <div className="flex flex-col gap-2 pt-1">
+                <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
+                  <input 
+                    type="checkbox" 
+                    checked={alertChannels.email} 
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, email: e.target.checked }))} 
+                    className="accent-primary"
+                  />
+                  <span>Email Alerts ({backupEmail})</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
+                  <input 
+                    type="checkbox" 
+                    checked={alertChannels.sms} 
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, sms: e.target.checked }))} 
+                    className="accent-primary"
+                  />
+                  <span>SMS Alerts ({backupPhone})</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
+                  <input 
+                    type="checkbox" 
+                    checked={alertChannels.whatsapp} 
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, whatsapp: e.target.checked }))} 
+                    className="accent-primary"
+                  />
+                  <span>WhatsApp Chat Alerts</span>
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Backup Recovery Configs */}
+          <Card className="glass">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-muted-foreground">Backup Account Recovery</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Recovery Email</label>
+                <input 
+                  type="email" 
+                  value={backupEmail} 
+                  onChange={(e) => setBackupEmail(e.target.value)}
+                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none" 
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Recovery Phone</label>
+                <input 
+                  type="text" 
+                  value={backupPhone} 
+                  onChange={(e) => setBackupPhone(e.target.value)}
+                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none" 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Col: API rotation & Roles matrix & Panic logout */}
+        <div className="lg:col-span-7 flex flex-col gap-6 text-xs text-left">
+          {/* API Keys Rotation Console */}
+          <Card className="glass">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-border/40">
+              <div>
+                <CardTitle className="text-xs font-black uppercase tracking-wider text-muted-foreground">API Credentials Console</CardTitle>
+                <CardDescription className="text-[9.5px]">Generate Cost-Per-Click developer keys for custom store integrations</CardDescription>
+              </div>
+              <Button 
+                onClick={handleGenerateApiKey} 
+                className="h-7 text-[10px] font-bold px-2.5 cursor-pointer bg-primary text-white"
+              >
+                + New Key
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Key ID</TableHead>
+                    <TableHead>Key Secret</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {apiKeys.map(k => (
+                    <TableRow key={k.id}>
+                      <TableCell className="font-bold text-foreground text-xs">{k.id}</TableCell>
+                      <TableCell className="font-mono text-[10.5px] text-primary font-bold">{k.val}</TableCell>
+                      <TableCell className="text-muted-foreground font-semibold text-xs">{k.created}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-6 text-[9px] border-rose-500/20 text-rose-500 hover:bg-rose-500/5 cursor-pointer"
+                          onClick={() => handleRevokeApiKey(k.id)}
+                        >
+                          Revoke
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {apiKeys.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground italic">
+                        No active developer API credentials.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Permissions Matrix */}
+          <Card className="glass">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-muted-foreground">Store Access Permission Matrix</CardTitle>
+              <CardDescription className="text-[9.5px]">Configure granular features checklist for sub-accounts roles</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Role Title</TableHead>
+                    {['Billing', 'Products', 'Reports', 'Settings'].map(key => (
+                      <TableHead key={key} className="text-center">{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.keys(rolesMatrix).map((roleKey) => (
+                    <TableRow key={roleKey}>
+                      <TableCell className="font-bold text-foreground text-xs">{roleKey}</TableCell>
+                      {['Billing', 'Products', 'Reports', 'Settings'].map(permKey => (
+                        <TableCell key={permKey} className="text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={rolesMatrix[roleKey][permKey]}
+                            onChange={() => handleRoleToggle(roleKey, permKey)}
+                            className="accent-primary cursor-pointer"
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* GDPR & Panic Triggers */}
+          <Card className="glass bg-rose-500/[0.01] border border-rose-500/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-black uppercase text-rose-500 tracking-wider">Advanced Privacy &amp; Access Controls</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={handleGdprExport} 
+                variant="outline" 
+                className="flex-1 text-xs font-bold border-border cursor-pointer bg-background hover:bg-muted"
+              >
+                📥 GDPR Export Security Data
+              </Button>
+              
+              <Button 
+                onClick={handlePanicLogout} 
+                className="flex-1 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+              >
+                🚨 Panic Logout All Other Devices
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
     </div>
   );
 };

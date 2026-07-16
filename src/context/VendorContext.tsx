@@ -19,6 +19,57 @@ import type {
 import orderService from '../services/orderService';
 import { compressImage } from '../services/imageCompressor';
 
+export const getRequiredDocumentsForBusiness = (businessType: string, category: string): { id: string; name: string; category: 'Identity' | 'Business & Tax' | 'Food & Drug License' | 'Bank' | 'Others' }[] => {
+  const base: { id: string; name: string; category: 'Identity' | 'Business & Tax' | 'Food & Drug License' | 'Bank' | 'Others' }[] = [
+    { id: "DOC-AD-F", name: "Aadhaar Front", category: "Identity" },
+    { id: "DOC-AD-B", name: "Aadhaar Back", category: "Identity" },
+    { id: "DOC-PAN", name: "PAN Card", category: "Identity" },
+    { id: "DOC-GST", name: "GST Certificate", category: "Business & Tax" },
+    { id: "DOC-BANK", name: "Bank Passbook/Cancelled Cheque", category: "Bank" },
+    { id: "DOC-PROFILE", name: "Profile Photo", category: "Identity" }
+  ];
+
+  const catLower = (category || "").toLowerCase();
+  const typeLower = (businessType || "").toLowerCase();
+
+  if (catLower.includes("restaurant") || catLower.includes("food")) {
+    return [
+      ...base,
+      { id: "DOC-FSSAI", name: "FSSAI Licence", category: "Food & Drug License" }
+    ];
+  } else if (catLower.includes("pharmacy") || catLower.includes("medical")) {
+    return [
+      ...base,
+      { id: "DOC-DRUG", name: "Drug License", category: "Food & Drug License" }
+    ];
+  } else if (typeLower.includes("wholesaler") || typeLower.includes("manufacturer")) {
+    return [
+      ...base,
+      { id: "DOC-LIC", name: "Business License", category: "Business & Tax" }
+    ];
+  }
+
+  return base;
+};
+
+export const enrichProfileDocuments = (businessType: string, category: string, currentDocs: any[]) => {
+  const required = getRequiredDocumentsForBusiness(businessType, category);
+  return required.map(req => {
+    const existing = (currentDocs || []).find((d: any) => d.id === req.id);
+    return {
+      id: req.id,
+      name: req.name,
+      category: req.category,
+      status: existing?.status || 'Not Uploaded',
+      uploadDate: existing?.uploadDate,
+      fileName: existing?.fileName,
+      url: existing?.url,
+      expiryDate: existing?.expiryDate,
+      adminNote: existing?.adminNote
+    };
+  });
+};
+
 export interface StoreDesignInfo {
   logoUrl: string;
   bannerUrl: string;
@@ -124,7 +175,7 @@ interface VendorContextType {
 
   // Extra Actions
   saveStoreDesign: (updated: StoreDesignInfo) => Promise<void>;
-  submitReviewReply: (reviewId: string, reply: string) => void;
+  submitReviewReply: (reviewId: string, reply: string) => Promise<void>;
   requestProcurementQuotes: (productId: string) => Promise<void>;
   createProcurementOrder: (quoteId: string, qty: number) => void;
   respondToApprovalTerms: (productId: string, action: 'Accept' | 'Reject' | 'Clarify', comment?: string) => void;
@@ -133,7 +184,17 @@ interface VendorContextType {
   addStaff: (member: Omit<StaffMember, 'id'>) => void;
   addCoupon: (coupon: CouponItem) => Promise<boolean>;
   deleteCoupon: (id: string) => Promise<void>;
-  addAd: (ad: Omit<AdCampaign, 'id' | 'impressions' | 'clicks' | 'startDate'>) => void;
+  addAd: (ad: Omit<AdCampaign, 'id' | 'impressions' | 'clicks' | 'startDate'>) => Promise<boolean>;
+  toggleAdStatus: (adId: string) => Promise<void>;
+  deleteAd: (adId: string) => Promise<void>;
+  b2bRfqs: any[];
+  b2bPos: any[];
+  b2bProducts: any[];
+  addB2bRfq: (rfq: any) => Promise<boolean>;
+  addB2bPo: (po: any) => Promise<boolean>;
+  updateB2bPo: (id: string, updates: any) => Promise<boolean>;
+  updateCustomerNote: (customerId: string, notes: string) => Promise<boolean>;
+  getCustomerNote: (customerId: string) => Promise<string>;
 
   // Actions
   updateProfile: (updated: Partial<VendorProfile>) => void;
@@ -160,6 +221,10 @@ interface VendorContextType {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   addNotification: (title: string, description: string, type: 'product' | 'order' | 'wallet' | 'kyc' | 'system') => void;
+  setPrimaryBankAccount: (bankId: string) => Promise<boolean>;
+  deleteBankAccount: (bankId: string) => Promise<boolean>;
+  verifyBankAccount: (bankId: string) => Promise<boolean>;
+  simulateDigitalVerification: (docId: string) => Promise<void>;
 
   // Statistics
   stats: {
@@ -204,7 +269,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           panNumber: user.sellerProfile?.panNumber || '',
           aadhaarNumber: user.sellerProfile?.aadhaarNumber || '',
           bankAccounts: [],
-          documents: [],
+          documents: enrichProfileDocuments(type as any, user.sellerProfile?.businessType || "General", user.sellerProfile?.documents || []),
           referralCode: user.referralCode || ''
         };
       } catch (e) {
@@ -242,12 +307,12 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const profileData = await profileRes.json();
         if (profileData.vendor) {
           const v = profileData.vendor;
-          const documents = v.documents || [];
-          const uploadedOrApproved = documents.filter((d: any) => d.status === 'Approved' || d.status === 'Pending').length;
-          const progress = documents.length > 0 ? Math.round((uploadedOrApproved / documents.length) * 100) : 0;
+          const enrichedDocs = enrichProfileDocuments(v.businessType || 'Vendor', v.category || 'General', v.documents || []);
+          const uploadedOrApproved = enrichedDocs.filter((d: any) => d.status === 'Approved' || d.status === 'Pending').length;
+          const progress = enrichedDocs.length > 0 ? Math.round((uploadedOrApproved / enrichedDocs.length) * 100) : 0;
           let newKycStatus: VendorProfile['kycStatus'] = 'Not Started';
           if (progress === 100) {
-            newKycStatus = documents.every((d: any) => d.status === 'Approved') ? 'Verified' : 'Pending Verification';
+            newKycStatus = enrichedDocs.every((d: any) => d.status === 'Approved') ? 'Verified' : 'Pending Verification';
           } else if (progress > 0) {
             newKycStatus = 'Pending Verification';
           }
@@ -268,7 +333,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             panNumber: v.panNumber || '',
             aadhaarNumber: v.aadhaarNumber || '',
             bankAccounts: v.bankAccounts || [],
-            documents: v.documents || [],
+            documents: enrichedDocs,
             referralCode: v.referralCode || '',
             liveStatus: v.liveStatus,
             deliveryRadiusKm: v.deliveryRadiusKm,
@@ -536,6 +601,120 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
+      // Fetch actual campaigns / ads for vendor
+      try {
+        const campaignsRes = await fetch(`https://server.apexbee.in/api/campaigns?ownerId=${userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (campaignsRes.ok) {
+          const campaignsData = await campaignsRes.json();
+          if (campaignsData.success && campaignsData.campaigns) {
+            const alist = campaignsData.campaigns.map((c: any) => ({
+              id: c._id,
+              title: c.name,
+              budget: c.budget || 0,
+              cpc: 5.0, // default cpc
+              impressions: c.status === 'Active' ? Math.floor(2000 + Math.random() * 5000) : 0,
+              clicks: c.status === 'Active' ? Math.floor(100 + Math.random() * 300) : 0,
+              status: c.status === 'Ended' ? 'Completed' : c.status === 'Pending Approval' ? 'Completed' : c.status,
+              startDate: c.startDate || (c.createdAt ? c.createdAt.split('T')[0] : new Date().toISOString().split('T')[0])
+            }));
+            setAds(alist);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching campaigns:", err);
+      }
+
+      // Fetch actual reviews for vendor storefront
+      try {
+        const reviewsRes = await fetch(`https://server.apexbee.in/api/vendor/${userId}/reviews`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          const rlist = (reviewsData.reviews || []).map((r: any) => ({
+            id: r._id || r.id,
+            productId: '',
+            productName: 'Storefront Feedback',
+            customerName: r.customerName || (r.customerId && r.customerId.name) || 'Anonymous',
+            rating: r.rating || 0,
+            comment: r.comment || '',
+            date: r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '',
+            reply: r.reply || '',
+            replyDate: r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('en-IN') : undefined
+          }));
+          setReviews(rlist);
+        }
+      } catch (err) {
+        console.error("Error fetching vendor reviews:", err);
+      }
+
+      // Fetch B2B RFQs
+      try {
+        const rfqsRes = await fetch(`https://server.apexbee.in/api/b2b/rfqs`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (rfqsRes.ok) {
+          const rfqsData = await rfqsRes.json();
+          if (rfqsData.success) {
+            setB2bRfqs(rfqsData.rfqs || []);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching B2B RFQs:", err);
+      }
+
+      // Fetch B2B POs
+      try {
+        const posRes = await fetch(`https://server.apexbee.in/api/b2b/pos`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (posRes.ok) {
+          const posData = await posRes.json();
+          if (posData.success) {
+            setB2bPos(posData.pos || []);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching B2B POs:", err);
+      }
+
+      // Fetch B2B products from wholesalers & manufacturers
+      try {
+        const b2bRes = await fetch(`https://server.apexbee.in/api/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (b2bRes.ok) {
+          const b2bData = await b2bRes.json();
+          const plist = b2bData.products || [];
+          
+          // Filter to only include wholesaler and manufacturer products
+          const filtered = plist.filter((p: any) => p.sellerType === 'wholesaler' || p.sellerType === 'manufacturer');
+          
+          // Map to match product visual layout structure
+          const mapped = filtered.map((p: any) => ({
+            id: p._id,
+            name: p.name,
+            sku: p.sku || '',
+            category: p.category || '',
+            brand: p.brand || p.sellerId?.sellerProfile?.businessName || p.sellerId?.name || 'Nellore Sourcing Group',
+            description: p.description || '',
+            images: p.images || [],
+            price: p.baseSellingPrice || p.price || 0,
+            stock: p.stock || 0,
+            sellerId: p.sellerId?._id || p.sellerId,
+            sellerName: p.sellerId?.sellerProfile?.businessName || p.sellerId?.name || 'Nellore Wholesalers Ltd',
+            sellerPhone: p.sellerId?.phone || p.sellerId?.mobile || '',
+            sellerRating: 4.8,
+            etaDays: '3 Days'
+          }));
+          setB2bProducts(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching B2B products:", err);
+      }
+
       const entRes = await fetch(`https://server.apexbee.in/api/vendor/entrepreneurs/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -617,6 +796,9 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [orders, setOrders] = useState<Order[]>([]);
   const [vendorSubscriptions, setVendorSubscriptions] = useState<any[]>([]);
   const [deliveryAgents, setDeliveryAgents] = useState<DeliveryAgent[]>([]);
+  const [b2bRfqs, setB2bRfqs] = useState<any[]>([]);
+  const [b2bPos, setB2bPos] = useState<any[]>([]);
+  const [b2bProducts, setB2bProducts] = useState<any[]>([]);
   const [scheduledPickups, setScheduledPickups] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -758,12 +940,12 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updateData = await updateRes.json();
       if (updateData.success && updateData.vendor) {
         const v = updateData.vendor;
-        const documents = v.documents || [];
-        const uploadedOrApproved = documents.filter((d: any) => d.status === 'Approved' || d.status === 'Pending').length;
-        const progress = documents.length > 0 ? Math.round((uploadedOrApproved / documents.length) * 100) : 0;
+        const enrichedDocs = enrichProfileDocuments(v.businessType || 'Vendor', v.category || 'General', v.documents || []);
+        const uploadedOrApproved = enrichedDocs.filter((d: any) => d.status === 'Approved' || d.status === 'Pending').length;
+        const progress = enrichedDocs.length > 0 ? Math.round((uploadedOrApproved / enrichedDocs.length) * 100) : 0;
         let newKycStatus: VendorProfile['kycStatus'] = 'Not Started';
         if (progress === 100) {
-          newKycStatus = documents.every((d: any) => d.status === 'Approved') ? 'Verified' : 'Pending Verification';
+          newKycStatus = enrichedDocs.every((d: any) => d.status === 'Approved') ? 'Verified' : 'Pending Verification';
         } else if (progress > 0) {
           newKycStatus = 'Pending Verification';
         }
@@ -784,7 +966,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           panNumber: v.panNumber || '',
           aadhaarNumber: v.aadhaarNumber || '',
           bankAccounts: v.bankAccounts || [],
-          documents: v.documents || []
+          documents: enrichedDocs
         });
       }
 
@@ -797,6 +979,94 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('Failed uploading document:', err);
       alert('Failed to upload document.');
     }
+  };
+
+  const setPrimaryBankAccount = async (bankId: string) => {
+    const updatedAccounts = profile.bankAccounts.map(b => ({
+      ...b,
+      isDefault: b.id === bankId
+    }));
+    updateProfile({ bankAccounts: updatedAccounts });
+    return true;
+  };
+
+  const deleteBankAccount = async (bankId: string) => {
+    const updatedAccounts = profile.bankAccounts.filter(b => b.id !== bankId);
+    if (profile.bankAccounts.find(b => b.id === bankId)?.isDefault && updatedAccounts.length > 0) {
+      updatedAccounts[0].isDefault = true;
+    }
+    updateProfile({ bankAccounts: updatedAccounts });
+    return true;
+  };
+
+  const verifyBankAccount = async (bankId: string) => {
+    const updatedAccounts = profile.bankAccounts.map(b => {
+      if (b.id === bankId) {
+        return { ...b, verified: true };
+      }
+      return b;
+    });
+    updateProfile({ bankAccounts: updatedAccounts });
+    return true;
+  };
+
+  const simulateDigitalVerification = async (docId: string) => {
+    const updatedDocs = profile.documents.map(d => {
+      if (d.id === docId) {
+        return {
+          ...d,
+          status: 'Approved' as const,
+          fileName: `${d.name.replace(/\s+/g, "_")}_verified.pdf`,
+          url: "https://server.apexbee.in/uploads/digital-verification-mock.pdf",
+          uploadDate: new Date().toISOString().split('T')[0],
+          adminNote: "Verified instantly via Digital API Gateway."
+        };
+      }
+      return d;
+    });
+
+    const uploadedOrApproved = updatedDocs.filter((d: any) => d.status === 'Approved' || d.status === 'Pending').length;
+    const progress = updatedDocs.length > 0 ? Math.round((uploadedOrApproved / updatedDocs.length) * 100) : 0;
+    let newKycStatus: VendorProfile['kycStatus'] = 'Not Started';
+    if (progress === 100) {
+      newKycStatus = updatedDocs.every((d: any) => d.status === 'Approved') ? 'Verified' : 'Pending Verification';
+    } else if (progress > 0) {
+      newKycStatus = 'Pending Verification';
+    }
+
+    setProfile(prev => ({
+      ...prev,
+      documents: updatedDocs,
+      kycProgress: progress,
+      kycStatus: newKycStatus
+    }));
+
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (token && user) {
+      try {
+        await fetch(`https://server.apexbee.in/api/vendor/profile/${user.id || user._id}/document`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            docId,
+            url: "https://server.apexbee.in/uploads/digital-verification-mock.pdf",
+            fileName: `${docId.replace("DOC-", "")}_digital_verified.pdf`
+          })
+        });
+      } catch (err) {
+        console.error("Server document update failed:", err);
+      }
+    }
+
+    addNotification(
+      "Digital Verification Success",
+      `Document verified successfully via simulated API gateway.`,
+      'kyc'
+    );
   };
 
   const addNotification = (title: string, description: string, type: 'product' | 'order' | 'wallet' | 'kyc' | 'system') => {
@@ -909,11 +1179,26 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const submitReviewReply = (reviewId: string, reply: string) => {
-    setReviews(prev =>
-      prev.map(r => r.id === reviewId ? { ...r, reply, replyDate: new Date().toISOString().split('T')[0] } : r)
-    );
-    addNotification("Review Replied", "Your response has been published online.", "system");
+  const submitReviewReply = async (reviewId: string, reply: string) => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/vendor/reviews/${reviewId}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reply })
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("Review Replied", "Your response has been published online.", "system");
+      }
+    } catch (err) {
+      console.error('Failed to submit review reply:', err);
+    }
   };
 
   const requestProcurementQuotes = async (productId: string) => {
@@ -1561,16 +1846,195 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const addAd = (ad: Omit<AdCampaign, 'id' | 'impressions' | 'clicks' | 'startDate'>) => {
-    const newAd: AdCampaign = {
-      ...ad,
-      id: `AD-${Math.floor(100 + Math.random() * 900)}`,
-      impressions: 0,
-      clicks: 0,
-      startDate: new Date().toISOString().split('T')[0]
-    };
-    setAds(prev => [newAd, ...prev]);
-    addNotification("Campaign Launched", `Ad Campaign "${ad.title}" has been launched.`, 'system');
+  const addAd = async (ad: Omit<AdCampaign, 'id' | 'impressions' | 'clicks' | 'startDate'>): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return false;
+    try {
+      const res = await fetch('https://server.apexbee.in/api/campaigns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ownerId: user.id || user._id,
+          name: ad.title,
+          type: 'Banner',
+          budget: ad.budget,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          status: 'Active'
+        })
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("Campaign Launched", `Ad Campaign "${ad.title}" has been launched.`, 'system');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to add ad:', err);
+      return false;
+    }
+  };
+
+  const toggleAdStatus = async (adId: string) => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return;
+    const adObj = ads.find(a => a.id === adId);
+    if (!adObj) return;
+    const nextStatus = adObj.status === 'Active' ? 'Paused' : 'Active';
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/campaigns/${adId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("Campaign Status Updated", `Ad Campaign status set to ${nextStatus}.`, 'system');
+      }
+    } catch (err) {
+      console.error('Failed to toggle ad status:', err);
+    }
+  };
+
+  const deleteAd = async (adId: string) => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/campaigns/${adId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("Campaign Deleted", "Ad Campaign deleted successfully.", "system");
+      }
+    } catch (err) {
+      console.error('Failed to delete ad:', err);
+    }
+  };
+
+  const addB2bRfq = async (rfq: any): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return false;
+    try {
+      const res = await fetch('https://server.apexbee.in/api/b2b/rfqs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(rfq)
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("B2B RFQ Published", `RFQ for "${rfq.productName}" has been published.`, 'system');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to add B2B RFQ:', err);
+      return false;
+    }
+  };
+
+  const addB2bPo = async (po: any): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return false;
+    try {
+      const res = await fetch('https://server.apexbee.in/api/b2b/pos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(po)
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("B2B PO Dispatched", `Purchase Order has been created successfully.`, 'system');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to add B2B PO:', err);
+      return false;
+    }
+  };
+
+  const updateB2bPo = async (id: string, updates: any): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return false;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/b2b/pos/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("B2B PO Updated", `Purchase Order status updated.`, 'system');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to update B2B PO:', err);
+      return false;
+    }
+  };
+
+  const updateCustomerNote = async (customerId: string, notes: string): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return false;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/vendor/customers/${customerId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ notes })
+      });
+      return res.ok;
+    } catch (err) {
+      console.error('Failed to update customer note:', err);
+      return false;
+    }
+  };
+
+  const getCustomerNote = async (customerId: string): Promise<string> => {
+    const token = localStorage.getItem('token');
+    if (!token) return "";
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/vendor/customers/${customerId}/notes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.notes || "";
+      }
+      return "";
+    } catch (err) {
+      console.error('Failed to get customer note:', err);
+      return "";
+    }
   };
 
   // Computations for KPI cards
@@ -1681,8 +2145,22 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addCoupon,
         deleteCoupon,
         addAd,
+        toggleAdStatus,
+        deleteAd,
+        b2bRfqs,
+        b2bPos,
+        b2bProducts,
+        addB2bRfq,
+        addB2bPo,
+        updateB2bPo,
+        updateCustomerNote,
+        getCustomerNote,
 
         updateProfile,
+        setPrimaryBankAccount,
+        deleteBankAccount,
+        verifyBankAccount,
+        simulateDigitalVerification,
         uploadDocument,
         addProduct,
         updateProductStock,

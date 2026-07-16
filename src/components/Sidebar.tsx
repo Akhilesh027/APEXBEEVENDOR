@@ -242,19 +242,19 @@ export const Sidebar: React.FC = () => {
       items: [
         {
           id: 'coupons',
-          label: 'Coupons & Offers',
+          label: 'Promotions Center',
           icon: <Gift className="h-4 w-4 text-amber-500" />,
           subItems: []
         },
         {
           id: 'advertisement',
-          label: 'Advertisements',
+          label: 'Promotions & Ads',
           icon: <Megaphone className="h-4 w-4 text-orange-500" />,
           subItems: []
         },
         {
           id: 'reviews',
-          label: 'Reviews & Ratings',
+          label: 'Reputation Center',
           icon: <Star className="h-4 w-4 text-amber-500" />,
           subItems: [
             { id: 'reviews-products', label: 'Product Reviews', icon: <Star className="h-3.5 w-3.5" /> },

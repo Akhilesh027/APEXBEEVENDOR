@@ -1704,20 +1704,52 @@ export const ProductManagement: React.FC = () => {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  {saving && (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="flex gap-2.5 pt-2">
+                  {activeFormTab !== 'basic' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeFormTab === 'pricing') setActiveFormTab('basic');
+                        else if (activeFormTab === 'inventory') setActiveFormTab('pricing');
+                        else if (activeFormTab === 'seo') setActiveFormTab('inventory');
+                      }}
+                      className="px-4 py-3 rounded-xl bg-secondary text-foreground font-bold border border-border cursor-pointer flex items-center justify-center"
+                    >
+                      Back
+                    </button>
                   )}
-                  {saving
-                    ? 'Saving Product...'
-                    : editingProduct
-                      ? 'Update Product'
-                      : 'Submit Product for Review'}
-                </button>
+
+                  {activeFormTab !== 'seo' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeFormTab === 'basic') setActiveFormTab('pricing');
+                        else if (activeFormTab === 'pricing') setActiveFormTab('inventory');
+                        else if (activeFormTab === 'inventory') setActiveFormTab('seo');
+                      }}
+                      className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      Next Step →
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className={`py-3 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-60 flex items-center justify-center gap-2 ${
+                      activeFormTab === 'seo' ? 'flex-1' : 'px-6 bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                  >
+                    {saving && (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    )}
+                    {saving
+                      ? 'Saving...'
+                      : editingProduct
+                        ? 'Update Product'
+                        : 'Submit for Review'}
+                  </button>
+                </div>
               </form>
             </div>
           </div>

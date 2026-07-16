@@ -6,10 +6,10 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Select } from '../components/ui/Select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
-import { Building2, ShieldCheck, CreditCard, FolderOpen, Upload, Check, AlertTriangle, Plus, User, Shield, Store, Eye, Globe, Award, Sparkles, X, CheckCircle2, Phone, Mail, FileText, Image as ImageIcon } from 'lucide-react';
+import { Building2, ShieldCheck, CreditCard, FolderOpen, Upload, Check, AlertTriangle, Plus, User, Shield, Store, Eye, Globe, Award, Sparkles, X, CheckCircle2, Phone, Mail, FileText, Image as ImageIcon, Trash2, Calendar, Database, UserCheck } from 'lucide-react';
 
 export const BusinessProfile: React.FC = () => {
-  const { profile, updateProfile, uploadDocument, currentPage } = useVendor();
+  const { profile, updateProfile, uploadDocument, currentPage, setPrimaryBankAccount, deleteBankAccount, verifyBankAccount } = useVendor();
 
   const [activeTab, setActiveTab] = useState('account');
 
@@ -1345,7 +1345,9 @@ export const BusinessProfile: React.FC = () => {
         <TabsContent value="kyc">
           <Card className="glass">
             <CardHeader>
-              <CardTitle className="text-base font-bold">KYC Verification Stepper</CardTitle>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" /> KYC Verification Stepper
+              </CardTitle>
               <CardDescription>Upload necessary credentials to activate your live seller hub permissions</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5 text-left">
@@ -1366,71 +1368,113 @@ export const BusinessProfile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Uploads List */}
-              <div className="flex flex-col gap-2.5">
-                <span className="text-xs font-bold text-foreground">Required Document Checklists</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {profile.documents.map(doc => (
-                    <div key={doc.id} className="p-3 border border-border/60 bg-card rounded-xl flex items-center justify-between gap-3 text-xs">
-                      <div className="flex flex-col text-left">
-                        <span className="font-bold text-foreground">{doc.name}</span>
-                        {doc.fileName ? (
-                          <span className="text-[10px] text-muted-foreground font-mono truncate max-w-xs">{doc.fileName}</span>
-                        ) : (
-                          <span className="text-[10px] text-destructive">No document uploaded</span>
-                        )}
-                        
-                        {/* Expiry Input Field next to upload */}
-                        {(doc.name.includes('GST') || doc.name.includes('FSSAI') || doc.name.includes('Tax')) && (
-                          <div className="mt-2 flex flex-col gap-1">
-                            <span className="text-[9px] font-bold text-muted-foreground uppercase">Expiry Date</span>
-                            <input
-                              type="date"
-                              value={doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (doc.name.includes('GST')) setGstExpiry(val);
-                                else setFssaiExpiry(val);
-                              }}
-                              className="border border-border rounded px-2 py-0.5 bg-background text-foreground text-[10px] focus:outline-none w-28"
-                            />
-                            {((doc.name.includes('GST') ? gstExpiry : fssaiExpiry)) && (
-                              <span className="text-[8px] text-amber-500 font-extrabold">
-                                🔔 Renew alerts active: {doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="mt-1.5">{getDocStatusBadge(doc.status)}</div>
+              {/* Category-grouped documents */}
+              {['Identity', 'Business & Tax', 'Food & Drug License', 'Bank', 'Others'].map(category => {
+                const categoryDocs = profile.documents.filter(d => (d as any).category === category);
+                if (categoryDocs.length === 0) return null;
+                return (
+                  <div key={category} className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                        {category === 'Identity' ? <UserCheck className="h-3.5 w-3.5" /> :
+                         category === 'Bank' ? <Database className="h-3.5 w-3.5" /> :
+                         category.includes('Food') ? <FileText className="h-3.5 w-3.5" /> :
+                         <Building2 className="h-3.5 w-3.5" />}
                       </div>
-                        {doc.status !== 'Approved' && (
-                          <>
-                            <input
-                              type="file"
-                              id={`file-input-${doc.id}`}
-                              style={{ display: 'none' }}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  uploadDocument(doc.id, file);
-                                }
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              onClick={() => document.getElementById(`file-input-${doc.id}`)?.click()}
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center gap-1 text-[11px] h-8 cursor-pointer"
-                            >
-                              <Upload className="h-3.5 w-3.5" /> Upload File
-                            </Button>
-                          </>
-                        )}
+                      <span className="text-xs font-extrabold text-foreground uppercase tracking-wider">{category}</span>
+                      <Badge variant="secondary" className="text-[9px] font-bold">
+                        {categoryDocs.filter(d => d.status === 'Approved').length}/{categoryDocs.length} Verified
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {categoryDocs.map(doc => {
+                        const isExpiring = doc.status === 'Approved' && (doc.id.includes('GST') || doc.id.includes('FSSAI') || doc.id.includes('DRUG'));
+                        return (
+                          <div key={doc.id} className="p-3 border border-border/60 bg-card rounded-xl flex items-center justify-between gap-3 text-xs hover:border-primary/30 transition-colors">
+                            <div className="flex flex-col text-left flex-1 min-w-0">
+                              <span className="font-extrabold text-foreground">{doc.name}</span>
+                              {doc.fileName ? (
+                                <span className="text-[10px] text-muted-foreground font-mono truncate max-w-xs">{doc.fileName}</span>
+                              ) : (
+                                <span className="text-[10px] text-destructive font-bold">No document uploaded</span>
+                              )}
+
+                              {/* Expiry countdown badge */}
+                              {isExpiring && (
+                                <span className="text-amber-500 font-extrabold flex items-center gap-0.5 text-[9px] bg-amber-500/10 px-1.5 py-0.5 rounded w-fit mt-1.5 border border-amber-500/20">
+                                  <Calendar className="h-3 w-3" /> Expires in 42 Days ⚠
+                                </span>
+                              )}
+
+                              {/* Expiry Input Field */}
+                              {(doc.name.includes('GST') || doc.name.includes('FSSAI') || doc.name.includes('Tax')) && (
+                                <div className="mt-2 flex flex-col gap-1">
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">Expiry Date</span>
+                                  <input
+                                    type="date"
+                                    value={doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (doc.name.includes('GST')) setGstExpiry(val);
+                                      else setFssaiExpiry(val);
+                                    }}
+                                    className="border border-border rounded px-2 py-0.5 bg-background text-foreground text-[10px] focus:outline-none w-28"
+                                  />
+                                  {((doc.name.includes('GST') ? gstExpiry : fssaiExpiry)) && (
+                                    <span className="text-[8px] text-amber-500 font-extrabold">
+                                      🔔 Renew alerts active: {doc.name.includes('GST') ? gstExpiry : fssaiExpiry}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Admin rejection note */}
+                              {doc.status === 'Rejected' && (
+                                <div className="mt-1.5 p-1.5 bg-rose-500/10 border border-rose-500/20 rounded text-[9px] text-rose-500 font-bold flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0" /> Blurry scan. Re-upload in high resolution.
+                                </div>
+                              )}
+
+                              <div className="mt-1.5">{getDocStatusBadge(doc.status)}</div>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {doc.status !== 'Approved' && (
+                                <>
+                                  <input
+                                    type="file"
+                                    id={`file-input-${doc.id}`}
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        uploadDocument(doc.id, file);
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={() => document.getElementById(`file-input-${doc.id}`)?.click()}
+                                    variant={doc.status === 'Rejected' ? 'destructive' : 'outline'}
+                                    size="sm"
+                                    className="flex items-center gap-1 text-[11px] h-8 cursor-pointer"
+                                  >
+                                    <Upload className="h-3.5 w-3.5" /> {doc.status === 'Rejected' ? 'Re-Upload' : 'Upload'}
+                                  </Button>
+                                </>
+                              )}
+                              {doc.status === 'Approved' && (
+                                <span className="text-[10px] text-emerald-500 font-extrabold flex items-center gap-1">
+                                  <CheckCircle2 className="h-4 w-4" /> Verified
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1440,7 +1484,9 @@ export const BusinessProfile: React.FC = () => {
           <Card className="glass">
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <div className="flex flex-col gap-0.5 text-left">
-                <CardTitle className="text-base font-bold">Registered Bank Registers</CardTitle>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" /> Registered Bank Registers
+                </CardTitle>
                 <CardDescription>Configure settlement destinations for your payouts</CardDescription>
               </div>
               {!isAddingBank && (
@@ -1492,17 +1538,26 @@ export const BusinessProfile: React.FC = () => {
               {/* Bank accounts list */}
               <div className="flex flex-col gap-3">
                 {profile.bankAccounts.map(b => (
-                  <div key={b.id} className="p-4 border border-border/80 bg-card rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div key={b.id} className={`p-4 border bg-card rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+                    b.isDefault ? 'border-primary/40 bg-primary/5' : 'border-border/80'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                        b.isDefault ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'
+                      }`}>
                         <CreditCard className="h-5 w-5" />
                       </div>
                       <div className="flex flex-col text-xs text-left">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-foreground text-sm">{b.bankName}</span>
                           {b.isDefault && (
                             <Badge variant="success" className="py-0.5 px-2 text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                              ⭐ Preferred Settlement Account
+                              ⭐ Primary Account
+                            </Badge>
+                          )}
+                          {(b as any).verified && (
+                            <Badge variant="success" className="py-0.5 px-1.5 text-[8px] font-black bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center gap-0.5">
+                              <ShieldCheck className="h-3 w-3" /> Bank Verified
                             </Badge>
                           )}
                         </div>
@@ -1510,24 +1565,53 @@ export const BusinessProfile: React.FC = () => {
                         <span className="text-[10px] text-muted-foreground">Type: {b.accountType} | Beneficiary: {b.accountName}</span>
                       </div>
                     </div>
-                    <div className="flex-shrink-0 flex items-center">
+                    <div className="flex-shrink-0 flex items-center gap-1.5">
+                      {!(b as any).verified && (
+                        <Button
+                          type="button"
+                          onClick={() => verifyBankAccount(b.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-[10px] cursor-pointer h-7 border-blue-500/30 text-blue-600 hover:bg-blue-500/5 flex items-center gap-1 font-bold"
+                        >
+                          <ShieldCheck className="h-3 w-3" /> Verify
+                        </Button>
+                      )}
+                      {!b.isDefault && (
+                        <Button
+                          type="button"
+                          onClick={() => setPrimaryBankAccount(b.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-[10px] cursor-pointer h-7 font-bold"
+                        >
+                          Make Primary
+                        </Button>
+                      )}
                       {!b.isDefault && (
                         <Button
                           type="button"
                           onClick={() => {
-                            const updated = profile.bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === b.id }));
-                            updateProfile({ bankAccounts: updated });
+                            if (confirm('Are you sure you want to remove this bank account?')) {
+                              deleteBankAccount(b.id);
+                            }
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-xs cursor-pointer"
+                          className="text-[10px] cursor-pointer h-7 border-rose-500/30 text-rose-500 hover:bg-rose-500/5 flex items-center gap-1 font-bold"
                         >
-                          Make Default
+                          <Trash2 className="h-3 w-3" /> Remove
                         </Button>
                       )}
                     </div>
                   </div>
                 ))}
+                {profile.bankAccounts.length === 0 && (
+                  <div className="py-12 text-center text-muted-foreground text-xs flex flex-col items-center gap-2">
+                    <CreditCard className="h-8 w-8 text-muted-foreground/30" />
+                    No bank accounts registered. Add one to receive payouts.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1537,19 +1621,28 @@ export const BusinessProfile: React.FC = () => {
         <TabsContent value="documents">
           <Card className="glass">
             <CardHeader>
-              <CardTitle className="text-base font-bold">Uploaded Business Documents Registry</CardTitle>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-primary" /> Uploaded Business Documents Registry
+              </CardTitle>
               <CardDescription>Audit logs and PDFs of uploaded identification licenses</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 text-left">
               <div className="flex flex-col gap-2.5">
                 {profile.documents.filter(d => d.fileName).map(doc => (
-                  <div key={doc.id} className="p-3 border border-border/60 bg-card rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div key={doc.id} className="p-3 border border-border/60 bg-card rounded-xl flex items-center justify-between gap-3 text-xs hover:border-primary/30 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded bg-secondary flex items-center justify-center">
+                      <div className="h-9 w-9 rounded-lg bg-secondary/50 flex items-center justify-center border border-border/50">
                         <FolderOpen className="h-4.5 w-4.5 text-primary" />
                       </div>
                       <div className="flex flex-col text-left">
-                        <span className="font-bold text-foreground">{doc.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-foreground">{doc.name}</span>
+                          {(doc as any).category && (
+                            <Badge variant="secondary" className="text-[8px] py-0 px-1.5 font-bold uppercase tracking-wider">
+                              {(doc as any).category}
+                            </Badge>
+                          )}
+                        </div>
                         <span className="text-[10px] font-mono text-muted-foreground">{doc.fileName}</span>
                         <span className="text-[9px] text-muted-foreground">Uploaded on: {doc.uploadDate}</span>
                       </div>
@@ -1558,14 +1651,17 @@ export const BusinessProfile: React.FC = () => {
                       {getDocStatusBadge(doc.status)}
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noreferrer">
-                          <Button variant="outline" size="sm" className="h-8 text-[11px] cursor-pointer">View File</Button>
+                          <Button variant="outline" size="sm" className="h-7 text-[10px] cursor-pointer flex items-center gap-1">
+                            <Eye className="h-3 w-3" /> View File
+                          </Button>
                         </a>
                       )}
                     </div>
                   </div>
                 ))}
                 {profile.documents.filter(d => d.fileName).length === 0 && (
-                  <div className="py-12 text-center text-muted-foreground text-xs">
+                  <div className="py-12 text-center text-muted-foreground text-xs flex flex-col items-center gap-2">
+                    <FolderOpen className="h-8 w-8 text-muted-foreground/30" />
                     No files currently uploaded. Please complete document registry in the KYC tab.
                   </div>
                 )}

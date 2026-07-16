@@ -13,6 +13,8 @@ export const Referrals: React.FC = () => {
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [connectionsFilter, setConnectionsFilter] = useState<'All' | 'CA' | 'Distributor' | 'Farmer' | 'Manufacturer'>('All');
 
   // Form states to refer new vendor
   const [businessName, setBusinessName] = useState('');
@@ -20,6 +22,14 @@ export const Referrals: React.FC = () => {
   const [email, setEmail] = useState('');
   
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Connections Mock Directory Data
+  const connectionsDirectory = [
+    { name: "Prakash CA & Partners", type: "CA", phone: "+91 94402 12345", location: "Nellore Center" },
+    { name: "Srinivasa Seeds & Agri", type: "Farmer", phone: "+91 98480 54321", location: "Buchireddypalem Mandal" },
+    { name: "Balaji Rice Distributors", type: "Distributor", phone: "+91 99663 88812", location: "Kovur Road Area" },
+    { name: "Nellore Plastics Mfg Ltd", type: "Manufacturer", phone: "+91 80081 23456", location: "Nellore District" }
+  ];
 
   const referralCode = profile.referralCode || "N/A";
   const referralLink = `http://localhost:5173/register?ref=${referralCode}`;
@@ -165,8 +175,72 @@ export const Referrals: React.FC = () => {
                   </Button>
                 </div>
               </div>
+
+              {/* QR Standee Download trigger */}
+              <Button 
+                onClick={() => setShowQrModal(true)} 
+                className="w-full text-xs font-bold bg-primary text-white py-2 rounded-lg cursor-pointer"
+              >
+                Download QR Standee Banner
+              </Button>
             </CardContent>
           </Card>
+
+          {/* QR Standee Modal Overlay */}
+          {showQrModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <Card className="max-w-xs w-full bg-background border border-border relative text-center">
+                <button 
+                  onClick={() => setShowQrModal(false)}
+                  className="absolute top-2 right-2 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer border-none bg-transparent"
+                >
+                  ✕ Close
+                </button>
+                <CardHeader>
+                  <CardTitle className="text-sm font-extrabold text-primary">ApexBee Partner Standee</CardTitle>
+                  <CardDescription className="text-[10px]">Display at checkout to refer other local merchants</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 flex flex-col items-center gap-3">
+                  <div className="border-4 border-primary p-3 rounded-2xl bg-white">
+                    {/* Simulated Standee QR Code Graphic */}
+                    <svg className="w-32 h-32" viewBox="0 0 100 100">
+                      <rect x="10" y="10" width="80" height="80" fill="white" />
+                      {/* Quiet Zone Grid */}
+                      <rect x="20" y="20" width="20" height="20" fill="var(--primary)" />
+                      <rect x="23" y="23" width="14" height="14" fill="white" />
+                      <rect x="26" y="26" width="8" height="8" fill="var(--primary)" />
+                      
+                      <rect x="60" y="20" width="20" height="20" fill="var(--primary)" />
+                      <rect x="63" y="23" width="14" height="14" fill="white" />
+                      <rect x="66" y="26" width="8" height="8" fill="var(--primary)" />
+                      
+                      <rect x="20" y="60" width="20" height="20" fill="var(--primary)" />
+                      <rect x="23" y="63" width="14" height="14" fill="white" />
+                      <rect x="26" y="66" width="8" height="8" fill="var(--primary)" />
+                      
+                      {/* Random QR pixels */}
+                      <rect x="45" y="25" width="8" height="12" fill="var(--primary)" />
+                      <rect x="48" y="45" width="12" height="8" fill="var(--primary)" />
+                      <rect x="65" y="50" width="8" height="15" fill="var(--primary)" />
+                      <rect x="25" y="45" width="12" height="6" fill="var(--primary)" />
+                    </svg>
+                  </div>
+                  <span className="font-mono text-xs font-black uppercase text-foreground">Code: {referralCode}</span>
+                  <p className="text-[9px] text-muted-foreground">"Join ApexBee &amp; earn 1% Sales Commission!"</p>
+                  <Button 
+                    size="sm" 
+                    className="w-full text-[10px] font-bold"
+                    onClick={() => {
+                      alert("Downloading partner standee PDF for print...");
+                      setShowQrModal(false);
+                    }}
+                  >
+                    Print Standee (PDF)
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Quick Invite Form */}
           <Card className="glass">
@@ -302,6 +376,7 @@ export const Referrals: React.FC = () => {
                   <TableHead>Registration Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Fixed Reward Paid</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -319,6 +394,20 @@ export const Referrals: React.FC = () => {
                     <TableCell className="font-extrabold text-xs text-emerald-500">
                       {r.earnings > 0 ? `+₹${r.earnings.toLocaleString('en-IN')}` : '₹0'}
                     </TableCell>
+                    <TableCell className="text-right">
+                      {r.status !== 'First Sale Completed' ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-[9px] font-bold cursor-pointer"
+                          onClick={() => alert(`Follow-up alert reminder sent successfully to ${r.referredBusinessName} via WhatsApp and SMS!`)}
+                        >
+                          Send Reminder
+                        </Button>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground font-semibold">Active Node</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -326,6 +415,97 @@ export const Referrals: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Referral Leaderboard (District & Mandal Rankings) */}
+        <Card className="lg:col-span-5 glass text-left h-fit">
+          <CardHeader>
+            <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+              <Award className="h-4.5 w-4.5 text-primary animate-pulse" /> Referral District Leaderboard
+            </CardTitle>
+            <CardDescription>Top referring merchants within Buchireddypalem &amp; Nellore Mandal limits.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Rank</TableHead>
+                  <TableHead>Store Owner Name</TableHead>
+                  <TableHead className="text-right">Referred Nodes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[
+                  { rank: 1, name: "Nellore Provisions", count: 18, rating: "🥇 Gold Club" },
+                  { rank: 2, name: "Buchi Grocery Store", count: 12, rating: "🥈 Silver Club" },
+                  { rank: 3, name: "Kovur Sweet Plaza", count: 9, rating: "🥉 Bronze Club" },
+                  { rank: 4, name: "Kavali Supermarket", count: 6, rating: "Active Partner" }
+                ].map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-extrabold text-xs text-primary">{item.rank}</TableCell>
+                    <TableCell className="text-xs font-bold text-foreground">
+                      <div>{item.name}</div>
+                      <div className="text-[9px] text-muted-foreground">{item.rating}</div>
+                    </TableCell>
+                    <TableCell className="text-right font-black text-foreground text-xs">{item.count} Stores</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Business Connections Directory Filters */}
+        <Card className="lg:col-span-7 glass text-left">
+          <CardHeader className="pb-3 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+                <Users className="h-4.5 w-4.5 text-primary" /> Business Connections Directory
+              </CardTitle>
+              <CardDescription>Search and connect with local accountants, logistics partners, and suppliers.</CardDescription>
+            </div>
+            
+            <div className="flex gap-1 border border-border/60 p-0.5 rounded-lg bg-secondary/30 shrink-0">
+              {(['All', 'CA', 'Distributor', 'Farmer', 'Manufacturer'] as const).map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setConnectionsFilter(tab)}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded transition-all cursor-pointer ${
+                    connectionsFilter === tab ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 flex flex-col gap-3">
+            {connectionsDirectory
+              .filter(c => connectionsFilter === 'All' || c.type === connectionsFilter)
+              .map((conn, idx) => (
+                <div key={idx} className="p-3 bg-secondary/25 border border-border/40 rounded-xl flex items-center justify-between gap-3">
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold text-foreground">{conn.name}</span>
+                    <span className="text-[9.5px] text-muted-foreground mt-0.5">{conn.location} • {conn.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="purple" className="text-[8px] uppercase">{conn.type}</Badge>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 text-[10px] cursor-pointer"
+                      onClick={() => alert(`Dialing connection partner: ${conn.phone}`)}
+                    >
+                      Call Partner
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 };

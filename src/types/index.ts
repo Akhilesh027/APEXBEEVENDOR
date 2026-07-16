@@ -6,6 +6,7 @@ export interface BankAccount {
   ifscCode: string;
   accountType: 'Savings' | 'Current';
   isDefault: boolean;
+  verified?: boolean;
 }
 
 export interface BusinessDocument {
@@ -15,6 +16,9 @@ export interface BusinessDocument {
   uploadDate?: string;
   fileName?: string;
   url?: string;
+  expiryDate?: string;
+  adminNote?: string;
+  category?: 'Identity' | 'Business & Tax' | 'Food & Drug License' | 'Bank' | 'Others';
 }
 
 export interface VendorProfile {

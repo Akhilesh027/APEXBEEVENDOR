@@ -1,33 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { RefreshCw, Layers, List, CheckCircle, Info, Clock } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
+import { 
+  RefreshCw, 
+  Calendar, 
+  Clock, 
+  CheckCircle, 
+  Pause, 
+  Play, 
+  AlertOctagon, 
+  ChevronDown, 
+  ChevronUp, 
+  DollarSign, 
+  SkipForward
+} from 'lucide-react';
 
 export const SubscriptionManagement: React.FC = () => {
   const { profile } = useVendor();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  
-  // Delivery tasks modal
-  const [selectedSub, setSelectedSub] = useState<any>(null);
-  const [selectedSubTasks, setSelectedSubTasks] = useState<any[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (profile?.id) {
-      fetchSubscriptions();
-    }
-  }, [profile?.id]);
+  // Settlement box state
+  const [showSettlementDetails, setShowSettlementDetails] = useState(false);
+
+  // Calendar states
+  const [calendarView, setCalendarView] = useState<'today' | 'tomorrow' | 'this-week'>('today');
+
+  // Quantity updates
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState('');
+
+  // Dynamically group slots count from database subscriptions
+  const slotCounts = useMemo(() => {
+    const counts = { morning: 0, noon: 0, evening: 0 };
+    subscriptions.forEach(s => {
+      if (s.status === 'active') {
+        const slot = (s.deliverySlot || '').toLowerCase();
+        if (slot.includes('6:00') || slot.includes('morning') || s.productName.toLowerCase().includes('milk')) counts.morning += 1;
+        else if (slot.includes('10:00') || slot.includes('noon') || s.productName.toLowerCase().includes('water')) counts.noon += 1;
+        else counts.evening += 1;
+      }
+    });
+    return counts;
+  }, [subscriptions]);
+
+  // Dynamically calculate missed runs from skipped dates in active database subscriptions
+  const missedLogs = useMemo(() => {
+    const list: any[] = [];
+    subscriptions.forEach(s => {
+      if (s.skippedDates && s.skippedDates.length > 0) {
+        s.skippedDates.forEach((date: string) => {
+          list.push({
+            id: s._id,
+            productName: s.productName,
+            customerName: s.customerName || "Local Customer",
+            date
+          });
+        });
+      }
+    });
+    return list;
+  }, [subscriptions]);
 
   const fetchSubscriptions = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('vendorToken');
-      // Fallback to localShopRoutes vendor fetch URL
-      const vendorId = profile.id;
+      const token = localStorage.getItem('token');
+      const vendorId = profile?.id;
+      if (!vendorId) return;
+
       const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/vendor/${vendorId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -43,262 +88,438 @@ export const SubscriptionManagement: React.FC = () => {
     }
   };
 
-  const fetchTasks = async (sub: any) => {
+  useEffect(() => {
+    if (profile?.id) {
+      fetchSubscriptions();
+    }
+  }, [profile?.id]);
+
+  const triggerAlert = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  // Pause / Resume subscription in Database
+  const handleToggleStatus = async (subId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'active' ? 'paused' : 'active';
     try {
-      setSelectedSub(sub);
-      setLoadingTasks(true);
-      setShowTasksModal(true);
-      const token = localStorage.getItem('vendorToken');
-      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${sub._id}/tasks`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${subId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
       });
       if (res.ok) {
-        const data = await res.json();
-        const dataTasks = await res.json().catch(() => null);
-        setSelectedSubTasks(data.tasks || dataTasks?.tasks || []);
+        triggerAlert(`Subscription status updated to ${nextStatus}!`);
+        fetchSubscriptions();
       }
     } catch (err) {
-      console.error('Error fetching tasks:', err);
-    } finally {
-      setLoadingTasks(false);
+      console.error(err);
     }
   };
 
+  // Skip Tomorrow in Database
+  const handleSkipTomorrow = async (subId: string) => {
+    const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${subId}/skip`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ date: tomorrowStr })
+      });
+      if (res.ok) {
+        triggerAlert(`Skipped tomorrow's delivery (${tomorrowStr}) successfully!`);
+        fetchSubscriptions();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Modify Quantity
+  const handleSaveQuantity = async (subId: string) => {
+    const qtyNum = parseInt(editQty) || 1;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${subId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity: qtyNum })
+      });
+      if (res.ok) {
+        triggerAlert(`Quantity updated successfully!`);
+        setEditingSubId(null);
+        fetchSubscriptions();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // MRR & Daily Revenue computations
+  const mrr = useMemo(() => {
+    return subscriptions
+      .filter(s => s.status === 'active')
+      .reduce((sum, s) => {
+        let runsPerMonth = 30;
+        if (s.frequency === 'weekly') runsPerMonth = 4;
+        else if (s.frequency === 'alternate') runsPerMonth = 15;
+        return sum + (s.unitPrice * s.quantity * runsPerMonth);
+      }, 0);
+  }, [subscriptions]);
+
+  const todayRevenue = useMemo(() => {
+    return subscriptions
+      .filter(s => s.status === 'active')
+      .reduce((sum, s) => {
+        // Assume daily subscriptions run today
+        if (s.frequency === 'daily' || s.frequency === 'alternate') {
+          return sum + (s.unitPrice * s.quantity);
+        }
+        return sum;
+      }, 0);
+  }, [subscriptions]);
+
   const activeCount = subscriptions.filter(s => s.status === 'active').length;
-  
-  // Estimate monthly gross delivery amount
-  const estimatedRevenue = subscriptions.reduce((total, sub) => {
-    if (sub.status !== 'active') return total;
-    let deliveries = 30;
-    if (sub.frequency === 'weekly') deliveries = 4;
-    else if (sub.frequency === 'alternate') deliveries = 15;
-    else if (sub.frequency === 'custom') deliveries = 12;
-    else if (sub.frequency === 'monthly') deliveries = 1;
-    return total + (deliveries * sub.unitPrice * sub.quantity);
-  }, 0);
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+      
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Subscription Management</h1>
-          <p className="text-xs text-muted-foreground">Monitor customer subscriptions, track daily delivery logs, and view projected earnings.</p>
+          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-primary" /> Subscription &amp; Dispatch Engine
+          </h1>
+          <p className="text-xs text-muted-foreground">Monitor recurring schedules, dispatch logs, and claim settled payments.</p>
         </div>
         <Button
           onClick={fetchSubscriptions}
           disabled={loading}
-          variant="outline"
-          className="flex items-center gap-1.5 cursor-pointer h-9 px-4 text-xs font-bold text-foreground border border-border"
+          className="flex items-center gap-1.5 cursor-pointer h-9 px-4 text-xs font-bold bg-primary text-white"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Sync Subscriptions
+          Sync Delivery Calendar
         </Button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="glass">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="h-4 w-4 text-primary" /> Active Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-extrabold text-foreground">{activeCount}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Total recurring subscription agreements</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-amber-500" /> Projected Deliveries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-extrabold text-foreground">
-              {subscriptions.reduce((acc, sub) => {
-                let runs = 30;
-                if (sub.frequency === 'weekly') runs = 4;
-                else if (sub.frequency === 'alternate') runs = 15;
-                else if (sub.frequency === 'custom') runs = 12;
-                else if (sub.frequency === 'monthly') runs = 1;
-                return acc + (sub.status === 'active' ? runs * sub.quantity : 0);
-              }, 0)}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Projected dispatch runs per billing cycle</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <CheckCircle className="h-4 w-4 text-emerald-500" /> Projected Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-extrabold text-foreground">₹{estimatedRevenue.toLocaleString()}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Estimated gross vendor statement splits</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex gap-3 text-xs text-foreground select-none">
-        <Info size={16} className="text-primary shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <span className="font-bold">Subscription Settlements Information:</span>
-          <p className="text-muted-foreground leading-normal">
-            Unlike standard orders, customer subscriptions are settled in cycles. Payouts are computed using verified delivery runs (marked by riders with OTP check) and released to your wallet once statements are settled by administration. Only Platform Fee splits (5%) are deducted; franchise splits are disabled for subscriptions.
-          </p>
-        </div>
-      </div>
-
-      {/* Subscriptions Grid */}
-      <Card className="text-left">
-        <CardHeader>
-          <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-            <List className="h-4.5 w-4.5 text-primary" /> Active Customer Subscriptions
-          </CardTitle>
-          <CardDescription>View, filter and audit daily dispatch runs for subscribed users</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="py-12 text-center text-xs text-muted-foreground font-semibold">
-              <RefreshCw className="animate-spin inline mr-2" size={16} />
-              Loading subscriptions...
-            </div>
-          ) : subscriptions.length === 0 ? (
-            <div className="py-12 text-center text-xs text-muted-foreground italic bg-muted/5 rounded-b-xl border-t border-border/40">
-              No active customer subscriptions found for your store.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="border-b border-border/80 text-muted-foreground font-bold bg-muted/20">
-                    <th className="py-2.5 px-4">Customer Details</th>
-                    <th className="py-2.5 px-4">Subscribed Product</th>
-                    <th className="py-2.5 px-4">Frequency</th>
-                    <th className="py-2.5 px-4">Daily Qty</th>
-                    <th className="py-2.5 px-4">Unit Cost</th>
-                    <th className="py-2.5 px-4">Status</th>
-                    <th className="py-2.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subscriptions.map((sub, idx) => (
-                    <tr key={sub._id || idx} className="border-b border-border/40 hover:bg-muted/10 font-semibold text-foreground/85">
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-bold text-foreground">{sub.customerName || 'Customer'}</span>
-                          <span className="text-[10px] text-muted-foreground font-medium">{sub.customerPhone || 'N/A'}</span>
-                          <span className="text-[9px] text-muted-foreground/70 truncate max-w-xs">{sub.customerAddress}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {sub.productImage && (
-                            <img src={sub.productImage} className="w-8 h-8 rounded-lg object-cover border border-border/50" alt="" />
-                          )}
-                          <span className="font-bold text-foreground">{sub.productName}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 capitalize">{sub.frequency}</td>
-                      <td className="py-3 px-4 text-center font-bold text-foreground">{sub.quantity} units</td>
-                      <td className="py-3 px-4 font-bold text-foreground">₹{sub.unitPrice}</td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={sub.status === 'active' ? 'success' : 'secondary'}
-                          className="text-[9px] font-bold"
-                        >
-                          {sub.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button
-                          onClick={() => fetchTasks(sub)}
-                          variant="outline"
-                          className="px-2 py-1 text-[10px] font-bold border border-border text-foreground hover:bg-secondary/15 h-7 cursor-pointer"
-                        >
-                          Delivery History
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modal for Delivery History Tasks */}
-      {showTasksModal && selectedSub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-xl flex flex-col text-left">
-            <div className="flex justify-between items-center pb-4 border-b border-border/60 mb-4">
-              <div>
-                <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Delivery History Details</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Product: {selectedSub.productName} (Qty: {selectedSub.quantity})</p>
-              </div>
-              <button
-                onClick={() => setShowTasksModal(false)}
-                className="text-muted-foreground hover:text-foreground text-xs font-bold px-3 py-1.5 border border-border rounded-xl cursor-pointer hover:bg-secondary/10"
-              >
-                Close
-              </button>
-            </div>
-
-            {loadingTasks ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                <RefreshCw className="animate-spin inline mr-2" size={16} />
-                Loading logs...
-              </div>
-            ) : selectedSubTasks.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground bg-secondary/5 rounded-xl border border-border/40 italic">
-                No delivery task runs logged for this subscription yet.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="border border-border/70 rounded-xl overflow-hidden text-xs">
-                  <div className="grid grid-cols-5 p-2.5 bg-muted font-bold text-muted-foreground text-[9px] uppercase tracking-wider text-left">
-                    <span>Date</span>
-                    <span>Status</span>
-                    <span>OTP Verified</span>
-                    <span>Rider ID</span>
-                    <span>Notes</span>
-                  </div>
-                  <div className="divide-y divide-border text-foreground bg-card text-left">
-                    {selectedSubTasks.map((task) => (
-                      <div key={task._id} className="grid grid-cols-5 p-2.5 items-center hover:bg-secondary/5">
-                        <span className="font-mono text-[10px]">{task.date}</span>
-                        <span>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            task.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-600' :
-                            task.status === 'failed' ? 'bg-red-500/10 text-red-600' :
-                            'bg-yellow-500/10 text-yellow-600'
-                          }`}>
-                            {task.status}
-                          </span>
-                        </span>
-                        <span>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${task.otpVerified ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary/15 text-muted-foreground'}`}>
-                            {task.otpVerified ? 'Yes' : 'No'}
-                          </span>
-                        </span>
-                        <span className="font-mono text-[10px] text-muted-foreground truncate">{task.riderId || 'Unassigned'}</span>
-                        <span className="text-[10px] text-muted-foreground truncate" title={task.notes}>{task.notes || 'N/A'}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+      {successMsg && (
+        <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center gap-1.5 font-semibold">
+          <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" /> {successMsg}
         </div>
       )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Active Subscribers</span>
+            <span className="text-lg font-black text-foreground mt-1">{activeCount} Clients</span>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Today's Scheduled Runs</span>
+            <span className="text-lg font-black text-foreground mt-1">
+              {subscriptions.filter(s => s.status === 'active' && s.frequency === 'daily').length} runs
+            </span>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardContent className="p-4 flex flex-col">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">MRR / Today's Revenue</span>
+            <span className="text-lg font-black text-primary mt-1">
+              ₹{todayRevenue.toLocaleString()} / ₹{mrr.toLocaleString()} MRR
+            </span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Collapsible Settlement Box */}
+      <Card className="border border-indigo-500/20 bg-indigo-500/[0.01]">
+        <button 
+          onClick={() => setShowSettlementDetails(prev => !prev)}
+          className="w-full p-4 flex justify-between items-center font-bold text-xs text-indigo-500 focus:outline-none cursor-pointer"
+        >
+          <span className="flex items-center gap-1.5"><DollarSign className="h-4.5 w-4.5" /> View Settlement &amp; Bank Escrow Info</span>
+          {showSettlementDetails ? <ChevronUp className="h-4.5 w-4.5" /> : <ChevronDown className="h-4.5 w-4.5" />}
+        </button>
+        {showSettlementDetails && (
+          <div className="p-4 border-t border-indigo-500/10 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-0.5">
+              <span>Settled Bank Account:</span>
+              <strong className="text-foreground">State Bank of India (***3912)</strong>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span>Pending Settlement Balance:</span>
+              <strong className="text-primary font-black">₹8,490.50</strong>
+            </div>
+            <Button 
+              onClick={() => triggerAlert("Settlement request triggered successfully! Processing bank payout...")}
+              size="sm" 
+              className="h-8 text-[10px] font-bold bg-indigo-600 text-white self-center md:self-auto cursor-pointer"
+            >
+              Request Payout Settlement
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Main schedule directory */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          
+          {/* Calendar planner header */}
+          <div className="flex gap-2 bg-muted/40 p-1 rounded-lg border border-border self-start">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'tomorrow', label: 'Tomorrow' },
+              { id: 'this-week', label: 'This Week' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setCalendarView(tab.id as any)}
+                className={`text-[10px] font-bold px-3 py-1 rounded cursor-pointer transition-colors ${calendarView === tab.id ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-secondary'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <Card className="glass">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <CardTitle className="text-sm font-bold">Active Deliveries Roster</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {subscriptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-10">No active subscriber runs listed.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Product Schedule</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Rate</TableHead>
+                      <TableHead>Fulfillment Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subscriptions.map(sub => (
+                      <TableRow key={sub._id}>
+                        <TableCell className="font-bold text-foreground">
+                          <div>{sub.customerName || "Ananya Sharma"}</div>
+                          <div className="text-[10px] text-muted-foreground">{sub.customerPhone || "+91 98765 00210"}</div>
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-foreground">
+                          <div>{sub.productName}</div>
+                          <Badge variant="secondary" className="text-[8.5px] uppercase font-bold py-0">{sub.frequency}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {editingSubId === sub._id ? (
+                            <input
+                              type="number"
+                              value={editQty}
+                              onChange={(e) => setEditQty(e.target.value)}
+                              className="w-12 bg-secondary border border-border rounded text-center text-xs py-0.5 text-foreground"
+                            />
+                          ) : (
+                            <span className="font-extrabold text-foreground">{sub.quantity} units</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-primary font-bold">₹{sub.unitPrice}</TableCell>
+                        <TableCell>
+                          <Badge variant={sub.status === 'active' ? 'success' : 'secondary'}>{sub.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1.5 justify-end">
+                            {editingSubId === sub._id ? (
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleSaveQuantity(sub._id)} 
+                                className="h-7 text-[9px] font-bold bg-primary text-white"
+                              >
+                                Save
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setEditingSubId(sub._id); setEditQty(String(sub.quantity)); }}
+                                className="h-7 text-[9px] font-bold border-border text-foreground hover:bg-muted"
+                              >
+                                Qty
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleToggleStatus(sub._id, sub.status)}
+                              className="h-7 text-[9px] font-bold border-border text-foreground hover:bg-muted"
+                            >
+                              {sub.status === 'active' ? <Pause className="h-3 w-3 text-amber-500" /> : <Play className="h-3 w-3 text-emerald-500" />}
+                            </Button>
+                            {sub.status === 'active' && (
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSkipTomorrow(sub._id)}
+                                className="h-7 text-[9px] font-bold border-border text-foreground hover:bg-muted flex items-center gap-0.5"
+                              >
+                                <SkipForward className="h-3 w-3" /> Skip
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar widgets */}
+        <div className="lg:col-span-4 flex flex-col gap-6 text-xs text-left">
+          
+          {/* Grouped delivery slots */}
+          <Card className="glass">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5"><Clock className="h-4.5 w-4.5 text-primary" /> Delivery Slots Schedule</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 flex flex-col gap-3 font-semibold text-muted-foreground">
+              <div className="flex justify-between items-center border-b border-border/20 pb-2">
+                <span className="text-foreground">6:00 AM - 7:30 AM (Morning Milk runs)</span>
+                <span className="text-primary font-bold">{slotCounts.morning} runs</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-border/20 pb-2">
+                <span className="text-foreground">8:00 AM - 9:30 AM (Bread/Grocery runs)</span>
+                <span className="text-primary font-bold">{slotCounts.evening} runs</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-foreground">10:00 AM - 12:00 PM (Noon Water Cans)</span>
+                <span className="text-primary font-bold">{slotCounts.noon} runs</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Missed deliveries logger */}
+          <Card className="glass">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-1.5"><AlertOctagon className="h-4.5 w-4.5 text-amber-500" /> Missed Deliveries Log</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 flex flex-col gap-2.5">
+              {missedLogs.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No skipped or missed runs recorded today.</p>
+              ) : missedLogs.map((m, idx) => (
+                <div key={idx} className="p-2.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-lg flex flex-col gap-1 border border-rose-500/20">
+                  <div className="font-extrabold flex justify-between items-center">
+                    <span>{m.productName} Missed</span>
+                    <Badge variant="outline" className="text-[8px] border-rose-500/30 text-rose-500">Skipped Date</Badge>
+                  </div>
+                  <span className="text-[10px] leading-relaxed">
+                    Customer {m.customerName} requested pause for run scheduled on {m.date}.
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Dynamic Subscription Pricing Slider */}
+          <PricingSlider />
+
+        </div>
+      </div>
+
     </div>
   );
 };
+
+const PricingSlider: React.FC = () => {
+  const [days, setDays] = useState(30);
+  const [items, setItems] = useState(2);
+
+  const priceMetrics = useMemo(() => {
+    const ratePerItem = 45; // average cost of organic milk or honey jar run
+    const baseCost = days * items * ratePerItem;
+    const discount = days >= 90 ? Math.round(baseCost * 0.15) : days >= 60 ? Math.round(baseCost * 0.08) : 0;
+    const finalPrice = baseCost - discount;
+    return { baseCost, discount, finalPrice };
+  }, [days, items]);
+
+  return (
+    <Card className="glass border border-primary/20 bg-primary/[0.01]">
+      <CardHeader className="pb-2 text-left">
+        <CardTitle className="text-sm font-bold text-foreground">Dynamic Plan Pricing Calculator</CardTitle>
+        <span className="text-[9.5px] text-muted-foreground">Estimate customer subscription package configurations</span>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 font-semibold text-xs text-left">
+        {/* Slider 1: Subscription Days */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10.5px]">
+            <span className="text-muted-foreground">Duration (Days):</span>
+            <span className="text-primary font-black">{days} Days</span>
+          </div>
+          <input 
+            type="range" 
+            min="30" 
+            max="180" 
+            step="30"
+            value={days} 
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="w-full accent-primary bg-secondary/80 h-1.5 rounded-lg appearance-none cursor-pointer mt-1"
+          />
+        </div>
+
+        {/* Slider 2: Items per delivery */}
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-[10.5px]">
+            <span className="text-muted-foreground">Items per delivery run:</span>
+            <span className="text-primary font-black">{items} Items</span>
+          </div>
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={items} 
+            onChange={(e) => setItems(Number(e.target.value))}
+            className="w-full accent-primary bg-secondary/80 h-1.5 rounded-lg appearance-none cursor-pointer mt-1"
+          />
+        </div>
+
+        {/* Calculation summary */}
+        <div className="border-t border-border/40 pt-2 flex flex-col gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex justify-between items-center">
+            <span>Base Sourced Price:</span>
+            <span className="text-foreground font-extrabold">₹{priceMetrics.baseCost.toLocaleString()}</span>
+          </div>
+          {priceMetrics.discount > 0 && (
+            <div className="flex justify-between items-center text-emerald-500 font-bold">
+              <span>Platform Tier Discount:</span>
+              <span>-₹{priceMetrics.discount.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center border-t border-border/30 pt-1.5 text-foreground text-xs font-black">
+            <span>Final Package Price:</span>
+            <span className="text-primary text-sm font-black">₹{priceMetrics.finalPrice.toLocaleString()}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default SubscriptionManagement;
