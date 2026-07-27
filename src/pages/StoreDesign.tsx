@@ -17,7 +17,7 @@ import {
 
 export const StoreDesign: React.FC = () => {
   const { profile, storeDesign, products } = useVendor();
-  const [activeTab, setActiveTab] = useState<'products' | 'about' | 'gallery' | 'policies' | 'hours'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'category_config' | 'about' | 'gallery' | 'policies' | 'hours'>('products');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter products that are designated as store products
@@ -133,41 +133,54 @@ export const StoreDesign: React.FC = () => {
       </div>
 
       {/* Tabs list navigation bar */}
-      <div className="flex gap-1 border-b border-border/80 overflow-x-auto pb-1 select-none">
-        {[
-          { key: 'products', label: 'Products Catalog', icon: '🛍️' },
-          { key: 'about', label: 'About Store', icon: 'ℹ️' },
-          { key: 'gallery', label: 'Store Gallery', icon: '🖼️' },
-          { key: 'policies', label: 'Return Policies', icon: '🛡️' },
-          { key: 'hours', label: 'Operating Hours', icon: '⏰' }
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
-            className={`px-5 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition whitespace-nowrap bg-transparent border-0 cursor-pointer ${
-              activeTab === tab.key 
-                ? 'border-primary text-primary' 
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
-      </div>
+      {(() => {
+        const catStr = (profile.primaryCategory || profile.category || (profile as any).primaryStoreCategory || '').toLowerCase();
+        const isFoodCategory = catStr.includes('food') || catStr.includes('restaurant') || catStr.includes('dine');
+        return (
+          <div className="flex gap-1 border-b border-border/80 overflow-x-auto pb-1 select-none">
+            {[
+              { key: 'products', label: isFoodCategory ? 'Food & Digital Menu' : 'Products & Services Catalog', icon: isFoodCategory ? '🍽️' : '🛍️' },
+              { key: 'category_config', label: 'Category & Features Setup', icon: '⚙️' },
+              { key: 'about', label: 'About Store', icon: 'ℹ️' },
+              { key: 'gallery', label: 'Store Gallery', icon: '🖼️' },
+              { key: 'policies', label: 'Return Policies', icon: '🛡️' },
+              { key: 'hours', label: 'Operating Hours', icon: '⏰' }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`px-5 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition whitespace-nowrap bg-transparent border-0 cursor-pointer ${
+                  activeTab === tab.key 
+                    ? 'border-primary text-primary' 
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
-      {/* TAB CONTENT: PRODUCTS */}
+      {/* TAB CONTENT: PRODUCTS / MENU ITEMS */}
       {activeTab === 'products' && (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border p-4 rounded-2xl shadow-sm">
             <div className="flex flex-col text-left">
-              <h2 className="text-base font-bold text-foreground">Products listed on Hyperlocal</h2>
-              <p className="text-xs text-muted-foreground">Products with local store listing enabled that nearby buyers can discover.</p>
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                {profile.category?.toLowerCase().includes('food') || profile.category?.toLowerCase().includes('restaurant') || profile.category?.toLowerCase().includes('dine') ? (
+                  <>🍽️ Digital Food Menu Items Listed on Hyperlocal Storefront</>
+                ) : (
+                  <>Products listed on Hyperlocal Storefront</>
+                )}
+              </h2>
+              <p className="text-xs text-muted-foreground">Items enabled for storefront display that nearby customers can discover and order instantly.</p>
             </div>
             <div className="relative w-full md:w-80">
               <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder="Search store products..."
+                placeholder="Search menu items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs bg-background border border-border rounded-lg outline-none text-foreground"
@@ -175,61 +188,105 @@ export const StoreDesign: React.FC = () => {
             </div>
           </div>
 
+          {/* Food Menu Section Chips (if Food/Restaurant store) */}
+          {(profile.category?.toLowerCase().includes('food') || profile.category?.toLowerCase().includes('restaurant') || profile.category?.toLowerCase().includes('dine') || profile.category?.toLowerCase().includes('bakery')) && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs select-none">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0 bg-muted px-2.5 py-1 rounded-md">
+                Menu Sections:
+              </span>
+              {[
+                { label: 'All Dishes', icon: '🍽️' },
+                { label: 'Starters & Appetizers', icon: '🍗' },
+                { label: 'Main Course & Biryanis', icon: '🍲' },
+                { label: 'Fast Food & Combos', icon: '🍕' },
+                { label: 'Beverages & Desserts', icon: '🥤' },
+                { label: '🟢 Veg Only', icon: '🟢' },
+                { label: '🔴 Non-Veg Only', icon: '🔴' }
+              ].map(sec => (
+                <button
+                  key={sec.label}
+                  type="button"
+                  onClick={() => setSearchQuery(sec.label.includes('Veg') || sec.label.includes('Dishes') ? '' : sec.label.split(' ')[0])}
+                  className="px-3 py-1 rounded-full border border-border bg-card hover:bg-accent hover:text-accent-foreground text-foreground font-bold shrink-0 transition text-xs cursor-pointer"
+                >
+                  {sec.icon} {sec.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {storeProducts.length === 0 ? (
             <div className="py-16 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
               <ShoppingBag className="h-10 w-10 text-muted-foreground/35 mb-2" />
-              <p className="font-semibold text-foreground">No Local Products Found</p>
+              <p className="font-semibold text-foreground">No Store Items Found</p>
               <p className="max-w-xs mt-1 leading-normal">
                 {searchQuery 
-                  ? 'No items match your active search filter query.' 
-                  : 'To see items here, enable "Show in Local Store" when creating or editing a product.'}
+                  ? 'No menu items match your active search filter query.' 
+                  : 'To list dishes or products here, enable "Show in Local Store" when adding or editing items in Product Management.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-left">
               {storeProducts.map(p => {
                 const subAvailable = p.isSubscriptionAvailable === true && p.isStoreProduct !== false;
+                const isVeg = p.name?.toLowerCase().includes('veg') && !p.name?.toLowerCase().includes('non-veg') || (p as any).tag?.toLowerCase().includes('veg') || (p as any).attributes?.some((a: any) => String(a.value || '').toLowerCase().includes('veg'));
+                const isNonVeg = p.name?.toLowerCase().includes('chicken') || p.name?.toLowerCase().includes('mutton') || p.name?.toLowerCase().includes('fish') || p.name?.toLowerCase().includes('non-veg');
+                
                 return (
                   <div key={p.id} className="group flex flex-col justify-between rounded-3xl border border-border/80 bg-card overflow-hidden hover:shadow-lg transition duration-300 relative">
                     <div>
                       {/* Thumbnail Image */}
                       <div className="h-44 bg-muted overflow-hidden relative border-b border-border/60">
                         {p.images?.[0] ? (
-                          <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                          <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         ) : (
                           <div className="h-full w-full bg-secondary/50 flex items-center justify-center text-muted-foreground">
                             <Store className="h-8 w-8 opacity-25" />
                           </div>
                         )}
-                        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
+                        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
+                          {isVeg && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wide shadow-sm">
+                              🟢 Pure Veg
+                            </span>
+                          )}
+                          {isNonVeg && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wide shadow-sm">
+                              🔴 Non-Veg
+                            </span>
+                          )}
                           {subAvailable && (
-                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black uppercase tracking-wide">
+                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500 text-white text-[9px] font-black uppercase tracking-wide shadow-sm">
                               🔁 Subscribe
                             </span>
                           )}
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-wide">
-                            🏪 Storefront
-                          </span>
+                        </div>
+
+                        <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                          ⚡ 15-20 MINS
                         </div>
                       </div>
 
-                      {/* Product Metadata */}
+                      {/* Product / Dish Metadata */}
                       <div className="p-4 space-y-1">
-                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider">{p.brand || 'No Brand'}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-primary uppercase tracking-wider">{p.brand || p.category || 'Menu Special'}</span>
+                          <span className="text-[9px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">★ 4.8</span>
+                        </div>
                         <h4 className="font-bold text-sm text-foreground line-clamp-2 leading-snug">{p.name}</h4>
                         <p className="text-[10px] text-muted-foreground font-mono">SKU: {p.sku}</p>
                       </div>
                     </div>
 
                     {/* Pricing and Stock Footer */}
-                    <div className="px-4 pb-4 pt-1 border-t border-border/30 flex items-center justify-between">
+                    <div className="px-4 pb-4 pt-2 border-t border-border/30 flex items-center justify-between">
                       <div className="flex flex-col">
-                        <span className="text-[9px] text-muted-foreground font-semibold">SELLING PRICE</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold">PRICE</span>
                         <span className="font-extrabold text-sm text-foreground">{formatPrice(p.price)}</span>
                       </div>
                       <div className="flex flex-col text-right">
-                        <span className="text-[9px] text-muted-foreground font-semibold">STOCK STATUS</span>
-                        <span className={`font-bold text-[11px] ${p.stock > 10 ? 'text-emerald-500' : 'text-amber-500'}`}>{p.stock} Available</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold">AVAILABILITY</span>
+                        <span className={`font-bold text-[11px] ${p.stock > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{p.stock > 0 ? 'Ready in Kitchen' : 'Sold Out'}</span>
                       </div>
                     </div>
                   </div>
@@ -237,6 +294,134 @@ export const StoreDesign: React.FC = () => {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB CONTENT: CATEGORY & FEATURES SETUP */}
+      {activeTab === 'category_config' && (
+        <div className="space-y-6 text-left">
+          <Card className="glass border border-primary/20 shadow-sm">
+            <CardHeader className="bg-gradient-to-r from-primary/10 via-indigo-500/10 to-transparent">
+              <div className="flex items-center gap-3">
+                <Store className="h-6 w-6 text-primary shrink-0" />
+                <div>
+                  <CardTitle className="text-base font-bold">Category-Specific Store Layout & Features Setup</CardTitle>
+                  <CardDescription>
+                    Tailor your storefront controls, digital menu layout, and special features for your store category ({profile.category || 'Food & Dining / Retail'})
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {/* Category Store Badges */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Active Business Category
+                  </span>
+                  <span className="text-sm font-extrabold text-foreground block">
+                    {profile.category || 'Food & Dining'}
+                  </span>
+                  <Badge variant="secondary" className="text-[9px]">
+                    Main Category
+                  </Badge>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Store Layout Mode
+                  </span>
+                  <span className="text-sm font-extrabold text-primary block capitalize">
+                    {profile.category?.toLowerCase().includes('food') || profile.category?.toLowerCase().includes('restaurant') ? '🍽️ Restaurant / Food Menu Mode' : '🛒 Retail / Grocery Mode'}
+                  </span>
+                  <Badge variant="success" className="text-[9px]">
+                    Active Digital Menu
+                  </Badge>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Food Safety & Features
+                  </span>
+                  <span className="text-sm font-extrabold text-emerald-500 block">
+                    {profile.fssaiNumber ? `FSSAI: ${profile.fssaiNumber}` : 'Table Booking & Delivery'}
+                  </span>
+                  <Badge variant="secondary" className="text-[9px]">
+                    Verified Compliance
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Category Feature Controls */}
+              <div className="border-t border-border pt-6 space-y-4">
+                <h3 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                  Category Specialized Features & Toggles
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Restaurant Controls */}
+                  <div className="p-4 rounded-2xl bg-secondary/20 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        🍽️ Restaurant Table Booking & Reservations
+                      </span>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 font-bold text-[9px] rounded-md">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Allows nearby customers to reserve dining tables for date & time slots directly from your store page.
+                    </p>
+                  </div>
+
+                  {/* Food Prep Time Setting */}
+                  <div className="p-4 rounded-2xl bg-secondary/20 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        ⏱️ Kitchen Preparation Time Tag
+                      </span>
+                      <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-500 font-bold text-[9px] rounded-md">
+                        15-20 Mins
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Displays live estimated preparation time on customer dish cards for fast food delivery.
+                    </p>
+                  </div>
+
+                  {/* Grocery Subscriptions Controls */}
+                  <div className="p-4 rounded-2xl bg-secondary/20 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        🛒 Milk & Water Can Subscription Schedules
+                      </span>
+                      <span className="px-2 py-0.5 bg-orange-500/10 text-orange-500 font-bold text-[9px] rounded-md">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Allows customers to create daily/weekly automated subscription schedules.
+                    </p>
+                  </div>
+
+                  {/* Pure Veg Tag Toggle */}
+                  <div className="p-4 rounded-2xl bg-secondary/20 border border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                        🟢 Pure Vegetarian Restaurant Badge
+                      </span>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 font-bold text-[9px] rounded-md">
+                        Configurable
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Displays green Pure Veg badge on your store banner and filters items automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

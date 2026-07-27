@@ -51,6 +51,9 @@ export interface VendorProfile {
     type: string;
     coordinates: number[]; // [longitude, latitude]
   };
+  storeType?: 'retail_grocery' | 'restaurant_food' | 'service_provider' | 'wholesale_b2b' | 'hyperlocal_subscription' | 'course_provider';
+  primaryCategory?: string;
+  subCategories?: string[];
   marketplaceStatus?: 'Draft' | 'Incomplete' | 'Pending Review' | 'Approved' | 'Rejected' | 'Suspended' | 'Hidden';
   storeTags?: string[];
   storeServices?: string[];

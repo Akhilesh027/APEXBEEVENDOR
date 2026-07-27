@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const WalletPage: React.FC = () => {
-  const { transactions = [], stats, withdrawals = [], profile } = useVendor();
+  const { transactions = [], stats, withdrawals = [], profile, orders = [] } = useVendor();
   const [activeTab, setActiveTab] = useState<'overview' | 'settlements' | 'accounts' | 'statements'>('overview');
   const [autoSettlement, setAutoSettlement] = useState<'daily' | 'weekly' | 'monthly' | 'manual'>('daily');
   const [orderAmount, setOrderAmount] = useState('1000');
@@ -28,11 +28,24 @@ export const WalletPage: React.FC = () => {
   const bal = stats?.walletBalance || 0;
   const pendingBal = stats?.pendingEarnings || 0;
 
-  // 1. Wallet Breakdown split based on PDF Page 2
-  const orderRev = Math.round(bal * 0.8);
-  const subRev = Math.round(bal * 0.1);
-  const qrRev = Math.round(bal * 0.05);
-  const cashbackAdjustment = Math.round(bal * 0.05);
+  // Real Wallet Breakdown derived from backend ledger transactions and delivered orders
+  const orderRev = React.useMemo(() => {
+    const fromTxns = transactions.filter(t => t.amount > 0 && (t.type === 'Order Earning' || (t.type as any) === 'Order Earnings')).reduce((sum, t) => sum + t.amount, 0);
+    const fromOrders = orders.filter(o => o.deliveryStatus === 'Delivered').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    return Math.max(fromTxns, fromOrders);
+  }, [transactions, orders]);
+
+  const subRev = React.useMemo(() => {
+    return transactions.filter(t => (t.description || '').toLowerCase().includes('subscription')).reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  const qrRev = React.useMemo(() => {
+    return transactions.filter(t => (t.description || '').toLowerCase().includes('qr')).reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  const cashbackAdjustment = React.useMemo(() => {
+    return transactions.filter(t => (t.description || '').toLowerCase().includes('referral') || (t.description || '').toLowerCase().includes('bonus')).reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
 
   // Derive today's expected settlement
   const todayEarnings = Math.round(pendingBal * 0.4);
@@ -43,14 +56,19 @@ export const WalletPage: React.FC = () => {
     .filter(w => w.status === 'Completed')
     .reduce((sum, w) => sum + w.amount, 0);
 
-  // Settlement calendar grid based on PDF Page 3
-  const settlementCalendar = [
-    { day: "Monday", amount: 12450, status: "Settled" },
-    { day: "Tuesday", amount: 8200, status: "Settled" },
-    { day: "Wednesday", amount: 15400, status: "Settled" },
-    { day: "Thursday", amount: Math.round(bal * 0.2), status: "Processing" },
-    { day: "Friday", amount: Math.round(bal * 0.15), status: "Scheduled" }
-  ];
+  // Settlement calendar grid derived dynamically from actual withdrawals
+  const settlementCalendar = React.useMemo(() => {
+    if (withdrawals.length === 0) return [];
+    return withdrawals.map((w) => {
+      const d = new Date(w.requestDate || Date.now());
+      const dayName = d.toLocaleDateString('en-IN', { weekday: 'long' });
+      return {
+        day: `${dayName} (${d.toLocaleDateString('en-IN')})`,
+        amount: w.amount,
+        status: w.status === 'Completed' ? 'Settled' : w.status === 'Pending' ? 'Processing' : w.status
+      };
+    });
+  }, [withdrawals]);
 
   const triggerDownload = (type: string) => {
     alert(`Generating and downloading your complete ${type} statement in spreadsheet format...`);

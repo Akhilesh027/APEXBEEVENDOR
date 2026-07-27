@@ -53,11 +53,28 @@ export const SecuritySettings: React.FC = () => {
 
   const strength = getPasswordStrength(newPassword);
 
-  const [sessions, setSessions] = useState<LoginSession[]>([
-    { id: 'SESS-991', device: 'Windows Desktop', os: 'Chrome v125', ip: '103.45.120.10', location: 'Mumbai, Maharashtra', lastActive: 'Active Now', current: true },
-    { id: 'SESS-992', device: 'OnePlus 11 5G', os: 'Apexbee App v3.2', ip: '103.45.120.25', location: 'Mumbai, Maharashtra', lastActive: '2 hours ago', current: false },
-    { id: 'SESS-993', device: 'MacBook Air M2', os: 'Safari v17.4', ip: '157.20.95.8', location: 'Pune, Maharashtra', lastActive: '2 days ago', current: false }
-  ]);
+  const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
+
+  React.useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/auth/login-history', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(data.sessions || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+    fetchSessions();
+  }, []);
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +82,7 @@ export const SecuritySettings: React.FC = () => {
       alert("New passwords do not match!");
       return;
     }
-    
+
     setSuccessMsg("System Password updated successfully! Your sessions remain active.");
     setOldPassword('');
     setNewPassword('');
@@ -233,14 +250,12 @@ export const SecuritySettings: React.FC = () => {
                 </div>
                 <button
                   onClick={handleToggleTwoFactor}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    twoFactorEnabled ? 'bg-primary' : 'bg-secondary'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${twoFactorEnabled ? 'bg-primary' : 'bg-secondary'
+                    }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                      twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -254,9 +269,8 @@ export const SecuritySettings: React.FC = () => {
                       {Array.from({ length: 36 }).map((_, i) => (
                         <div
                           key={i}
-                          className={`rounded-xs ${
-                            (i + 3) % 4 === 0 || (i * 7) % 3 === 0 ? 'bg-black' : 'bg-transparent'
-                          }`}
+                          className={`rounded-xs ${(i + 3) % 4 === 0 || (i * 7) % 3 === 0 ? 'bg-black' : 'bg-transparent'
+                            }`}
                         />
                       ))}
                     </div>
@@ -377,28 +391,28 @@ export const SecuritySettings: React.FC = () => {
               <p className="text-[10px]">Select channels to receive security access and payout alerts:</p>
               <div className="flex flex-col gap-2 pt-1">
                 <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
-                  <input 
-                    type="checkbox" 
-                    checked={alertChannels.email} 
-                    onChange={(e) => setAlertChannels(prev => ({ ...prev, email: e.target.checked }))} 
+                  <input
+                    type="checkbox"
+                    checked={alertChannels.email}
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, email: e.target.checked }))}
                     className="accent-primary"
                   />
                   <span>Email Alerts ({backupEmail})</span>
                 </label>
                 <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
-                  <input 
-                    type="checkbox" 
-                    checked={alertChannels.sms} 
-                    onChange={(e) => setAlertChannels(prev => ({ ...prev, sms: e.target.checked }))} 
+                  <input
+                    type="checkbox"
+                    checked={alertChannels.sms}
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, sms: e.target.checked }))}
                     className="accent-primary"
                   />
                   <span>SMS Alerts ({backupPhone})</span>
                 </label>
                 <label className="flex items-center gap-2.5 cursor-pointer text-foreground">
-                  <input 
-                    type="checkbox" 
-                    checked={alertChannels.whatsapp} 
-                    onChange={(e) => setAlertChannels(prev => ({ ...prev, whatsapp: e.target.checked }))} 
+                  <input
+                    type="checkbox"
+                    checked={alertChannels.whatsapp}
+                    onChange={(e) => setAlertChannels(prev => ({ ...prev, whatsapp: e.target.checked }))}
                     className="accent-primary"
                   />
                   <span>WhatsApp Chat Alerts</span>
@@ -415,20 +429,20 @@ export const SecuritySettings: React.FC = () => {
             <CardContent className="flex flex-col gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-muted-foreground uppercase">Recovery Email</label>
-                <input 
-                  type="email" 
-                  value={backupEmail} 
+                <input
+                  type="email"
+                  value={backupEmail}
                   onChange={(e) => setBackupEmail(e.target.value)}
-                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none" 
+                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none"
                 />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-muted-foreground uppercase">Recovery Phone</label>
-                <input 
-                  type="text" 
-                  value={backupPhone} 
+                <input
+                  type="text"
+                  value={backupPhone}
                   onChange={(e) => setBackupPhone(e.target.value)}
-                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none" 
+                  className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none"
                 />
               </div>
             </CardContent>
@@ -444,8 +458,8 @@ export const SecuritySettings: React.FC = () => {
                 <CardTitle className="text-xs font-black uppercase tracking-wider text-muted-foreground">API Credentials Console</CardTitle>
                 <CardDescription className="text-[9.5px]">Generate Cost-Per-Click developer keys for custom store integrations</CardDescription>
               </div>
-              <Button 
-                onClick={handleGenerateApiKey} 
+              <Button
+                onClick={handleGenerateApiKey}
                 className="h-7 text-[10px] font-bold px-2.5 cursor-pointer bg-primary text-white"
               >
                 + New Key
@@ -468,9 +482,9 @@ export const SecuritySettings: React.FC = () => {
                       <TableCell className="font-mono text-[10.5px] text-primary font-bold">{k.val}</TableCell>
                       <TableCell className="text-muted-foreground font-semibold text-xs">{k.created}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className="h-6 text-[9px] border-rose-500/20 text-rose-500 hover:bg-rose-500/5 cursor-pointer"
                           onClick={() => handleRevokeApiKey(k.id)}
                         >
@@ -513,8 +527,8 @@ export const SecuritySettings: React.FC = () => {
                       <TableCell className="font-bold text-foreground text-xs">{roleKey}</TableCell>
                       {['Billing', 'Products', 'Reports', 'Settings'].map(permKey => (
                         <TableCell key={permKey} className="text-center">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={rolesMatrix[roleKey][permKey]}
                             onChange={() => handleRoleToggle(roleKey, permKey)}
                             className="accent-primary cursor-pointer"
@@ -534,16 +548,16 @@ export const SecuritySettings: React.FC = () => {
               <CardTitle className="text-xs font-black uppercase text-rose-500 tracking-wider">Advanced Privacy &amp; Access Controls</CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
-              <Button 
-                onClick={handleGdprExport} 
-                variant="outline" 
+              <Button
+                onClick={handleGdprExport}
+                variant="outline"
                 className="flex-1 text-xs font-bold border-border cursor-pointer bg-background hover:bg-muted"
               >
                 📥 GDPR Export Security Data
               </Button>
-              
-              <Button 
-                onClick={handlePanicLogout} 
+
+              <Button
+                onClick={handlePanicLogout}
                 className="flex-1 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
               >
                 🚨 Panic Logout All Other Devices

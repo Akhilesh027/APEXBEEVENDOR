@@ -4,11 +4,25 @@ import { Badge } from '../components/ui/Badge';
 import { ArrowLeftRight, Compass, Star, TrendingUp } from 'lucide-react';
 
 export const SupplyChainHub: React.FC = () => {
-  const activeSupplyChannels = [
-    { id: "CHN-101", partner: "Surat Silk Guild", type: "Upstream (Manufacturer)", status: "Active", leadTime: "5 days", qualityScore: "98%", category: "Silk Blend Yarn" },
-    { id: "CHN-105", partner: "Bengaluru Logistics Hub", type: "Courier & Freight Partner", status: "Active", leadTime: "2 days", qualityScore: "95%", category: "Logistics" },
-    { id: "CHN-110", partner: "Mumbai Garment Retailers", type: "Downstream (Retailers Channel)", status: "Active", leadTime: "1 day", qualityScore: "99%", category: "Finished Apparel" }
-  ];
+  const [activeSupplyChannels, setActiveSupplyChannels] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchChannels = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/logistics-providers', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveSupplyChannels(data.channels || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchChannels();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">

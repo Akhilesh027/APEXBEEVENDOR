@@ -23,13 +23,9 @@ export const Referrals: React.FC = () => {
   
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Connections Mock Directory Data
-  const connectionsDirectory = [
-    { name: "Prakash CA & Partners", type: "CA", phone: "+91 94402 12345", location: "Nellore Center" },
-    { name: "Srinivasa Seeds & Agri", type: "Farmer", phone: "+91 98480 54321", location: "Buchireddypalem Mandal" },
-    { name: "Balaji Rice Distributors", type: "Distributor", phone: "+91 99663 88812", location: "Kovur Road Area" },
-    { name: "Nellore Plastics Mfg Ltd", type: "Manufacturer", phone: "+91 80081 23456", location: "Nellore District" }
-  ];
+  const connectionsDirectory: any[] = [];
+  const referredVendorSales: any[] = [];
+  const totalEarnings = referrals.reduce((sum, r) => sum + (r.earnings || 0), 0);
 
   const referralCode = profile.referralCode || "N/A";
   const referralLink = `http://localhost:5173/register?ref=${referralCode}`;
@@ -52,15 +48,6 @@ export const Referrals: React.FC = () => {
     setEmail('');
     setTimeout(() => setSuccessMsg(''), 5000);
   };
-
-  // Referral Override details simulation
-  const referredVendorSales = [
-    { name: "Delhi Tech Mart", type: "Wholesaler", totalSales: 245000, overrideComm: 2450, rate: "1.0%" },
-    { name: "Bengaluru Organic Farms", type: "Manufacturer", totalSales: 184000, overrideComm: 1840, rate: "1.0%" },
-    { name: "Deccan Fabric Depot", type: "Wholesaler", totalSales: 89000, overrideComm: 890, rate: "1.0%" }
-  ];
-
-  const totalEarnings = referrals.reduce((sum, r) => sum + r.earnings, 0) + referredVendorSales.reduce((sum, s) => sum + s.overrideComm, 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

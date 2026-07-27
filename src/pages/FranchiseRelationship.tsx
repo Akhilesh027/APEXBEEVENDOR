@@ -18,12 +18,28 @@ interface FranchiseContact {
 }
 
 export const FranchiseRelationship: React.FC = () => {
-  const [contacts] = useState<FranchiseContact[]>([
-    { id: 'FR-101', level: 'State', name: 'Rohan Deshmukh', region: 'Maharashtra East', phone: '+91 91234 56780', email: 'rohan.state@apexbee.com', rating: 4.9, commShare: '2.5% of Sales', joinedDate: '2025-04-12' },
-    { id: 'FR-205', level: 'District', name: 'Priya Sharma', region: 'Pune Central', phone: '+91 92345 67890', email: 'priya.pune@apexbee.com', rating: 4.7, commShare: '1.5% of Sales', joinedDate: '2025-08-18' },
-    { id: 'FR-309', level: 'Mandal', name: 'Amit Kulkarni', region: 'Haveli Mandal', phone: '+91 93456 78901', email: 'amit.haveli@apexbee.com', rating: 4.5, commShare: '1.0% of Sales', joinedDate: '2026-02-05' },
-    { id: 'FR-310', level: 'Mandal', name: 'Savita Patil', region: 'Mulshi Mandal', phone: '+91 94567 89012', email: 'savita.mulshi@apexbee.com', rating: 4.8, commShare: '1.0% of Sales', joinedDate: '2026-03-20' }
-  ]);
+  const [contacts, setContacts] = useState<FranchiseContact[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  React.useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/franchises/my-franchises', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setContacts(data.franchises || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContacts();
+  }, []);
 
   const [activeCall, setActiveCall] = useState<FranchiseContact | null>(null);
   const [activeChat, setActiveChat] = useState<FranchiseContact | null>(null);
@@ -225,17 +241,16 @@ export const FranchiseRelationship: React.FC = () => {
                     Close
                   </Button>
                 </CardHeader>
-                
+
                 {/* Chat Message Window */}
                 <CardContent className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 no-scrollbar bg-black/10 dark:bg-black/20 text-xs">
                   {chatLog.map((log, index) => (
                     <div
                       key={index}
-                      className={`flex flex-col max-w-[80%] rounded-lg p-2.5 ${
-                        log.sender === 'me'
+                      className={`flex flex-col max-w-[80%] rounded-lg p-2.5 ${log.sender === 'me'
                           ? 'self-end bg-primary text-primary-foreground rounded-tr-none text-right'
                           : 'self-start bg-secondary text-foreground rounded-tl-none text-left'
-                      }`}
+                        }`}
                     >
                       <p className="leading-relaxed whitespace-pre-wrap">{log.text}</p>
                       <span className="text-[9px] text-muted-foreground/80 mt-1 block font-mono">{log.time}</span>

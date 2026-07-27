@@ -5,17 +5,30 @@ import { ShieldAlert, Compass, Star, ArrowRight, CheckCircle2 } from 'lucide-rea
 
 export const ManufacturerConnect: React.FC = () => {
   const [contractSuccess, setContractSuccess] = useState<string | null>(null);
-
   const handleCreateContract = (name: string) => {
     setContractSuccess(`Contract proposal sent to ${name}! Sourcing managers will review.`);
     setTimeout(() => setContractSuccess(null), 4000);
   };
 
-  const manufacturerCatalogs = [
-    { name: "Surat Silk Guild", catalog: "Ethnic Wear & Silk Blends", minOrder: "₹50,000", discount: "Up to 30%", capacity: "5,000 meters/month" },
-    { name: "Deccan Cotton Mills", catalog: "Pure Linens & Cottons", minOrder: "₹25,000", discount: "Up to 25%", capacity: "10,000 meters/month" },
-    { name: "Kanchipuram Silk Co", catalog: "Premium Zari Sarees", minOrder: "₹1,00,000", discount: "Up to 35%", capacity: "1,200 pieces/month" }
-  ];
+  const [manufacturerCatalogs, setManufacturerCatalogs] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchManufacturers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/manufacturers', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setManufacturerCatalogs(data.manufacturers || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchManufacturers();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">

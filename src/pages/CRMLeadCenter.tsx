@@ -29,6 +29,11 @@ export const CRMLeadCenter: React.FC = () => {
   const { currentPage } = useVendor();
   const [success, setSuccess] = useState<string | null>(null);
 
+  const triggerMockAction = (msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 4000);
+  };
+
   // Submenu checks
   const isVendorL = currentPage === 'crm-vendor';
   const isWholesalerL = currentPage === 'crm-wholesaler';
@@ -40,18 +45,30 @@ export const CRMLeadCenter: React.FC = () => {
   const isConversions = currentPage === 'crm-conversions';
   const isSources = currentPage === 'crm-sources';
 
-  const [leads, setLeads] = useState<Lead[]>([
-    { id: 'LD-801', name: 'Pune Ethnic Retailers', type: 'Vendor', source: 'Direct Website Registration', stage: 'New', phone: '+91 99123 45678', notes: 'Interested in buying bulk sherwani sets' },
-    { id: 'LD-802', name: 'Deccan Fabric Distributors', type: 'Wholesaler', source: 'Franchise Referral', stage: 'Interested', phone: '+91 98234 56789', notes: 'Wants to sign supply contract for cotton material' },
-    { id: 'LD-803', name: 'Vedic Organic Mills', type: 'Manufacturer', source: 'Cold Outreach', stage: 'Negotiation', phone: '+91 97345 67890', notes: 'Negotiating price per kg of organic threads' },
-    { id: 'LD-804', name: 'Kalyan Apparels Hub', type: 'Vendor', source: 'Google Ads Campaign', stage: 'Converted', phone: '+91 96456 78901', notes: 'First PO placed successfully (INV-PO-7782)' },
-    { id: 'LD-805', name: 'Nashik Mandal Hub Operator', type: 'Franchise', source: 'Website Inquiry', stage: 'Negotiation', phone: '+91 95567 89012', notes: 'Applying to operate mandal territory' }
-  ]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [tasks, setTasks] = useState<TaskItem[]>([
-    { id: 'TSK-01', title: 'Call Pune Ethnic Retailers to explain MOQ terms', leadName: 'Pune Ethnic Retailers', dueDate: 'Today', done: false },
-    { id: 'TSK-02', title: 'WhatsApp quotation sheet to Deccan Fabric', leadName: 'Deccan Fabric Distributors', dueDate: 'Tomorrow', done: false }
-  ]);
+  React.useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/leads', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLeads(data.leads || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLeads();
+  }, []);
+
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
   const [activeCall, setActiveCall] = useState<Lead | null>(null);
   const [activeChat, setActiveChat] = useState<Lead | null>(null);
@@ -64,7 +81,7 @@ export const CRMLeadCenter: React.FC = () => {
   const [leadPhone, setLeadPhone] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const triggerMockAction = (msg: string) => {
+  const triggerToastAction = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 4000);
   };
@@ -84,12 +101,12 @@ export const CRMLeadCenter: React.FC = () => {
     setLeadName('');
     setLeadPhone('');
     setShowAddForm(false);
-    triggerMockAction(`New lead "${newL.name}" successfully registered into CRM pipeline!`);
+    triggerToastAction(`New lead "${newL.name}" successfully registered into CRM pipeline!`);
   };
 
   const handleUpdateStage = (id: string, stage: Lead['stage']) => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage } : l));
-    triggerMockAction(`Updated lead status to: ${stage}`);
+    triggerToastAction(`Updated lead status to: ${stage}`);
   };
 
   const handleToggleTask = (taskId: string) => {

@@ -167,16 +167,48 @@ export const Sidebar: React.FC = () => {
       items: [
         {
           id: 'products',
-          label: 'Product Management',
+          label: (() => {
+            const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
+            if (catName.includes('food') || catName.includes('restaurant')) return '🍽️ Digital Food Menu';
+            if (catName.includes('grocery') || catName.includes('daily')) return '🛒 Supermarket Catalog';
+            if (catName.includes('fashion') || catName.includes('apparel')) return '👗 Apparel & Lookbook';
+            if (catName.includes('service') || catName.includes('repair')) return '🛠️ Service Packages';
+            if (catName.includes('devotional') || catName.includes('puja')) return '🏛️ Devotional Catalog';
+            return '📦 Product Management';
+          })(),
           icon: <Package className="h-4 w-4" />,
           subItems: [
-            { id: 'add-product', label: 'Add Product', icon: <PlusCircle className="h-3.5 w-3.5" /> },
-            { id: 'products-all', label: 'All Products', icon: <Package className="h-3.5 w-3.5" /> },
-            { id: 'products-draft', label: 'Draft Products', icon: <FolderOpen className="h-3.5 w-3.5" />, count: draftProductsCount },
+            {
+              id: 'add-product',
+              label: (() => {
+                const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
+                if (catName.includes('food') || catName.includes('restaurant')) return 'Add Dish / Menu Item';
+                if (catName.includes('grocery') || catName.includes('daily')) return 'Add Supermarket Item';
+                if (catName.includes('fashion') || catName.includes('apparel')) return 'Add Fashion Item';
+                if (catName.includes('service') || catName.includes('repair')) return 'Add Service Package';
+                if (catName.includes('devotional') || catName.includes('puja')) return 'Add Sacred Item';
+                return 'Add Product';
+              })(),
+              icon: <PlusCircle className="h-3.5 w-3.5" />
+            },
+            {
+              id: 'products-all',
+              label: (() => {
+                const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
+                if (catName.includes('food') || catName.includes('restaurant')) return 'All Digital Menu Items';
+                if (catName.includes('grocery') || catName.includes('daily')) return 'All Grocery Items';
+                if (catName.includes('fashion') || catName.includes('apparel')) return 'All Fashion Items';
+                if (catName.includes('service') || catName.includes('repair')) return 'All Service Packages';
+                if (catName.includes('devotional') || catName.includes('puja')) return 'All Devotional Items';
+                return 'All Products';
+              })(),
+              icon: <Package className="h-3.5 w-3.5" />
+            },
+            { id: 'products-draft', label: 'Draft Items', icon: <FolderOpen className="h-3.5 w-3.5" />, count: draftProductsCount },
             { id: 'products-pending', label: 'Pending Admin Review', icon: <Loader2 className="h-3.5 w-3.5" />, count: pendingApprovalCount },
             { id: 'products-awaiting-vendor', label: 'Awaiting Vendor Approval', icon: <Clock className="h-3.5 w-3.5" />, count: awaitingVendorCount },
-            { id: 'products-approved', label: 'Approved Products', icon: <FileCheck className="h-3.5 w-3.5" />, count: approvedCount },
-            { id: 'products-rejected', label: 'Rejected Products', icon: <XCircle className="h-3.5 w-3.5" />, count: rejectedCount },
+            { id: 'products-approved', label: 'Approved Items', icon: <FileCheck className="h-3.5 w-3.5" />, count: approvedCount },
+            { id: 'products-rejected', label: 'Rejected Items', icon: <XCircle className="h-3.5 w-3.5" />, count: rejectedCount },
             { id: 'products-change-requests', label: 'Product Change Requests', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />, count: changeRequestsCount }
           ]
         },

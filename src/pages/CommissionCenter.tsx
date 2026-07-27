@@ -101,7 +101,7 @@ export const CommissionCenter: React.FC = () => {
         if (c.id === id) {
           const rateVal = parseFloat(counterRate);
           const charged = Math.round(c.amount * (rateVal / 100));
-          
+
           if (c.source === 'Product') {
             const prod = products.find(p => p.name === c.details);
             if (prod) {
@@ -210,11 +210,10 @@ export const CommissionCenter: React.FC = () => {
               setNegotiatingId(null);
               setClarifyingId(null);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === tab.id
-                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === tab.id
+              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+              : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+              }`}
           >
             {tab.icon}
             <span>{tab.label}</span>
@@ -277,7 +276,7 @@ export const CommissionCenter: React.FC = () => {
                           <Badge
                             variant={
                               item.status === 'Approved' ? 'success' :
-                              item.status === 'Rejected' ? 'destructive' : 'warning'
+                                item.status === 'Rejected' ? 'destructive' : 'warning'
                             }
                             className="text-[10px]"
                           >

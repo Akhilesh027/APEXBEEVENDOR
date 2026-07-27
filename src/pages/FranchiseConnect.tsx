@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -47,31 +47,33 @@ export const FranchiseConnect: React.FC = () => {
   const isExpansion = currentPage === 'fc-expansion';
   const isContacts = currentPage === 'fc-contacts';
 
-  // State mock data
-  const [managers] = useState<FranchiseManager[]>([
-    { id: 'MGR-301', name: 'Narendra Dev', level: 'State', territory: 'Maharashtra', phone: '+91 91234 56780', email: 'narendra.dev@apexfranchise.com', status: 'Online' },
-    { id: 'MGR-302', name: 'Kalyani Shinde', level: 'District', territory: 'Pune District', phone: '+91 92345 67891', email: 'kalyani.s@apexfranchise.com', status: 'Online' },
-    { id: 'MGR-303', name: 'Satish Gokhale', level: 'Mandal', territory: 'Hadapsar Mandal', phone: '+91 93456 78902', email: 'satish.g@apexfranchise.com', status: 'Offline' },
-    { id: 'MGR-304', name: 'Venkatesh Rao', level: 'State', territory: 'Telangana', phone: '+91 94567 89013', email: 'venkatesh.r@apexfranchise.com', status: 'Online' },
-    { id: 'MGR-305', name: 'Srinivas Murthy', level: 'District', territory: 'Hyderabad District', phone: '+91 95678 90124', email: 'srinivas.m@apexfranchise.com', status: 'Online' },
-    { id: 'MGR-306', name: 'Kiran Kumar', level: 'Mandal', territory: 'Madhapur Mandal', phone: '+91 96789 01235', email: 'kiran.k@apexfranchise.com', status: 'Online' }
-  ]);
+  const [managers, setManagers] = useState<FranchiseManager[]>([]);
+  const [tickets, setTickets] = useState<SupportRequest[]>([]);
+  const [materials, setMaterials] = useState<MarketingMaterial[]>([]);
+  const [expansions, setExpansions] = useState<any[]>([]);
 
-  const [tickets, setTickets] = useState<SupportRequest[]>([
-    { id: 'TKT-701', subject: 'Delay in wholesale packaging kit supply', category: 'Logistics SLA', assignedTo: 'Kalyani Shinde', priority: 'High', status: 'Open', date: '2026-06-13' },
-    { id: 'TKT-702', subject: 'Tax invoice mismatch in B2B RFQlot #11', category: 'Billing / GST', assignedTo: 'Narendra Dev', priority: 'Medium', status: 'Resolved', date: '2026-06-10' }
-  ]);
-
-  const [materials] = useState<MarketingMaterial[]>([
-    { id: 'MKT-01', title: 'ApexBee Counter QR Standee Template', type: 'Standee', downloadSize: '14.2 MB (PDF)', status: 'Available' },
-    { id: 'MKT-02', title: 'Wholesale Buyer Registration Pamphlet', type: 'Pamphlet', downloadSize: '8.5 MB (PDF)', status: 'Available' },
-    { id: 'MKT-03', title: 'District Center Launch Flex Banner', type: 'Banner', downloadSize: '45.1 MB (TIFF)', status: 'Available' },
-    { id: 'MKT-04', title: 'How to bind counter payments tutorial', type: 'Video Guide', downloadSize: '120.4 MB (MP4)', status: 'Available' }
-  ]);
-
-  const [expansions, setExpansions] = useState<any[]>([
-    { id: 'FEXP-01', location: 'Katraj, Pune', level: 'Mandal Franchise', proposedRevenue: 500000, status: 'Under Review' }
-  ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const [mgrRes, tktRes] = await Promise.all([
+          fetch('https://server.apexbee.in/api/franchises/managers', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('https://server.apexbee.in/api/support-tickets', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (mgrRes.ok) {
+          const data = await mgrRes.json();
+          setManagers(data.managers || []);
+        }
+        if (tktRes.ok) {
+          const data = await tktRes.json();
+          setTickets(data.tickets || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Form states
   const [newSubject, setNewSubject] = useState('');

@@ -87,7 +87,7 @@ export const Delivery: React.FC = () => {
 
   const deliveredCount = orders.filter(o => o.deliveryStatus === 'Delivered').length;
   const returnedCount = orders.filter(o => o.deliveryStatus === 'Returned').length;
-  
+
   const performanceData = [
     { name: 'Successful', value: deliveredCount + 85, color: '#10b981' },
     { name: 'Delayed', value: 5, color: '#f59e0b' },
@@ -226,11 +226,10 @@ export const Delivery: React.FC = () => {
                       else setAutoFallback(false);
                       alert(`Logistics fleet dispatch switch mode set to: ${mode.label}`);
                     }}
-                    className={`py-1 rounded-lg text-[10px] font-black cursor-pointer transition ${
-                      deliverySwitchMode === mode.id
-                        ? 'bg-primary text-primary-foreground shadow-sm font-bold'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-                    }`}
+                    className={`py-1 rounded-lg text-[10px] font-black cursor-pointer transition ${deliverySwitchMode === mode.id
+                      ? 'bg-primary text-primary-foreground shadow-sm font-bold'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+                      }`}
                   >
                     {mode.label}
                   </button>

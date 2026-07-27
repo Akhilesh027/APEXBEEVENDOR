@@ -8,18 +8,44 @@ import { Coins, BarChart3, Clock, CheckCircle, Download, FileSpreadsheet, Trendi
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
 
 export const EarningsCommissions: React.FC = () => {
-  const { products, orders, withdrawals } = useVendor();
+  const { products, orders, withdrawals, profile, stats } = useVendor();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'products' | 'settlements' | 'upcoming' | 'reports'>('breakdown');
   
-  // Commission trend data
-  const monthlyData = [
-    { name: 'Jan', earnings: 74200, commission: 8500 },
-    { name: 'Feb', earnings: 85600, commission: 9800 },
-    { name: 'Mar', earnings: 105200, commission: 12400 },
-    { name: 'Apr', earnings: 98100, commission: 11000 },
-    { name: 'May', earnings: 115000, commission: 13800 },
-    { name: 'Jun', earnings: 122400, commission: 15400 }
-  ];
+  const totalLifetimeEarnings = React.useMemo(() => {
+    const fromOrders = orders
+      .filter(o => o.deliveryStatus === 'Delivered')
+      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const fromWithdrawals = withdrawals
+      .filter(w => w.status === 'Completed')
+      .reduce((sum, w) => sum + (w.amount || 0), 0);
+    return Math.max(fromOrders, fromWithdrawals, stats?.totalRevenue || 0);
+  }, [orders, withdrawals, stats]);
+
+  const avgPlatformFee = React.useMemo(() => {
+    if (products.length === 0) return '10.0%';
+    const avg = products.reduce((acc, p) => acc + (p.commissionRate || 10), 0) / products.length;
+    return `${avg.toFixed(1)}%`;
+  }, [products]);
+
+  const monthlyData = React.useMemo(() => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    const result = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const idx = (currentMonth - i + 12) % 12;
+      const name = monthNames[idx];
+      const monthOrders = orders.filter(o => {
+        if (!o.orderDate) return false;
+        const d = new Date(o.orderDate);
+        return d.getMonth() === idx;
+      });
+      const gross = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+      const commission = Math.round(gross * 0.1);
+      result.push({ name, earnings: Math.max(0, gross - commission), commission });
+    }
+    return result;
+  }, [orders]);
 
   // Helper: calculate payout splits
   const getProductSplits = (price: number, commRate: number, shipping: number, packing: number) => {
@@ -32,6 +58,30 @@ export const EarningsCommissions: React.FC = () => {
       packing,
       vendorReceives
     };
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["Product Name", "Category", "Selling Price (INR)", "Platform Comm (%)", "Comm Amount (INR)", "Net Payout (INR)", "Status"];
+    const rows = products.map(p => {
+      const splits = getProductSplits(p.price, p.commissionRate, p.shippingCharges, p.packingCharges);
+      return [
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${p.category || 'General'}"`,
+        splits.price,
+        `${p.commissionRate}%`,
+        splits.commission,
+        splits.vendorReceives,
+        p.status
+      ].join(",");
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Commission_Statement_${(profile.businessName || 'Vendor').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -101,14 +151,14 @@ export const EarningsCommissions: React.FC = () => {
             <Card className="bg-emerald-500/5 border-emerald-500/20">
               <CardContent className="p-4 flex flex-col gap-1">
                 <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">Total Lifetime Earnings</span>
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">₹4,25,800</span>
-                <span className="text-[9px] text-muted-foreground mt-1">Processed across 182 orders settled successfully.</span>
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">₹{totalLifetimeEarnings.toLocaleString('en-IN')}</span>
+                <span className="text-[9px] text-muted-foreground mt-1">Processed across {orders.length} orders settled successfully.</span>
               </CardContent>
             </Card>
             <Card className="bg-indigo-500/5 border-indigo-500/20">
               <CardContent className="p-4 flex flex-col gap-1">
                 <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">Average Platform Fee</span>
-                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">11.4%</span>
+                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{avgPlatformFee}</span>
                 <span className="text-[9px] text-muted-foreground mt-1">Calculated across apparel, catalog weight, and shipping categories.</span>
               </CardContent>
             </Card>
@@ -144,18 +194,25 @@ export const EarningsCommissions: React.FC = () => {
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-bold text-foreground">{p.name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{p.category}</TableCell>
-                        <TableCell className="text-right font-semibold">₹{splits.price}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{p.category || 'General'}</TableCell>
+                        <TableCell className="text-right font-semibold">₹{splits.price.toLocaleString('en-IN')}</TableCell>
                         <TableCell className="text-right text-amber-500 font-bold">{p.commissionRate}%</TableCell>
-                        <TableCell className="text-right text-destructive font-medium">-₹{splits.commission}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">₹{splits.shipping + splits.packing}</TableCell>
-                        <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{splits.vendorReceives}</TableCell>
+                        <TableCell className="text-right text-destructive font-medium">-₹{splits.commission.toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">₹{(splits.shipping + splits.packing).toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{splits.vendorReceives.toLocaleString('en-IN')}</TableCell>
                         <TableCell>
-                          <Badge variant={p.status === 'Approved' ? 'success' : 'secondary'}>{p.status}</Badge>
+                          <Badge variant={p.status === 'Approved' || p.status === 'Live' ? 'success' : p.status === 'Pending Review' ? 'warning' : 'secondary'}>{p.status}</Badge>
                         </TableCell>
                       </TableRow>
                     );
                   })}
+                  {products.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-xs">
+                        No products listed yet. Add products to view itemized commission rates.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -181,9 +238,12 @@ export const EarningsCommissions: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p, idx) => {
-                    // simulate sold counts for demo realism
-                    const qtySold = idx === 0 ? 34 : idx === 1 ? 18 : idx === 2 ? 8 : 0;
+                  {products.map((p) => {
+                    const matchedOrders = orders.filter(o => o.items?.some((it: any) => it.productId === p.id || it.id === p.id));
+                    const qtySold = matchedOrders.reduce((acc, o) => {
+                      const item = o.items?.find((it: any) => it.productId === p.id || it.id === p.id);
+                      return acc + (item?.quantity || 1);
+                    }, 0);
                     const grossSales = qtySold * p.price;
                     const splits = getProductSplits(p.price, p.commissionRate, p.shippingCharges, p.packingCharges);
                     const totalComm = qtySold * splits.commission;
@@ -201,6 +261,13 @@ export const EarningsCommissions: React.FC = () => {
                       </TableRow>
                     );
                   })}
+                  {products.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
+                        No catalog items available for performance analysis.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -228,7 +295,7 @@ export const EarningsCommissions: React.FC = () => {
                   {withdrawals.filter(w => w.status === 'Completed').map(w => (
                     <TableRow key={w.id}>
                       <TableCell className="font-mono text-xs font-bold text-foreground">{w.id}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{w.processedDate || w.requestDate.split('T')[0]}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{w.processedDate || w.requestDate?.split('T')[0] || 'Today'}</TableCell>
                       <TableCell className="text-xs text-foreground">
                         <div className="font-semibold">{w.paymentMethod}</div>
                         <div className="text-[10px] text-muted-foreground">{w.details}</div>
@@ -239,31 +306,13 @@ export const EarningsCommissions: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {/* Baseline Settlements */}
-                  <TableRow>
-                    <TableCell className="font-mono text-xs font-bold text-foreground">SET-2026-8819</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">2026-06-05</TableCell>
-                    <TableCell className="text-xs text-foreground">
-                      <div className="font-semibold">Bank Transfer</div>
-                      <div className="text-[10px] text-muted-foreground">HDFC Current A/C •••• 92233</div>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-emerald-500">₹25,840</TableCell>
-                    <TableCell>
-                      <Badge variant="success">Settled Successfully</Badge>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-mono text-xs font-bold text-foreground">SET-2026-8790</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">2026-05-28</TableCell>
-                    <TableCell className="text-xs text-foreground">
-                      <div className="font-semibold">UPI Payout</div>
-                      <div className="text-[10px] text-muted-foreground">mumbaifashion@okhdfc</div>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-emerald-500">₹14,920</TableCell>
-                    <TableCell>
-                      <Badge variant="success">Settled Successfully</Badge>
-                    </TableCell>
-                  </TableRow>
+                  {withdrawals.filter(w => w.status === 'Completed').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-xs">
+                        No past completed settlements recorded yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -293,11 +342,11 @@ export const EarningsCommissions: React.FC = () => {
                     <TableRow key={o.id}>
                       <TableCell className="font-mono text-xs font-bold text-foreground">{o.id}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {new Date(o.orderDate).toLocaleDateString()}
+                        {o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Recent'}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">₹{o.totalAmount}</TableCell>
-                      <TableCell className="text-right text-destructive font-medium">-₹{Math.round(o.subtotal * 0.1)}</TableCell>
-                      <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{Math.round(o.totalAmount - (o.subtotal * 0.1))}</TableCell>
+                      <TableCell className="text-right font-semibold">₹{(o.totalAmount || 0).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right text-destructive font-medium">-₹{Math.round((o.subtotal || o.totalAmount || 0) * 0.1).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{Math.round((o.totalAmount || 0) - ((o.subtotal || o.totalAmount || 0) * 0.1)).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
                           <Clock className="h-3.5 w-3.5 animate-spin" />
@@ -306,6 +355,13 @@ export const EarningsCommissions: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {orders.filter(o => o.deliveryStatus === 'Delivered').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
+                        No delivered orders pending clearance currently.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -332,11 +388,11 @@ export const EarningsCommissions: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2">
-                  <Button className="flex items-center justify-center gap-1.5 bg-primary text-white py-2.5 rounded-lg font-bold cursor-pointer">
+                  <Button onClick={handleExportCSV} className="flex items-center justify-center gap-1.5 bg-primary text-white py-2.5 rounded-lg font-bold cursor-pointer">
                     <Download className="h-4 w-4" /> Download PDF Statement
                   </Button>
-                  <Button variant="outline" className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold border-border cursor-pointer">
-                    <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Export Excel Sheet
+                  <Button onClick={handleExportCSV} variant="outline" className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold border-border cursor-pointer">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Export Excel / CSV Sheet
                   </Button>
                 </div>
               </CardContent>
@@ -353,9 +409,8 @@ export const EarningsCommissions: React.FC = () => {
                   As per Section 52 of the Indian CGST Act 2017, the platform deducts Tax Collected at Source (TCS) at 1% on all net taxable sales values.
                 </p>
                 <div className="bg-background border border-border/40 p-3 rounded-lg flex flex-col gap-1 text-[11px]">
-                  <span className="flex justify-between"><span>Active GSTIN:</span> <strong className="text-foreground">27AAAAA1111A1Z1</strong></span>
+                  <span className="flex justify-between"><span>Active GSTIN:</span> <strong className="text-foreground">{profile.gstNumber || 'Not Registered'}</strong></span>
                   <span className="flex justify-between"><span>E-Commerce Operator GSTR-8 Ref:</span> <strong className="text-foreground">APEX-ECO-GSTR8</strong></span>
-                  <span className="flex justify-between"><span>TCS Accrued (This Month):</span> <strong className="text-foreground">₹1,540</strong></span>
                 </div>
               </CardContent>
             </Card>

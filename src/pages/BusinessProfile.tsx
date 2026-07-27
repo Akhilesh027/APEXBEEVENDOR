@@ -126,8 +126,10 @@ export const BusinessProfile: React.FC = () => {
       setReplacementPolicy(profile.replacementPolicy || '');
     }
   }, [profile]);
-  
+
   // Extended configuration states
+  const [storeType, setStoreType] = useState<any>(profile.storeType || 'retail_grocery');
+  const [primaryCategory, setPrimaryCategory] = useState(profile.primaryCategory || profile.category || 'Apparel & Fashion');
   const [fssaiNumber, setFssaiNumber] = useState(profile.fssaiNumber || '');
   const [whatsappNumber, setWhatsappNumber] = useState(profile.whatsappNumber || '');
   const [stateName, setStateName] = useState(profile.state || '');
@@ -137,16 +139,16 @@ export const BusinessProfile: React.FC = () => {
   const [pincode, setPincode] = useState(profile.pincode || '');
   const [latitude, setLatitude] = useState(profile.location?.coordinates?.[1]?.toString() || '');
   const [longitude, setLongitude] = useState(profile.location?.coordinates?.[0]?.toString() || '');
-  
+
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(profile.deliveryRadiusKm || 5);
   const [minOrder, setMinOrder] = useState(profile.minOrder || 100);
   const [deliveryCharge, setDeliveryCharge] = useState(profile.deliveryCharge || 20);
   const [estimatedDeliveryMinutes, setEstimatedDeliveryMinutes] = useState(profile.estimatedDeliveryMinutes || 30);
-  
+
   const [storeTags, setStoreTags] = useState<string[]>(profile.storeTags || []);
   const [storeServices, setStoreServices] = useState<string[]>(profile.storeServices || []);
   const [liveStatus, setLiveStatus] = useState(profile.liveStatus || 'open');
-  
+
   const [businessHours, setBusinessHours] = useState<any>(profile.businessHours || {
     monday: { open: '09:00', close: '21:00', enabled: true },
     tuesday: { open: '09:00', close: '21:00', enabled: true },
@@ -161,12 +163,66 @@ export const BusinessProfile: React.FC = () => {
   const [panNumber, setPanNumber] = useState(profile.panNumber || '');
   const [aadhaarNumber, setAadhaarNumber] = useState(profile.aadhaarNumber || '');
 
-  // Specs States
   const [gstExpiry, setGstExpiry] = useState(profile.gstExpiry || '');
   const [fssaiExpiry, setFssaiExpiry] = useState(profile.fssaiExpiry || '');
   const [ownerContact, setOwnerContact] = useState(profile.ownerContact || '');
   const [managerContact, setManagerContact] = useState(profile.managerContact || '');
   const [deliveryManagerContact, setDeliveryManagerContact] = useState(profile.deliveryManagerContact || '');
+
+  // Category-specific operational states (Multi-Select Format States)
+  const [foodSubcategories, setFoodSubcategories] = useState<string[]>(['Dine-In Family Restaurant']);
+  const [grocerySubcategories, setGrocerySubcategories] = useState<string[]>(['Supermarket & Hypermarket']);
+  const [fashionSubcategories, setFashionSubcategories] = useState<string[]>(['Women\'s Ethnic & Designer Saree']);
+  const [serviceSubcategories, setServiceSubcategories] = useState<string[]>(['Electrician & Plumbing Services']);
+  const [devotionalSubcategories, setDevotionalSubcategories] = useState<string[]>(['Puja Samagri & Havan Kits']);
+
+  const toggleCategoryFormat = (categoryType: 'food' | 'grocery' | 'fashion' | 'service' | 'devotional', id: string) => {
+    const setters: Record<string, React.Dispatch<React.SetStateAction<string[]>>> = {
+      food: setFoodSubcategories,
+      grocery: setGrocerySubcategories,
+      fashion: setFashionSubcategories,
+      service: setServiceSubcategories,
+      devotional: setDevotionalSubcategories,
+    };
+
+    const setter = setters[categoryType];
+    if (!setter) return;
+
+    setter(prev => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev; // Keep at least 1 format selected
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const [foodPrepTime, setFoodPrepTime] = useState('15-20 Mins');
+  const [foodType, setFoodType] = useState('Veg & Non-Veg 🟢🔴');
+  const [diningTables, setDiningTables] = useState('8 Tables (32 Seater)');
+  const [tableReservations, setTableReservations] = useState(true);
+  const [cakePreorderHours, setCakePreorderHours] = useState('24 Hours');
+  const [biryaniBatchTimes, setBiryaniBatchTimes] = useState('12:30 PM & 7:30 PM');
+  const [packagingFee, setPackagingFee] = useState('15');
+  const [meatCutType, setMeatCutType] = useState('Curry Cut & Boneless');
+
+  const [expressDeliveryTime, setExpressDeliveryTime] = useState('15 Mins');
+  const [morningSlotActive, setMorningSlotActive] = useState(true);
+  const [organicCertActive, setOrganicCertActive] = useState(true);
+  const [dairyColdStorage, setDairyColdStorage] = useState(true);
+
+  const [trialRoomAvailable, setTrialRoomAvailable] = useState(true);
+  const [returnPolicyDays, setReturnPolicyDays] = useState('7 Days');
+  const [customStitchingOffered, setCustomStitchingOffered] = useState(true);
+
+  const [serviceRadiusKm, setServiceRadiusKm] = useState('15 Km');
+  const [serviceRateType, setServiceRateType] = useState('Fixed Rate per Job');
+  const [emergencySupport, setEmergencySupport] = useState(true);
+  const [serviceWarrantyDays, setServiceWarrantyDays] = useState('90 Days');
+
+  const [templeDirectDelivery, setTempleDirectDelivery] = useState(true);
+  const [panditLanguage, setPanditLanguage] = useState('Telugu & Sanskrit');
 
   // Sync from profile when profile updates
   useEffect(() => {
@@ -177,6 +233,8 @@ export const BusinessProfile: React.FC = () => {
       setPhone(profile.phone || '');
       setAddress(profile.address || '');
       setBusinessType(profile.businessType || 'Vendor');
+      setStoreType(profile.storeType || 'retail_grocery');
+      setPrimaryCategory(profile.primaryCategory || profile.category || 'Apparel & Fashion');
       setFssaiNumber(profile.fssaiNumber || '');
       setWhatsappNumber(profile.whatsappNumber || '');
       setStateName(profile.state || '');
@@ -219,7 +277,7 @@ export const BusinessProfile: React.FC = () => {
       const lng = pos.coords.longitude;
       setLatitude(lat.toFixed(6));
       setLongitude(lng.toFixed(6));
-      
+
       // Attempt Nominatim reverse geocode
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`);
@@ -266,7 +324,7 @@ export const BusinessProfile: React.FC = () => {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const updates: Partial<VendorProfile> = {
       businessName,
       ownerName,
@@ -274,6 +332,8 @@ export const BusinessProfile: React.FC = () => {
       phone,
       address,
       businessType: businessType as any,
+      storeType,
+      primaryCategory,
       fssaiNumber,
       whatsappNumber,
       state: stateName,
@@ -359,7 +419,7 @@ export const BusinessProfile: React.FC = () => {
   };
 
   const toggleService = (srv: string) => {
-    setStoreServices(prev => 
+    setStoreServices(prev =>
       prev.includes(srv) ? prev.filter(s => s !== srv) : [...prev, srv]
     );
   };
@@ -415,6 +475,89 @@ export const BusinessProfile: React.FC = () => {
       default: return <Badge variant="secondary">Missing Upload</Badge>;
     }
   };
+
+  const getCategoryDetails = (catName: string) => {
+    const name = (catName || '').toLowerCase();
+    if (name.includes('food') || name.includes('restaurant')) {
+      return {
+        icon: '🍽️',
+        title: 'Food & Restaurant',
+        layoutMode: 'Digital Food Menu & Kitchen Layout',
+        badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-300',
+        compliance: 'FSSAI Food Safety Compliance Active',
+        features: ['Digital Food Menu', 'Veg/Non-Veg (🟢/🔴) Indicators', 'Kitchen Prep Time Tags (15-20 Mins)', 'Dining Table Reservations'],
+        bgGradient: 'from-amber-500/10 to-orange-500/10 border-amber-500/30',
+      };
+    }
+    if (name.includes('grocery') || name.includes('daily')) {
+      return {
+        icon: '🛒',
+        title: 'Daily Needs & Grocery',
+        layoutMode: 'Supermarket Express Grid Layout',
+        badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-300',
+        compliance: 'Weights & Measures / Trade Compliance',
+        features: ['Supermarket Add-to-Cart Grid', 'Unit Pricing (per Kg / Pack)', 'Daily Morning Slots', 'Minimum Order Limit Setup'],
+        bgGradient: 'from-emerald-500/10 to-teal-500/10 border-emerald-500/30',
+      };
+    }
+    if (name.includes('fashion') || name.includes('apparel') || name.includes('boutique')) {
+      return {
+        icon: '👗',
+        title: 'Fashion & Boutique',
+        layoutMode: 'Lookbook & Apparel Gallery Layout',
+        badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-300',
+        compliance: 'Textile Trade & GST Return Compliance',
+        features: ['Lookbook Image Gallery', 'Size Chart Selector', 'Trial Room Availability Tag', '7-Day Easy Return Policy'],
+        bgGradient: 'from-rose-500/10 to-pink-500/10 border-rose-500/30',
+      };
+    }
+    if (name.includes('service') || name.includes('repair')) {
+      return {
+        icon: '🛠️',
+        title: 'Home Services & Repair',
+        layoutMode: 'Appointment & Slot Booking Layout',
+        badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-300',
+        compliance: 'Technician Verification & Skill License',
+        features: ['Slot Booking Calendar', 'Fixed vs Hourly Rates', 'Technician Travel Radius', 'Emergency 24x7 Support Tag'],
+        bgGradient: 'from-blue-500/10 to-indigo-500/10 border-blue-500/30',
+      };
+    }
+    if (name.includes('devotional') || name.includes('puja')) {
+      return {
+        icon: '🏛️',
+        title: 'Devotional & Puja',
+        layoutMode: 'Sanctified Divinity Storefront',
+        badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-300',
+        compliance: 'Sanctified Source Certification Active',
+        features: ['Puja Samagri Combos', 'Temple Direct Delivery', 'Purohit/Archana Booking', 'Pure Samagri Guarantee'],
+        bgGradient: 'from-orange-500/10 to-amber-500/10 border-orange-500/30',
+      };
+    }
+    if (name.includes('electronic') || name.includes('mobile') || name.includes('tech') || name.includes('gadget')) {
+      return {
+        icon: '📱',
+        title: 'Electronics & Mobiles',
+        layoutMode: 'Tech Retail Showcase Layout',
+        badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-300',
+        compliance: 'BIS Certification & Brand Warranty Active',
+        features: ['Tech Specifications Grid', 'Brand Warranty Badge', 'Serial / IMEI Tracking', 'Store Pickup & Express Shipping'],
+        bgGradient: 'from-cyan-500/10 to-blue-500/10 border-cyan-500/30',
+      };
+    }
+    return {
+      icon: '🛍️',
+      title: 'General Retail & Superstore',
+      layoutMode: 'Standard Retail Showcase Layout',
+      badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-300',
+      compliance: 'Standard Commerce Registration Active',
+      features: ['Multi-Category Catalog', 'Variant Selector', 'Home Delivery & Pickup', 'Store Search & Filters'],
+      bgGradient: 'from-purple-500/10 to-indigo-500/10 border-purple-500/30',
+    };
+  };
+
+  const activeCategoryInfo = getCategoryDetails(
+    primaryCategory || profile.primaryCategory || profile.category || (loggedInUser as any)?.primaryCategory || (loggedInUser as any)?.category || 'Food & Restaurant'
+  );
 
   const availableServices = ['Home Delivery', 'Pickup', 'Pre Orders', 'Subscription', 'Instant Delivery'];
   const availableTags = ['Fresh', 'Organic', '24x7', 'Home Delivery', 'Pickup', 'Express Delivery'];
@@ -513,6 +656,12 @@ export const BusinessProfile: React.FC = () => {
                       {profile.kycStatus}
                     </Badge>
                   </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Verified Business Category</p>
+                    <Badge variant="purple" className="text-[10px] font-extrabold">
+                      🏷️ {profile.category || profile.primaryCategory || 'Food & Restaurant'}
+                    </Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -586,6 +735,40 @@ export const BusinessProfile: React.FC = () => {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Admin-Assigned Category & Operational Mandate */}
+              <Card className={`glass bg-gradient-to-br ${activeCategoryInfo.bgGradient}`}>
+                <CardHeader>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <span className="text-2xl">{activeCategoryInfo.icon}</span> Category Mandate & Features
+                  </CardTitle>
+                  <CardDescription>
+                    Admin-assigned operational business category and unlocked platform features.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 text-left">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-background/80 rounded-xl border border-border/50">
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Assigned Category</p>
+                      <p className="text-sm font-extrabold text-foreground mt-0.5">{activeCategoryInfo.title}</p>
+                    </div>
+                    <Badge variant="outline" className={`${activeCategoryInfo.badgeColor} font-bold text-xs px-3 py-1`}>
+                      {activeCategoryInfo.compliance}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-extrabold text-foreground uppercase tracking-wider mb-2">Category-Driven Storefront Capabilities:</p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {activeCategoryInfo.features.map((feat, idx) => (
+                        <div key={idx} className="p-2.5 bg-background/60 border border-border/50 rounded-xl text-xs font-semibold flex items-center gap-2 text-foreground">
+                          <span className="text-emerald-500 font-bold">✓</span> {feat}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </TabsContent>
@@ -661,6 +844,24 @@ export const BusinessProfile: React.FC = () => {
                         <option value="Wholesaler">Wholesaler</option>
                         <option value="Manufacturer">Manufacturer</option>
                       </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                        Store Operational Type <span className="text-[10px] text-primary font-bold">(Admin Assigned 🔒)</span>
+                      </label>
+                      <div className="border border-border/60 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground font-extrabold flex items-center justify-between cursor-not-allowed opacity-90">
+                        <span>{activeCategoryInfo.title}</span>
+                        <Badge variant="purple" className="text-[9px] font-bold">Admin Verified</Badge>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                        Primary Store Category <span className="text-[10px] text-primary font-bold">(Admin Assigned 🔒)</span>
+                      </label>
+                      <div className="border border-border/60 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground font-extrabold flex items-center justify-between cursor-not-allowed opacity-90">
+                        <span>🏷️ {primaryCategory || profile.primaryCategory || profile.category || 'Food & Restaurant'}</span>
+                        <Badge variant="purple" className="text-[9px] font-bold">Locked</Badge>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">FSSAI License Number</label>
@@ -761,7 +962,7 @@ export const BusinessProfile: React.FC = () => {
                       {locating ? "Resolving GPS..." : "📍 Locate Me (GPS)"}
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1 md:col-span-2">
                       <label className="text-xs font-bold text-muted-foreground">Full Address *</label>
@@ -862,7 +1063,397 @@ export const BusinessProfile: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Section 5: Services & Tags Checklists */}
+                {/* Section 5: Category-Specific Operational Parameters */}
+                <div className="border-b border-border/50 pb-4 space-y-4">
+                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide flex items-center gap-1.5">
+                    <span>{activeCategoryInfo.icon}</span> 5. Category Operational Parameters ({activeCategoryInfo.title})
+                  </h3>
+
+                  {activeCategoryInfo.title.includes('Food') ? (
+                    <div className="space-y-4">
+                      {/* Subcategory Format Selection Bar (Multi-Selectable) */}
+                      <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-amber-700 dark:text-amber-300 uppercase tracking-wider block flex items-center justify-between">
+                          <span>🍴 Select Food & Restaurant Formats (Select Multiple)</span>
+                          <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded font-mono">{foodSubcategories.length} Selected</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                          {[
+                            { id: 'Dine-In Family Restaurant', label: '🍷 Dine-In Restaurant', desc: 'Table Capacity & Reservations' },
+                            { id: 'Fast Food & QSR', label: '🍟 Fast Food & QSR', desc: 'Fast Prep & Self Counter' },
+                            { id: 'Café & Bakery', label: '☕ Café & Bakery', desc: 'Custom Cakes & Pastries' },
+                            { id: 'Biryani & Cloud Kitchen', label: '🍲 Biryani & Cloud Kitchen', desc: 'Batch Timings & Family Buckets' },
+                            { id: 'Ice Cream & Desserts', label: '🍦 Ice Cream & Desserts', desc: 'Thermal Cold Delivery' },
+                            { id: 'Meat & Poultry Counter', label: '🥩 Meat & Fish Counter', desc: 'Weight Pricing & Cut Types' }
+                          ].map((fmt) => {
+                            const isSelected = foodSubcategories.includes(fmt.id);
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => toggleCategoryFormat('food', fmt.id)}
+                                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
+                                    ? 'bg-amber-500 text-white font-extrabold border-amber-600 shadow-md ring-2 ring-amber-500/30'
+                                    : 'bg-background hover:bg-amber-500/10 border-border text-foreground font-semibold'
+                                  }`}
+                              >
+                                <span className="text-xs flex items-center justify-between">
+                                  <span>{fmt.label}</span>
+                                  {isSelected && <span className="text-[10px] bg-white/30 text-white px-1 rounded">✓</span>}
+                                </span>
+                                <span className={`text-[9px] mt-1 ${isSelected ? 'text-amber-100' : 'text-muted-foreground'}`}>{fmt.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Format-Specific Dynamic Inputs Panel (Renders all selected formats) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-3.5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Kitchen Prep Time</label>
+                          <select value={foodPrepTime} onChange={(e) => setFoodPrepTime(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                            <option value="10-15 Mins">⚡ 10-15 Mins (Fast Food)</option>
+                            <option value="15-20 Mins">⏱️ 15-20 Mins (Standard Kitchen)</option>
+                            <option value="20-30 Mins">🍲 20-30 Mins (Fresh Meal / Biryani)</option>
+                            <option value="30-45 Mins">👨‍🍳 30-45 Mins (Gourmet / Catering)</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Dietary Offering</label>
+                          <select value={foodType} onChange={(e) => setFoodType(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                            <option value="Pure Veg 🟢">🟢 Pure Veg Only</option>
+                            <option value="Veg & Non-Veg 🟢🔴">🟢🔴 Veg & Non-Veg Kitchen</option>
+                            <option value="Non-Veg Special 🔴">🔴 Non-Veg Specialty</option>
+                          </select>
+                        </div>
+
+                        {/* Dynamic fields based on multi-selected foodSubcategories */}
+                        {foodSubcategories.includes('Dine-In Family Restaurant') && (
+                          <>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-bold text-muted-foreground">Dining Capacity</label>
+                              <input type="text" value={diningTables} onChange={(e) => setDiningTables(e.target.value)} placeholder="e.g. 12 Tables (48 Seater)" className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground" />
+                            </div>
+                            <div className="flex flex-col gap-1 justify-center">
+                              <label className="text-xs font-bold text-muted-foreground">Table Reservations</label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <input type="checkbox" id="tab-res" checked={tableReservations} onChange={(e) => setTableReservations(e.target.checked)} className="rounded accent-amber-500 h-4 w-4 cursor-pointer" />
+                                <label htmlFor="tab-res" className="text-xs font-bold text-foreground cursor-pointer">Enable Table Booking</label>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {foodSubcategories.includes('Café & Bakery') && (
+                          <>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-bold text-muted-foreground">Custom Cake Advance Time</label>
+                              <select value={cakePreorderHours} onChange={(e) => setCakePreorderHours(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                                <option value="6 Hours">🎂 6 Hours Express Cake</option>
+                                <option value="24 Hours">🎂 24 Hours Advance Notice</option>
+                                <option value="48 Hours">🎂 48 Hours Designer Cake</option>
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1 justify-center">
+                              <label className="text-xs font-bold text-muted-foreground">Beverage Sizes</label>
+                              <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300">
+                                ☕ Small (250ml) / Medium (350ml) / Large (500ml)
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {foodSubcategories.includes('Biryani & Cloud Kitchen') && (
+                          <>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-bold text-muted-foreground">Fresh Dum Batch Timings</label>
+                              <input type="text" value={biryaniBatchTimes} onChange={(e) => setBiryaniBatchTimes(e.target.value)} placeholder="e.g. 12:30 PM & 7:30 PM" className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-bold text-muted-foreground">Packaging Container Fee (₹)</label>
+                              <input type="text" value={packagingFee} onChange={(e) => setPackagingFee(e.target.value)} placeholder="₹15 per bucket" className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground" />
+                            </div>
+                          </>
+                        )}
+
+                        {foodSubcategories.includes('Ice Cream & Desserts') && (
+                          <>
+                            <div className="flex flex-col gap-1 justify-center col-span-2">
+                              <label className="text-xs font-bold text-muted-foreground">Cold Chain Guarantee</label>
+                              <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300">
+                                🍦 Delivered Frozen in Insulated Dry-Ice Thermal Packaging
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {foodSubcategories.includes('Meat & Poultry Counter') && (
+                          <>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-bold text-muted-foreground">Available Cut Types</label>
+                              <input type="text" value={meatCutType} onChange={(e) => setMeatCutType(e.target.value)} placeholder="Curry Cut, Boneless, Biryani Cut" className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground" />
+                            </div>
+                            <div className="flex flex-col gap-1 justify-center">
+                              <label className="text-xs font-bold text-muted-foreground">Slaughter Standards</label>
+                              <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300">
+                                🥩 100% Daily Fresh Cleaned & FSSAI Certified
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : activeCategoryInfo.title.includes('Grocery') ? (
+                    <div className="space-y-4">
+                      {/* Grocery Format Selection Bar */}
+                      <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block flex items-center justify-between">
+                          <span>🛒 Select Daily Needs & Grocery Formats (Select Multiple)</span>
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 px-2 py-0.5 rounded font-mono">{grocerySubcategories.length} Selected</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                          {[
+                            { id: 'Supermarket & Hypermarket', label: '🏬 Supermarket Grid', desc: 'Multi-Aisle & Pack Sizes' },
+                            { id: 'Organic & Farmers Market', label: '🥬 Organic Farm Fresh', desc: 'Pesticide-Free Harvest' },
+                            { id: 'Milk & Dairy Booth', label: '🥛 Dairy & Milk Booth', desc: 'Daily 6 AM Subscription' },
+                            { id: 'Fresh Fruits & Veggies', label: '🍎 Fruits & Vegetables', desc: 'Weight Rates (per Kg)' },
+                            { id: 'Home & Personal Care', label: '🧼 Personal Care', desc: 'Family Combo Packs' }
+                          ].map((fmt) => {
+                            const isSelected = grocerySubcategories.includes(fmt.id);
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => toggleCategoryFormat('grocery', fmt.id)}
+                                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
+                                    ? 'bg-emerald-600 text-white font-extrabold border-emerald-700 shadow-md ring-2 ring-emerald-500/30'
+                                    : 'bg-background hover:bg-emerald-500/10 border-border text-foreground font-semibold'
+                                  }`}
+                              >
+                                <span className="text-xs flex items-center justify-between">
+                                  <span>{fmt.label}</span>
+                                  {isSelected && <span className="text-[10px] bg-white/30 text-white px-1 rounded">✓</span>}
+                                </span>
+                                <span className={`text-[9px] mt-1 ${isSelected ? 'text-emerald-100' : 'text-muted-foreground'}`}>{fmt.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3.5 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Express Supermarket Speed</label>
+                          <select value={expressDeliveryTime} onChange={(e) => setExpressDeliveryTime(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                            <option value="10 Mins">⚡ 10-Min Supermarket Express</option>
+                            <option value="30 Mins">🚚 30-Min Local Delivery</option>
+                            <option value="Same Day">📦 Same Day Scheduled Slot</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Min Order Amount (₹)</label>
+                          <input type="number" value={minOrder} onChange={(e) => setMinOrder(Number(e.target.value))} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold" />
+                        </div>
+                        {grocerySubcategories.includes('Milk & Dairy Booth') && (
+                          <div className="flex flex-col gap-1 justify-center">
+                            <label className="text-xs font-bold text-muted-foreground">Morning Essentials Slot</label>
+                            <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              🌅 Morning Milk & Fresh Produce (6 AM - 9 AM) Active
+                            </div>
+                          </div>
+                        )}
+                        {grocerySubcategories.includes('Organic & Farmers Market') && (
+                          <div className="flex flex-col gap-1 justify-center">
+                            <label className="text-xs font-bold text-muted-foreground">Organic Certification</label>
+                            <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              🌱 100% Certified Organic & Chemical-Free
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : activeCategoryInfo.title.includes('Fashion') ? (
+                    <div className="space-y-4">
+                      {/* Fashion Format Selection Bar */}
+                      <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-rose-700 dark:text-rose-300 uppercase tracking-wider block flex items-center justify-between">
+                          <span>👗 Select Fashion & Apparel Formats (Select Multiple)</span>
+                          <span className="text-[10px] bg-rose-500/20 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded font-mono">{fashionSubcategories.length} Selected</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                          {[
+                            { id: 'Women\'s Ethnic & Saree', label: '🥻 Ethnic & Sarees', desc: 'Zari Work & Blouse Pieces' },
+                            { id: 'Men\'s Wear & Formal Suits', label: '👔 Men\'s Formal & Suits', desc: 'Slim/Regular Fit & Waist Sizes' },
+                            { id: 'Kids & Baby Wear', label: '🧸 Kids & Baby Apparel', desc: 'Bio-Wash Cotton (0-14 Yrs)' },
+                            { id: 'Footwear & Accessories', label: '👠 Footwear & Shoes', desc: 'UK/EU Size Chart Selector' },
+                            { id: 'Jewelry & Ornaments', label: '💎 Fashion Jewelry', desc: 'Anti-Tarnish Gift Packaging' }
+                          ].map((fmt) => {
+                            const isSelected = fashionSubcategories.includes(fmt.id);
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => toggleCategoryFormat('fashion', fmt.id)}
+                                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
+                                    ? 'bg-rose-600 text-white font-extrabold border-rose-700 shadow-md ring-2 ring-rose-500/30'
+                                    : 'bg-background hover:bg-rose-500/10 border-border text-foreground font-semibold'
+                                  }`}
+                              >
+                                <span className="text-xs flex items-center justify-between">
+                                  <span>{fmt.label}</span>
+                                  {isSelected && <span className="text-[10px] bg-white/30 text-white px-1 rounded">✓</span>}
+                                </span>
+                                <span className={`text-[9px] mt-1 ${isSelected ? 'text-rose-100' : 'text-muted-foreground'}`}>{fmt.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3.5 bg-rose-500/5 border border-rose-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Return & Exchange Policy</label>
+                          <select value={returnPolicyDays} onChange={(e) => setReturnPolicyDays(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                            <option value="7 Days">🔄 7 Days Easy Return & Exchange</option>
+                            <option value="15 Days">🔄 15 Days Return Policy</option>
+                            <option value="No Return">⛔ Final Sale / No Return</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Boutique Trial Room</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input type="checkbox" id="trial-rm" checked={trialRoomAvailable} onChange={(e) => setTrialRoomAvailable(e.target.checked)} className="rounded accent-rose-500 h-4 w-4 cursor-pointer" />
+                            <label htmlFor="trial-rm" className="text-xs font-bold text-foreground cursor-pointer">In-Store Trial Room Available</label>
+                          </div>
+                        </div>
+                        {fashionSubcategories.includes('Women\'s Ethnic & Saree') && (
+                          <div className="flex flex-col gap-1 justify-center">
+                            <label className="text-xs font-bold text-muted-foreground">Custom Fitting & Tailoring</label>
+                            <div className="p-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400">
+                              ✂️ Custom Blouse Stitching & Alteration Offered
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : activeCategoryInfo.title.includes('Service') ? (
+                    <div className="space-y-4">
+                      {/* Services Format Selection Bar */}
+                      <div className="p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider block flex items-center justify-between">
+                          <span>🛠️ Select Home Services Formats (Select Multiple)</span>
+                          <span className="text-[10px] bg-blue-500/20 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono">{serviceSubcategories.length} Selected</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                          {[
+                            { id: 'Electrician & Plumbing Services', label: '⚡ Electrician & Plumbing', desc: 'On-Demand 30-Min Visit' },
+                            { id: 'AC & Appliance Repair', label: '❄️ AC & Appliance Repair', desc: '90-Day Service Warranty' },
+                            { id: 'Deep Home Cleaning', label: '🧹 Deep Home Cleaning', desc: 'Sq.Ft Machine Cleaning' },
+                            { id: 'Salon & Beauty at Home', label: '💄 Salon & Beauty at Home', desc: 'Hygienic Disposable Kits' },
+                            { id: 'Doorstep Bike & Car Service', label: '🚗 Vehicle Servicing', desc: 'Waterless Wash & Oil Change' }
+                          ].map((fmt) => {
+                            const isSelected = serviceSubcategories.includes(fmt.id);
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => toggleCategoryFormat('service', fmt.id)}
+                                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
+                                    ? 'bg-blue-600 text-white font-extrabold border-blue-700 shadow-md ring-2 ring-blue-500/30'
+                                    : 'bg-background hover:bg-blue-500/10 border-border text-foreground font-semibold'
+                                  }`}
+                              >
+                                <span className="text-xs flex items-center justify-between">
+                                  <span>{fmt.label}</span>
+                                  {isSelected && <span className="text-[10px] bg-white/30 text-white px-1 rounded">✓</span>}
+                                </span>
+                                <span className={`text-[9px] mt-1 ${isSelected ? 'text-blue-100' : 'text-muted-foreground'}`}>{fmt.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3.5 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Technician Travel Radius</label>
+                          <input type="text" value={serviceRadiusKm} onChange={(e) => setServiceRadiusKm(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Pricing Model</label>
+                          <select value={serviceRateType} onChange={(e) => setServiceRateType(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold">
+                            <option value="Fixed Rate per Job">🏷️ Fixed Price per Service</option>
+                            <option value="Hourly Rate">⏱️ Hourly Rate (₹/hr)</option>
+                            <option value="Inspection First">🔍 Free Inspection Quote</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Emergency Support</label>
+                          <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400">
+                            ⚡ On-Demand Emergency Dispatch Active
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Devotional Format Selection Bar */}
+                      <div className="p-3.5 bg-orange-500/10 border border-orange-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-orange-700 dark:text-orange-300 uppercase tracking-wider block flex items-center justify-between">
+                          <span>🏛️ Select Devotional & Puja Formats (Select Multiple)</span>
+                          <span className="text-[10px] bg-orange-500/20 text-orange-800 dark:text-orange-200 px-2 py-0.5 rounded font-mono">{devotionalSubcategories.length} Selected</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {[
+                            { id: 'Puja Samagri & Havan Kits', label: '🕯️ Puja Samagri Kits', desc: 'Complete Ritual Combos' },
+                            { id: 'Fresh Flower Garlands & Offerings', label: '🌸 Deity Flowers', desc: 'Daily Morning Temple Delivery' },
+                            { id: 'Spiritual Idols & Rudraksha', label: '📿 Brass Idols & Gems', desc: 'Panchdhatu Certified Idols' },
+                            { id: 'Purohit & E-Puja Booking', label: '🕉️ Pandit Booking', desc: 'Vedic Archana & Virtual Puja' }
+                          ].map((fmt) => {
+                            const isSelected = devotionalSubcategories.includes(fmt.id);
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => toggleCategoryFormat('devotional', fmt.id)}
+                                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
+                                    ? 'bg-orange-600 text-white font-extrabold border-orange-700 shadow-md ring-2 ring-orange-500/30'
+                                    : 'bg-background hover:bg-orange-500/10 border-border text-foreground font-semibold'
+                                  }`}
+                              >
+                                <span className="text-xs flex items-center justify-between">
+                                  <span>{fmt.label}</span>
+                                  {isSelected && <span className="text-[10px] bg-white/30 text-white px-1 rounded">✓</span>}
+                                </span>
+                                <span className={`text-[9px] mt-1 ${isSelected ? 'text-orange-100' : 'text-muted-foreground'}`}>{fmt.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3.5 bg-orange-500/5 border border-orange-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Sanctified Source Guarantee</label>
+                          <div className="p-2 bg-orange-500/10 border border-orange-500/30 rounded-xl text-xs font-bold text-orange-600 dark:text-orange-400">
+                            🕉️ 100% Pure Sanctified Source Certified
+                          </div>
+                        </div>
+                        {devotionalSubcategories.includes('Fresh Flower Garlands & Offerings') && (
+                          <div className="flex flex-col gap-1 justify-center">
+                            <label className="text-xs font-bold text-muted-foreground">Temple Subscription</label>
+                            <div className="p-2 bg-orange-500/10 border border-orange-500/30 rounded-xl text-xs font-bold text-orange-600 dark:text-orange-400">
+                              🌸 Daily Morning Doorstep Delivery (5:30 AM Slot)
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 6: Social Links & WhatsApp Support */}
                 <div className="border-b border-border/50 pb-4 space-y-4">
                   <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">5. Services & Discoverability Tags</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -874,11 +1465,10 @@ export const BusinessProfile: React.FC = () => {
                             key={srv}
                             type="button"
                             onClick={() => toggleService(srv)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                              storeServices.includes(srv)
-                                ? 'bg-primary/10 border-primary text-primary'
-                                : 'bg-background border-border text-muted-foreground'
-                            }`}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${storeServices.includes(srv)
+                              ? 'bg-primary/10 border-primary text-primary'
+                              : 'bg-background border-border text-muted-foreground'
+                              }`}
                           >
                             {srv}
                           </button>
@@ -893,11 +1483,10 @@ export const BusinessProfile: React.FC = () => {
                             key={tg}
                             type="button"
                             onClick={() => toggleTag(tg)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                              storeTags.includes(tg)
-                                ? 'bg-primary/10 border-primary text-primary'
-                                : 'bg-background border-border text-muted-foreground'
-                            }`}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${storeTags.includes(tg)
+                              ? 'bg-primary/10 border-primary text-primary'
+                              : 'bg-background border-border text-muted-foreground'
+                              }`}
                           >
                             #{tg}
                           </button>
@@ -1027,30 +1616,88 @@ export const BusinessProfile: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Preset themes presets */}
-                    <div className="flex flex-wrap items-center gap-2 py-1.5 border-b border-border/40">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Preset Themes:</span>
-                      <button
-                        type="button"
-                        onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3", "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3")}
-                        className="px-2 py-1 text-[10px] bg-secondary hover:bg-secondary/80 rounded border border-border text-foreground font-semibold cursor-pointer"
-                      >
-                        Fashion & Apparel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3", "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3")}
-                        className="px-2 py-1 text-[10px] bg-secondary hover:bg-secondary/80 rounded border border-border text-foreground font-semibold cursor-pointer"
-                      >
-                        Tech & Gadgets
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1596524430615-b46475ddff6e?w=150&auto=format&fit=crop&q=60&ixlib=rb-4.0.3", "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3")}
-                        className="px-2 py-1 text-[10px] bg-secondary hover:bg-secondary/80 rounded border border-border text-foreground font-semibold cursor-pointer"
-                      >
-                        Organic & Fresh
-                      </button>
+                    {/* Category-Matched Preset Themes */}
+                    <div className="flex flex-col gap-2 py-2 border-b border-border/40 text-left">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-extrabold text-muted-foreground uppercase flex items-center gap-1">
+                          🎨 Category Theme Presets (Category: {activeCategoryInfo.title})
+                        </span>
+                        <span className="text-[10px] text-primary font-bold">1-Click Apply</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {activeCategoryInfo.title.includes('Food') ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1513104890138-7c749659a591?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-lg font-extrabold hover:bg-amber-500/20 transition-all cursor-pointer"
+                            >
+                              🍕 Gourmet Woodfire Pizza Preset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-lg font-extrabold hover:bg-amber-500/20 transition-all cursor-pointer"
+                            >
+                              🍲 Royal Biryani Feast Preset
+                            </button>
+                          </>
+                        ) : activeCategoryInfo.title.includes('Grocery') ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1542838132-92c53300491e?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg font-extrabold hover:bg-emerald-500/20 transition-all cursor-pointer"
+                            >
+                              🥬 Farm Fresh Produce Preset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg font-extrabold hover:bg-emerald-500/20 transition-all cursor-pointer"
+                            >
+                              🛒 Daily Essentials Supermarket Preset
+                            </button>
+                          </>
+                        ) : activeCategoryInfo.title.includes('Fashion') ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-lg font-extrabold hover:bg-rose-500/20 transition-all cursor-pointer"
+                            >
+                              👗 Luxury Lookbook Preset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-lg font-extrabold hover:bg-rose-500/20 transition-all cursor-pointer"
+                            >
+                              🥻 Ethnic Festive Wear Preset
+                            </button>
+                          </>
+                        ) : activeCategoryInfo.title.includes('Service') ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded-lg font-extrabold hover:bg-blue-500/20 transition-all cursor-pointer"
+                            >
+                              🛠️ Expert Technician & Repair Preset
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applyPresetLayout("https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=150&auto=format&fit=crop&q=60", "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=60")}
+                              className="px-2.5 py-1 text-[10px] bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 rounded-lg font-extrabold hover:bg-purple-500/20 transition-all cursor-pointer"
+                            >
+                              🛍️ General Retail Preset
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {/* Description */}
@@ -1286,7 +1933,7 @@ export const BusinessProfile: React.FC = () => {
                     }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0" />
-                    
+
                     <div className="flex items-center gap-3 z-10 w-full">
                       <div className="h-14 w-14 rounded-lg bg-card border border-white/20 shadow-md overflow-hidden flex-shrink-0 flex items-center justify-center">
                         {logoUrl ? (
@@ -1377,9 +2024,9 @@ export const BusinessProfile: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
                         {category === 'Identity' ? <UserCheck className="h-3.5 w-3.5" /> :
-                         category === 'Bank' ? <Database className="h-3.5 w-3.5" /> :
-                         category.includes('Food') ? <FileText className="h-3.5 w-3.5" /> :
-                         <Building2 className="h-3.5 w-3.5" />}
+                          category === 'Bank' ? <Database className="h-3.5 w-3.5" /> :
+                            category.includes('Food') ? <FileText className="h-3.5 w-3.5" /> :
+                              <Building2 className="h-3.5 w-3.5" />}
                       </div>
                       <span className="text-xs font-extrabold text-foreground uppercase tracking-wider">{category}</span>
                       <Badge variant="secondary" className="text-[9px] font-bold">
@@ -1538,13 +2185,11 @@ export const BusinessProfile: React.FC = () => {
               {/* Bank accounts list */}
               <div className="flex flex-col gap-3">
                 {profile.bankAccounts.map(b => (
-                  <div key={b.id} className={`p-4 border bg-card rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
-                    b.isDefault ? 'border-primary/40 bg-primary/5' : 'border-border/80'
-                  }`}>
+                  <div key={b.id} className={`p-4 border bg-card rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${b.isDefault ? 'border-primary/40 bg-primary/5' : 'border-border/80'
+                    }`}>
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                        b.isDefault ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'
-                      }`}>
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${b.isDefault ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'
+                        }`}>
                         <CreditCard className="h-5 w-5" />
                       </div>
                       <div className="flex flex-col text-xs text-left">

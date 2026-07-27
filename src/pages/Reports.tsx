@@ -58,7 +58,7 @@ export const Reports: React.FC = () => {
 
       try {
         const headers = { Authorization: `Bearer ${token}` };
-        
+
         // 1. Fetch dashboard analytics
         const res = await fetch(`https://server.apexbee.in/api/vendor/dashboard/analytics/${userId}`, { headers });
         const resJson = await res.json();
@@ -96,7 +96,7 @@ export const Reports: React.FC = () => {
       if (!userId || !token) return;
 
       const url = `https://server.apexbee.in/api/vendor/reports/export/${userId}?format=${format.toLowerCase()}&reportType=${reportType}&timeframe=${timeframe}`;
-      
+
       const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -109,7 +109,7 @@ export const Reports: React.FC = () => {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      
+
       let ext = format.toLowerCase();
       if (ext === 'excel') ext = 'xlsx';
       link.setAttribute('download', `Report_${reportType}_${timeframe}.${ext}`);
@@ -136,7 +136,7 @@ export const Reports: React.FC = () => {
             { id: 'RPT-105', date: '2026-06-07', orders: 19, sales: 42350, commission: 5082, profit: 37268 }
           ];
         }
-        
+
         // Group orders by date (YYYY-MM-DD)
         const dateGroups: Record<string, { orders: number; sales: number; commission: number; profit: number }> = {};
         orders.forEach(o => {
@@ -361,11 +361,11 @@ export const Reports: React.FC = () => {
     sales: m.revenue,
     previousSales: Math.round(m.revenue * 0.84)
   })) || [
-    { name: 'Wk 1', sales: 34000, previousSales: 29000 },
-    { name: 'Wk 2', sales: 48000, previousSales: 41000 },
-    { name: 'Wk 3', sales: 29000, previousSales: 25000 },
-    { name: 'Wk 4', sales: 43200, previousSales: 37000 }
-  ];
+      { name: 'Wk 1', sales: 34000, previousSales: 29000 },
+      { name: 'Wk 2', sales: 48000, previousSales: 41000 },
+      { name: 'Wk 3', sales: 29000, previousSales: 25000 },
+      { name: 'Wk 4', sales: 43200, previousSales: 37000 }
+    ];
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
@@ -508,8 +508,8 @@ export const Reports: React.FC = () => {
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorReport" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/60" />
@@ -1025,7 +1025,7 @@ export const Reports: React.FC = () => {
               {Array.from({ length: 24 }).map((_, hour) => {
                 const realHourData = heatmapData?.hourly?.find((h: any) => h.hour === hour);
                 const orderCount = realHourData?.orders || 0;
-                
+
                 // Color intensity logic based on actual count
                 let intensity = 'bg-primary/10';
                 if (orderCount > 10) intensity = 'bg-primary/90 text-white font-black';

@@ -5,22 +5,22 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
-import { 
-  ShieldCheck, 
-  FileCheck, 
-  AlertTriangle, 
-  Upload, 
-  RefreshCw, 
-  Eye, 
-  Download, 
-  Clock, 
-  Lock, 
-  Award, 
-  FileText, 
-  UserCheck, 
-  CheckCircle2, 
-  AlertCircle, 
-  FileCode, 
+import {
+  ShieldCheck,
+  FileCheck,
+  AlertTriangle,
+  Upload,
+  RefreshCw,
+  Eye,
+  Download,
+  Clock,
+  Lock,
+  Award,
+  FileText,
+  UserCheck,
+  CheckCircle2,
+  AlertCircle,
+  FileCode,
   Database,
   Building,
   Sparkles,
@@ -34,7 +34,7 @@ export const KYCCompliance: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('Nellore Primary Branch');
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
-  
+
   // State for simulated verify progress
   const [verifyingDocId, setVerifyingDocId] = useState<string | null>(null);
   // State for document preview modal
@@ -49,12 +49,12 @@ export const KYCCompliance: React.FC = () => {
   const completedDocs = documents.filter(d => d.status === 'Approved').length;
   const pendingDocs = documents.filter(d => d.status === 'Pending').length;
   const missingDocs = documents.filter(d => d.status === 'Not Uploaded' || d.status === 'Rejected').length;
-  
+
   // Calculate mock expiring soon docs (e.g. documents that have expiry dates entered or GST/FSSAI types)
-  const expiringSoonCount = documents.filter(d => 
-    d.status === 'Approved' && 
+  const expiringSoonCount = documents.filter(d =>
+    d.status === 'Approved' &&
     (d.name.includes('FSSAI') || d.name.includes('GST') || d.name.includes('License'))
-  ).length > 0 ? 1 : 0; 
+  ).length > 0 ? 1 : 0;
 
   const handleRealUpload = async (docId: string, file: File) => {
     setSelectedDocId(docId);
@@ -123,19 +123,19 @@ export const KYCCompliance: React.FC = () => {
 
     if (step === 'Uploaded' && currentPriority >= 1) return 'bg-primary border-primary text-primary-foreground';
     if (step === 'Under Review' && currentPriority >= 1) {
-      return currentStatus === 'Pending' 
+      return currentStatus === 'Pending'
         ? 'bg-amber-500 border-amber-500 text-white animate-pulse'
         : 'bg-primary border-primary text-primary-foreground';
     }
     if (step === 'Verified' && currentPriority === 2) return 'bg-emerald-500 border-emerald-500 text-white';
     if (step === 'Renewal Due' && currentStatus === 'Approved') return 'bg-zinc-200 dark:bg-zinc-800 border-zinc-300 text-muted-foreground';
-    
+
     return 'bg-secondary border-border text-muted-foreground';
   };
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div className="flex flex-col gap-0.5">
@@ -165,7 +165,7 @@ export const KYCCompliance: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="glass relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex flex-col">
@@ -204,10 +204,10 @@ export const KYCCompliance: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Left Column: Progress & Ecosystem Unlocks */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          
+
           {/* Circular Progress & Info */}
           <Card className="glass flex flex-col items-center p-6 text-center shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[9px] font-black rounded-bl-xl uppercase tracking-wider">
@@ -308,7 +308,7 @@ export const KYCCompliance: React.FC = () => {
               <span className="text-[10px] text-muted-foreground leading-normal font-medium">
                 Completing your document verification unlocks powerful capabilities across the entire ApexBee local commerce ecosystem:
               </span>
-              
+
               <div className="space-y-2 mt-1">
                 <div className="flex items-center justify-between text-xs bg-card/60 p-2 rounded-lg border border-border/50">
                   <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export const KYCCompliance: React.FC = () => {
                   </div>
                   <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded font-black">UNLOCKED</span>
                 </div>
-                
+
                 <div className="flex items-center justify-between text-xs bg-card/60 p-2 rounded-lg border border-border/50">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -335,9 +335,8 @@ export const KYCCompliance: React.FC = () => {
                     )}
                     <span className="font-bold text-foreground">B2B Wholesale Purchases</span>
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
-                    progress >= 80 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
-                  }`}>{progress >= 80 ? 'UNLOCKED' : 'LOCKED'}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${progress >= 80 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
+                    }`}>{progress >= 80 ? 'UNLOCKED' : 'LOCKED'}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs bg-card/60 p-2 rounded-lg border border-border/50">
@@ -349,9 +348,8 @@ export const KYCCompliance: React.FC = () => {
                     )}
                     <span className="font-bold text-foreground">Promotional Ads & Campaigns</span>
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
-                    status === 'Verified' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
-                  }`}>{status === 'Verified' ? 'UNLOCKED' : 'LOCKED'}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${status === 'Verified' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
+                    }`}>{status === 'Verified' ? 'UNLOCKED' : 'LOCKED'}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs bg-card/60 p-2 rounded-lg border border-border/50">
@@ -363,9 +361,8 @@ export const KYCCompliance: React.FC = () => {
                     )}
                     <span className="font-bold text-foreground">Referral Program Bonuses</span>
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
-                    status === 'Verified' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
-                  }`}>{status === 'Verified' ? 'UNLOCKED' : 'LOCKED'}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${status === 'Verified' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary text-muted-foreground'
+                    }`}>{status === 'Verified' ? 'UNLOCKED' : 'LOCKED'}</span>
                 </div>
               </div>
             </CardContent>
@@ -382,8 +379,8 @@ export const KYCCompliance: React.FC = () => {
               </div>
               <div className="flex flex-col gap-1 self-start sm:self-auto min-w-[150px]">
                 <label className="text-[9px] font-bold text-muted-foreground uppercase">Select branch scope</label>
-                <select 
-                  value={selectedBranch} 
+                <select
+                  value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   className="border border-border/80 rounded-lg px-2.5 py-1 text-xs bg-background text-foreground focus:outline-none"
                 >
@@ -454,7 +451,7 @@ export const KYCCompliance: React.FC = () => {
                                     <TableCell className="align-middle">
                                       <div className="flex flex-col gap-1">
                                         {getStatusBadge(doc.status)}
-                                        
+
                                         {/* Admin warning alert snippet inside row */}
                                         {doc.status === 'Rejected' && (
                                           <span className="text-[9px] text-rose-500 font-extrabold flex items-center gap-1 mt-0.5">
@@ -476,118 +473,118 @@ export const KYCCompliance: React.FC = () => {
                                       </div>
                                     </TableCell>
                                     <TableCell className="align-middle text-right">
-                                       <div className="flex items-center justify-end gap-1.5">
-                                         {doc.status !== 'Not Uploaded' && (
-                                           <>
-                                             <Button
-                                               onClick={() => setPreviewDoc(doc)}
-                                               variant="outline"
-                                               size="sm"
-                                               className="h-7 text-xs border-border flex items-center gap-1 px-2 font-semibold bg-secondary/30"
-                                             >
-                                               <Eye className="h-3.5 w-3.5" /> View
-                                             </Button>
-                                             <Button
-                                               onClick={() => setExpandedLogs(prev => ({ ...prev, [doc.id]: !prev[doc.id] }))}
-                                               variant="outline"
-                                               size="sm"
-                                               className="h-7 text-[10px] border-border flex items-center gap-1 px-1.5 font-bold cursor-pointer bg-secondary/20"
-                                             >
-                                               <Clock className="h-3 w-3" /> Logs {isExpanded ? '▲' : '▼'}
-                                             </Button>
-                                           </>
-                                         )}
-                                         
-                                         {/* Digital Verify Button (simulated) */}
-                                         {doc.status !== 'Approved' && doc.status !== 'Pending' && (doc.id.includes('GST') || doc.id.includes('PAN') || doc.id.includes('AD')) && (
-                                           <Button
-                                             disabled={verifyingDocId === doc.id}
-                                             onClick={() => runSimulatedDigitalVerification(doc.id)}
-                                             variant="outline"
-                                             size="sm"
-                                             className="h-7 text-[10px] border-primary/30 text-primary hover:bg-primary/5 flex items-center gap-1 px-2 font-bold"
-                                           >
-                                             {verifyingDocId === doc.id ? (
-                                               <>
-                                                 <RefreshCw className="h-3 w-3 animate-spin" /> Verifying...
-                                               </>
-                                             ) : (
-                                               <>
-                                                 <ShieldCheck className="h-3.5 w-3.5" /> Instantly Verify
-                                               </>
-                                             )}
-                                           </Button>
-                                         )}
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        {doc.status !== 'Not Uploaded' && (
+                                          <>
+                                            <Button
+                                              onClick={() => setPreviewDoc(doc)}
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-7 text-xs border-border flex items-center gap-1 px-2 font-semibold bg-secondary/30"
+                                            >
+                                              <Eye className="h-3.5 w-3.5" /> View
+                                            </Button>
+                                            <Button
+                                              onClick={() => setExpandedLogs(prev => ({ ...prev, [doc.id]: !prev[doc.id] }))}
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-7 text-[10px] border-border flex items-center gap-1 px-1.5 font-bold cursor-pointer bg-secondary/20"
+                                            >
+                                              <Clock className="h-3 w-3" /> Logs {isExpanded ? '▲' : '▼'}
+                                            </Button>
+                                          </>
+                                        )}
 
-                                         {doc.status !== 'Approved' ? (
-                                           <>
-                                             <input
-                                               type="file"
-                                               id={`kyc-file-row-${doc.id}`}
-                                               style={{ display: 'none' }}
-                                               onChange={(e) => {
-                                                 const file = e.target.files?.[0];
-                                                 if (file) {
-                                                   handleRealUpload(doc.id, file);
-                                                 }
-                                               }}
-                                             />
-                                             <Button
-                                               onClick={() => document.getElementById(`kyc-file-row-${doc.id}`)?.click()}
-                                               disabled={isUploading && selectedDocId === doc.id}
-                                               size="sm"
-                                               variant={doc.status === 'Rejected' ? 'destructive' : 'primary'}
-                                               className="h-7 text-xs flex items-center gap-1 px-2.5 font-bold cursor-pointer"
-                                             >
-                                               {isUploading && selectedDocId === doc.id ? (
-                                                 <RefreshCw className="h-3 w-3 animate-spin" />
-                                               ) : (
-                                                 <>
-                                                   <Upload className="h-3.5 w-3.5" /> Upload
-                                                 </>
-                                               )}
-                                             </Button>
-                                           </>
-                                         ) : (
-                                           <span className="text-[10.5px] text-emerald-500 font-extrabold flex items-center gap-1 justify-end px-2.5">
-                                             <FileCheck className="h-4.5 w-4.5" /> Approved
-                                           </span>
-                                         )}
-                                       </div>
-                                     </TableCell>
-                                   </TableRow>
+                                        {/* Digital Verify Button (simulated) */}
+                                        {doc.status !== 'Approved' && doc.status !== 'Pending' && (doc.id.includes('GST') || doc.id.includes('PAN') || doc.id.includes('AD')) && (
+                                          <Button
+                                            disabled={verifyingDocId === doc.id}
+                                            onClick={() => runSimulatedDigitalVerification(doc.id)}
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-[10px] border-primary/30 text-primary hover:bg-primary/5 flex items-center gap-1 px-2 font-bold"
+                                          >
+                                            {verifyingDocId === doc.id ? (
+                                              <>
+                                                <RefreshCw className="h-3 w-3 animate-spin" /> Verifying...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <ShieldCheck className="h-3.5 w-3.5" /> Instantly Verify
+                                              </>
+                                            )}
+                                          </Button>
+                                        )}
 
-                                   {/* Collapsible Audit History log trail */}
-                                   {isExpanded && (
-                                     <TableRow className="bg-secondary/10">
-                                       <TableCell colSpan={4} className="py-3 px-6 text-left">
-                                         <div className="flex flex-col gap-2 border-l-2 border-primary/50 pl-4 text-[10.5px] text-muted-foreground font-semibold">
-                                           <div className="flex items-center gap-1.5 text-foreground font-black uppercase text-[9px] tracking-wider mb-0.5">
-                                             <Clock className="h-3.5 w-3.5 text-primary" /> Document Audit Trail History
-                                           </div>
-                                           <div>
-                                             • Submit Event: Scan uploaded and mapped by merchant on <span className="text-foreground font-bold">{doc.uploadDate || 'Today'}</span>
-                                           </div>
-                                           {(doc.id.includes('GST') || doc.id.includes('PAN') || doc.id.includes('AD')) && (
-                                             <div>
-                                               • API Check Event: Digital verification credentials synced with Central Registry Gateways on <span className="text-foreground font-bold">{doc.uploadDate || 'Today'}</span>
-                                             </div>
-                                           )}
-                                           <div>
-                                             • Audit Status: {doc.status === 'Approved' ? (
-                                               <span className="text-emerald-500 font-black">Verified &amp; Approved by Admin.</span>
-                                             ) : doc.status === 'Pending' ? (
-                                               <span className="text-amber-500 font-black">Pending Admin manual review.</span>
-                                             ) : doc.status === 'Rejected' ? (
-                                               <span className="text-rose-500 font-black">Rejected. Re-upload scan copy.</span>
-                                             ) : (
-                                               <span>Idle waiting for uploads.</span>
-                                             )}
-                                           </div>
-                                         </div>
-                                       </TableCell>
-                                     </TableRow>
-                                   )}
+                                        {doc.status !== 'Approved' ? (
+                                          <>
+                                            <input
+                                              type="file"
+                                              id={`kyc-file-row-${doc.id}`}
+                                              style={{ display: 'none' }}
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  handleRealUpload(doc.id, file);
+                                                }
+                                              }}
+                                            />
+                                            <Button
+                                              onClick={() => document.getElementById(`kyc-file-row-${doc.id}`)?.click()}
+                                              disabled={isUploading && selectedDocId === doc.id}
+                                              size="sm"
+                                              variant={doc.status === 'Rejected' ? 'destructive' : 'primary'}
+                                              className="h-7 text-xs flex items-center gap-1 px-2.5 font-bold cursor-pointer"
+                                            >
+                                              {isUploading && selectedDocId === doc.id ? (
+                                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                              ) : (
+                                                <>
+                                                  <Upload className="h-3.5 w-3.5" /> Upload
+                                                </>
+                                              )}
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <span className="text-[10.5px] text-emerald-500 font-extrabold flex items-center gap-1 justify-end px-2.5">
+                                            <FileCheck className="h-4.5 w-4.5" /> Approved
+                                          </span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+
+                                  {/* Collapsible Audit History log trail */}
+                                  {isExpanded && (
+                                    <TableRow className="bg-secondary/10">
+                                      <TableCell colSpan={4} className="py-3 px-6 text-left">
+                                        <div className="flex flex-col gap-2 border-l-2 border-primary/50 pl-4 text-[10.5px] text-muted-foreground font-semibold">
+                                          <div className="flex items-center gap-1.5 text-foreground font-black uppercase text-[9px] tracking-wider mb-0.5">
+                                            <Clock className="h-3.5 w-3.5 text-primary" /> Document Audit Trail History
+                                          </div>
+                                          <div>
+                                            • Submit Event: Scan uploaded and mapped by merchant on <span className="text-foreground font-bold">{doc.uploadDate || 'Today'}</span>
+                                          </div>
+                                          {(doc.id.includes('GST') || doc.id.includes('PAN') || doc.id.includes('AD')) && (
+                                            <div>
+                                              • API Check Event: Digital verification credentials synced with Central Registry Gateways on <span className="text-foreground font-bold">{doc.uploadDate || 'Today'}</span>
+                                            </div>
+                                          )}
+                                          <div>
+                                            • Audit Status: {doc.status === 'Approved' ? (
+                                              <span className="text-emerald-500 font-black">Verified &amp; Approved by Admin.</span>
+                                            ) : doc.status === 'Pending' ? (
+                                              <span className="text-amber-500 font-black">Pending Admin manual review.</span>
+                                            ) : doc.status === 'Rejected' ? (
+                                              <span className="text-rose-500 font-black">Rejected. Re-upload scan copy.</span>
+                                            ) : (
+                                              <span>Idle waiting for uploads.</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
                                 </React.Fragment>
                               );
                             })
@@ -616,8 +613,8 @@ export const KYCCompliance: React.FC = () => {
                   <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{previewDoc.category}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => setPreviewDoc(null)} 
+              <button
+                onClick={() => setPreviewDoc(null)}
                 className="h-8 w-8 hover:bg-secondary rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer border-0 bg-transparent transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -631,12 +628,11 @@ export const KYCCompliance: React.FC = () => {
                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Verification Path</span>
                 <div className="flex flex-col gap-5 relative pl-5">
                   <div className="absolute left-[7.5px] top-1.5 bottom-1.5 w-0.5 bg-border" />
-                  
+
                   {/* Step 1: Uploaded */}
                   <div className="flex items-start gap-3 relative">
-                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${
-                      getTimelineStepStyle('Uploaded', previewDoc.status)
-                    }`}>
+                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${getTimelineStepStyle('Uploaded', previewDoc.status)
+                      }`}>
                       1
                     </div>
                     <div className="flex flex-col gap-0.5">
@@ -649,25 +645,23 @@ export const KYCCompliance: React.FC = () => {
 
                   {/* Step 2: Under Review */}
                   <div className="flex items-start gap-3 relative">
-                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${
-                      getTimelineStepStyle('Under Review', previewDoc.status)
-                    }`}>
+                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${getTimelineStepStyle('Under Review', previewDoc.status)
+                      }`}>
                       2
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-xs font-bold text-foreground leading-none">Security Audit Review</span>
                       <span className="text-[9.5px] text-muted-foreground mt-0.5">
-                        {previewDoc.status === 'Pending' ? 'Active manual audit review in progress' : 
-                         previewDoc.status === 'Approved' ? 'Audit analysis complete' : 'Waiting for document'}
+                        {previewDoc.status === 'Pending' ? 'Active manual audit review in progress' :
+                          previewDoc.status === 'Approved' ? 'Audit analysis complete' : 'Waiting for document'}
                       </span>
                     </div>
                   </div>
 
                   {/* Step 3: Verified */}
                   <div className="flex items-start gap-3 relative">
-                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${
-                      getTimelineStepStyle('Verified', previewDoc.status)
-                    }`}>
+                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${getTimelineStepStyle('Verified', previewDoc.status)
+                      }`}>
                       3
                     </div>
                     <div className="flex flex-col gap-0.5">
@@ -680,9 +674,8 @@ export const KYCCompliance: React.FC = () => {
 
                   {/* Step 4: Expiry */}
                   <div className="flex items-start gap-3 relative">
-                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${
-                      getTimelineStepStyle('Renewal Due', previewDoc.status)
-                    }`}>
+                    <div className={`absolute -left-[20px] top-0.5 h-4.5 w-4.5 rounded-full border-2 flex items-center justify-center z-10 text-[9px] font-black ${getTimelineStepStyle('Renewal Due', previewDoc.status)
+                      }`}>
                       4
                     </div>
                     <div className="flex flex-col gap-0.5">
@@ -784,10 +777,10 @@ export const KYCCompliance: React.FC = () => {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  onClick={() => setPreviewDoc(null)} 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  onClick={() => setPreviewDoc(null)}
+                  variant="outline"
+                  size="sm"
                   className="h-8 text-xs font-semibold cursor-pointer border-border"
                 >
                   Cancel

@@ -37,4 +37,9 @@ export const categoryService = {
     const res = await axios.delete(`${API_URL}/categories/${id}`);
     return res.data;
   },
+
+  getMergedAttributes: async (id: string) => {
+    const res = await axios.get(`${API_URL}/categories/${id}/merged-attributes`);
+    return res.data.mergedAttributes || [];
+  },
 };

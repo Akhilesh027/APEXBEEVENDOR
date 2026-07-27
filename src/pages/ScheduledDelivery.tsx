@@ -278,8 +278,8 @@ export const ScheduledDelivery: React.FC = () => {
                         setDate(c.dateString);
                       }}
                       className={`flex flex-col items-center p-2 rounded-xl border transition cursor-pointer relative ${isSelected
-                          ? 'border-primary bg-primary/10 text-primary font-black shadow-sm ring-1 ring-primary'
-                          : 'border-border bg-background hover:bg-secondary/50 text-foreground'
+                        ? 'border-primary bg-primary/10 text-primary font-black shadow-sm ring-1 ring-primary'
+                        : 'border-border bg-background hover:bg-secondary/50 text-foreground'
                         }`}
                     >
                       <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{c.dayName}</span>
@@ -322,10 +322,10 @@ export const ScheduledDelivery: React.FC = () => {
               <div className="w-full bg-secondary/80 rounded-full h-3.5 overflow-hidden border border-border/30">
                 <div
                   className={`h-full transition-all duration-350 ${capacityPercent > 80
-                      ? 'bg-rose-500'
-                      : capacityPercent > 50
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
+                    ? 'bg-rose-500'
+                    : capacityPercent > 50
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500'
                     }`}
                   style={{ width: `${capacityPercent}%` }}
                 />

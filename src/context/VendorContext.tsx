@@ -148,6 +148,7 @@ interface VendorContextType {
     address: string;
     gstNumber: string;
     category: string;
+    storeType?: 'retail_grocery' | 'restaurant_food' | 'service_provider' | 'wholesale_b2b' | 'hyperlocal_subscription' | 'course_provider';
   }) => Promise<void>;
   logout: () => void;
   scheduledPickups: any[];
@@ -351,7 +352,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             mandal: v.mandal || '',
             village: v.village || '',
             pincode: v.pincode || '',
-            businessHours: v.businessHours || {}
+            businessHours: v.businessHours || {},
+            storeType: v.storeType || 'retail_grocery',
+            primaryCategory: v.primaryCategory || '',
+            subCategories: v.subCategories || []
           });
 
           if (v.storeDesign) {
@@ -498,20 +502,20 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           id: p._id,
           name: p.name,
           sku: p.sku || '',
-          category: p.category || '',
-          subCategory: p.subCategory || '',
+          category: p.category || (typeof p.categoryId === 'object' ? p.categoryId?.name : p.categoryId) || 'General',
+          subCategory: p.subCategory || (typeof p.subcategoryId === 'object' ? p.subcategoryId?.name : p.subcategoryId) || '',
           brand: p.brand || '',
           description: p.description || '',
           images: p.images || [],
-          price: p.price || 0,
-          discount: p.discount || 0,
+          price: Number(p.price || p.baseSellingPrice || p.adminPricing?.sellingPrice || p.adminPricing?.finalPriceToCustomer || p.baseMrp || 0),
+          discount: p.discount || p.discountPercent || 0,
           stock: p.stock || 0,
           reservedStock: p.reservedStock || 0,
           weight: p.weight || 0,
           shippingCharges: p.shippingCharges || 0,
           packingCharges: p.packingCharges || 0,
-          status: p.status || 'Approved',
-          commissionRate: p.commissionRate || 10,
+          status: p.status || (p.moderationStatus === 'pending' ? 'Pending Review' : p.moderationStatus === 'approved' ? 'Approved' : 'Pending Review'),
+          commissionRate: Number(p.commissionRate || p.adminPricing?.platformCommissionRate || 10),
           variants: p.variants || [],
           isVariantProduct: p.isVariantProduct || false
         }));
@@ -540,6 +544,31 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
           setWithdrawals(wlist);
         }
+      }
+
+      // Fetch actual wallet & ledger entries
+      try {
+        const walletRes = await fetch(`https://server.apexbee.in/api/wallet/my-wallet`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (walletRes.ok) {
+          const walletData = await walletRes.json();
+          if (walletData.success && walletData.wallet) {
+            const w = walletData.wallet;
+            const mappedTxns = (w.ledgerEntries || []).map((entry: any, idx: number) => ({
+              id: entry.transactionId || entry._id || `TXN-${idx}`,
+              date: entry.createdAt || entry.date || new Date().toISOString(),
+              type: entry.type?.toLowerCase() === 'credit' ? 'Order Earnings' : 'Withdrawal Payout',
+              amount: entry.type?.toLowerCase() === 'debit' ? -Math.abs(entry.amount) : Math.abs(entry.amount),
+              referenceId: entry.referenceId || entry.transactionId || `REF-${idx}`,
+              description: entry.description || entry.remarks || entry.category || 'Wallet ledger entry',
+              status: entry.status === 'completed' || entry.status === 'Completed' ? 'Completed' : 'Pending'
+            }));
+            setTransactions(mappedTxns);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching wallet data:", err);
       }
 
       // Fetch actual referrals
@@ -688,10 +717,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (b2bRes.ok) {
           const b2bData = await b2bRes.json();
           const plist = b2bData.products || [];
-          
+
           // Filter to only include wholesaler and manufacturer products
           const filtered = plist.filter((p: any) => p.sellerType === 'wholesaler' || p.sellerType === 'manufacturer');
-          
+
           // Map to match product visual layout structure
           const mapped = filtered.map((p: any) => ({
             id: p._id,
@@ -872,6 +901,9 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updated.village !== undefined) payload.village = updated.village;
       if (updated.pincode !== undefined) payload.pincode = updated.pincode;
       if (updated.businessHours !== undefined) payload.businessHours = updated.businessHours;
+      if (updated.storeType !== undefined) payload.storeType = updated.storeType;
+      if (updated.primaryCategory !== undefined) payload.primaryCategory = updated.primaryCategory;
+      if (updated.subCategories !== undefined) payload.subCategories = updated.subCategories;
 
       await fetch(`https://server.apexbee.in/api/vendor/profile/${user.id || user._id}`, {
         method: 'PUT',
@@ -1209,18 +1241,21 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setProcurementLoading(true);
     setActiveQuotations([]);
 
-    // Simulate wholesalers sending quotes after 1.5s
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const mockQuotes: Quotation[] = [
-      { id: 'Q-1', wholesalerId: 'W-1', wholesalerName: 'Surat Textiles Wholesalers', pricePerUnit: Math.round(prod.price * 0.4), moq: 100, deliveryDays: 5, rating: 4.8 },
-      { id: 'Q-2', wholesalerId: 'W-2', wholesalerName: 'Deccan Fabric Distributors', pricePerUnit: Math.round(prod.price * 0.43), moq: 50, deliveryDays: 3, rating: 4.6 },
-      { id: 'Q-3', wholesalerId: 'W-3', wholesalerName: 'Mumbai Garment Depot', pricePerUnit: Math.round(prod.price * 0.48), moq: 20, deliveryDays: 1, rating: 4.2 }
-    ];
-
-    setActiveQuotations(mockQuotes);
-    setProcurementLoading(false);
-    addNotification("Quotations Received", `Received 3 wholesaler quotes for "${prod.name}".`, "system");
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/products/${productId}/quotes`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveQuotations(data.quotations || []);
+      } else {
+        setActiveQuotations([]);
+      }
+    } catch {
+      setActiveQuotations([]);
+    } finally {
+      setProcurementLoading(false);
+    }
   };
 
   const createProcurementOrder = (quoteId: string, qty: number) => {
@@ -1380,6 +1415,28 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } catch (err) {
       console.error('Bulk update error:', err);
+    }
+  };
+
+  const addStaff = async (member: Omit<StaffMember, 'id'>) => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) return;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/staff`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...member, vendorId: user.id || user._id })
+      });
+      if (res.ok) {
+        await fetchVendorData(user.id || user._id, token);
+        addNotification("Staff Added", `Staff member ${member.name} created successfully.`, "system");
+      }
+    } catch (err) {
+      console.error('Failed to add staff:', err);
     }
   };
 
@@ -1765,14 +1822,6 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
-  const addStaff = (member: Omit<StaffMember, 'id'>) => {
-    const newMember: StaffMember = {
-      ...member,
-      id: `STF-${Math.floor(100 + Math.random() * 900)}`
-    };
-    setStaffList(prev => [...prev, newMember]);
-    addNotification("Staff Added", `Staff member ${member.name} has been added.`, 'system');
-  };
 
   const addCoupon = async (coupon: CouponItem): Promise<boolean> => {
     const token = localStorage.getItem('token');

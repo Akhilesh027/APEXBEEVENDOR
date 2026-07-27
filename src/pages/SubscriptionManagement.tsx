@@ -4,17 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { 
-  RefreshCw, 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  Pause, 
-  Play, 
-  AlertOctagon, 
-  ChevronDown, 
-  ChevronUp, 
-  DollarSign, 
+import {
+  RefreshCw,
+  Calendar,
+  Clock,
+  CheckCircle,
+  Pause,
+  Play,
+  AlertOctagon,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
   SkipForward
 } from 'lucide-react';
 
@@ -194,7 +194,7 @@ export const SubscriptionManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div className="flex flex-col gap-0.5">
@@ -247,7 +247,7 @@ export const SubscriptionManagement: React.FC = () => {
 
       {/* Collapsible Settlement Box */}
       <Card className="border border-indigo-500/20 bg-indigo-500/[0.01]">
-        <button 
+        <button
           onClick={() => setShowSettlementDetails(prev => !prev)}
           className="w-full p-4 flex justify-between items-center font-bold text-xs text-indigo-500 focus:outline-none cursor-pointer"
         >
@@ -264,9 +264,9 @@ export const SubscriptionManagement: React.FC = () => {
               <span>Pending Settlement Balance:</span>
               <strong className="text-primary font-black">₹8,490.50</strong>
             </div>
-            <Button 
+            <Button
               onClick={() => triggerAlert("Settlement request triggered successfully! Processing bank payout...")}
-              size="sm" 
+              size="sm"
               className="h-8 text-[10px] font-bold bg-indigo-600 text-white self-center md:self-auto cursor-pointer"
             >
               Request Payout Settlement
@@ -276,10 +276,10 @@ export const SubscriptionManagement: React.FC = () => {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Main schedule directory */}
         <div className="lg:col-span-8 flex flex-col gap-6">
-          
+
           {/* Calendar planner header */}
           <div className="flex gap-2 bg-muted/40 p-1 rounded-lg border border-border self-start">
             {[
@@ -346,9 +346,9 @@ export const SubscriptionManagement: React.FC = () => {
                         <TableCell className="text-right">
                           <div className="flex gap-1.5 justify-end">
                             {editingSubId === sub._id ? (
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleSaveQuantity(sub._id)} 
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveQuantity(sub._id)}
                                 className="h-7 text-[9px] font-bold bg-primary text-white"
                               >
                                 Save
@@ -363,7 +363,7 @@ export const SubscriptionManagement: React.FC = () => {
                                 Qty
                               </Button>
                             )}
-                            <Button 
+                            <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleToggleStatus(sub._id, sub.status)}
@@ -372,7 +372,7 @@ export const SubscriptionManagement: React.FC = () => {
                               {sub.status === 'active' ? <Pause className="h-3 w-3 text-amber-500" /> : <Play className="h-3 w-3 text-emerald-500" />}
                             </Button>
                             {sub.status === 'active' && (
-                              <Button 
+                              <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleSkipTomorrow(sub._id)}
@@ -394,7 +394,7 @@ export const SubscriptionManagement: React.FC = () => {
 
         {/* Sidebar widgets */}
         <div className="lg:col-span-4 flex flex-col gap-6 text-xs text-left">
-          
+
           {/* Grouped delivery slots */}
           <Card className="glass">
             <CardHeader className="pb-3 border-b border-border/40">
@@ -473,12 +473,12 @@ const PricingSlider: React.FC = () => {
             <span className="text-muted-foreground">Duration (Days):</span>
             <span className="text-primary font-black">{days} Days</span>
           </div>
-          <input 
-            type="range" 
-            min="30" 
-            max="180" 
+          <input
+            type="range"
+            min="30"
+            max="180"
             step="30"
-            value={days} 
+            value={days}
             onChange={(e) => setDays(Number(e.target.value))}
             className="w-full accent-primary bg-secondary/80 h-1.5 rounded-lg appearance-none cursor-pointer mt-1"
           />
@@ -490,11 +490,11 @@ const PricingSlider: React.FC = () => {
             <span className="text-muted-foreground">Items per delivery run:</span>
             <span className="text-primary font-black">{items} Items</span>
           </div>
-          <input 
-            type="range" 
-            min="1" 
-            max="10" 
-            value={items} 
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={items}
             onChange={(e) => setItems(Number(e.target.value))}
             className="w-full accent-primary bg-secondary/80 h-1.5 rounded-lg appearance-none cursor-pointer mt-1"
           />

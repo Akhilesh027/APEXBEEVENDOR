@@ -51,28 +51,30 @@ export const HyperlocalGrowth: React.FC = () => {
   const isCompetitors = currentPage === 'hl-competitors';
   const isExpansion = currentPage === 'hl-expansion';
 
-  // State mock data
-  const [territories] = useState<Territory[]>([
-    { id: 'TER-01', mandal: 'Hadapsar', district: 'Pune', state: 'Maharashtra', vendorsCount: 24, wholesalersCount: 4, monthlyRevenue: 1240000, penetrationRate: 68, status: 'Active' },
-    { id: 'TER-02', mandal: 'Kothrud', district: 'Pune', state: 'Maharashtra', vendorsCount: 18, wholesalersCount: 3, monthlyRevenue: 980000, penetrationRate: 54, status: 'Active' },
-    { id: 'TER-03', mandal: 'Gachibowli', district: 'Hyderabad', state: 'Telangana', vendorsCount: 35, wholesalersCount: 7, monthlyRevenue: 2450000, penetrationRate: 82, status: 'Active' },
-    { id: 'TER-04', mandal: 'Madhapur', district: 'Hyderabad', state: 'Telangana', vendorsCount: 42, wholesalersCount: 9, monthlyRevenue: 3100000, penetrationRate: 89, status: 'Active' },
-    { id: 'TER-05', mandal: 'Begumpet', district: 'Hyderabad', state: 'Telangana', vendorsCount: 15, wholesalersCount: 2, monthlyRevenue: 750000, penetrationRate: 40, status: 'Under Review' },
-    { id: 'TER-06', mandal: 'Whitefield', district: 'Bengaluru', state: 'Karnataka', vendorsCount: 29, wholesalersCount: 6, monthlyRevenue: 1890000, penetrationRate: 75, status: 'Active' },
-    { id: 'TER-07', mandal: 'Indiranagar', district: 'Bengaluru', state: 'Karnataka', vendorsCount: 12, wholesalersCount: 1, monthlyRevenue: 520000, penetrationRate: 30, status: 'High Potential' }
-  ]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [expansions, setExpansions] = useState<ExpansionRequest[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [competitors] = useState<Competitor[]>([
-    { id: 'COMP-01', name: 'ZizzyBazaar Networks', marketShare: 35, primaryCategory: 'Apparels & Footwear', pricingStrategy: 'Aggressive', threatLevel: 'High' },
-    { id: 'COMP-02', name: 'RetailMart Logistics', marketShare: 20, primaryCategory: 'FMCG Groceries', pricingStrategy: 'Standard', threatLevel: 'Medium' },
-    { id: 'COMP-03', name: 'SuperSaver Wholesales', marketShare: 15, primaryCategory: 'Electronics & Mobiles', pricingStrategy: 'Aggressive', threatLevel: 'High' },
-    { id: 'COMP-04', name: 'LocalHaat Direct', marketShare: 10, primaryCategory: 'Handicrafts & Decor', pricingStrategy: 'Premium', threatLevel: 'Low' }
-  ]);
-
-  const [expansions, setExpansions] = useState<ExpansionRequest[]>([
-    { id: 'EXP-101', mandal: 'Secunderabad', district: 'Hyderabad', state: 'Telangana', reason: 'High wholesale demand for organic threads', proposedBudget: 150000, submittedAt: '2026-06-10', status: 'Pending' },
-    { id: 'EXP-102', mandal: 'Kalyan West', district: 'Thane', state: 'Maharashtra', reason: 'Unserved cluster of retail apparel vendors', proposedBudget: 250000, submittedAt: '2026-06-08', status: 'Approved' }
-  ]);
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('https://server.apexbee.in/api/territories', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTerritories(data.territories || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Form states
   const [newMandal, setNewMandal] = useState('');

@@ -31,20 +31,35 @@ interface Certificate {
 }
 
 export const Training: React.FC = () => {
-  const [courses] = useState<Course[]>([
-    { id: 'CRS-01', title: 'Partner Catalog Optimization', category: 'Catalog Management', duration: '2h 15m', lessons: 8, progress: 100, tutor: 'Meera Nair (Growth Lead)' },
-    { id: 'CRS-02', title: 'RFQ Bidding & Wholesaling Dynamics', category: 'Wholesale Bidding', duration: '3h 45m', lessons: 12, progress: 45, tutor: 'Sanjay Dutt (Procurement Head)' },
-    { id: 'CRS-03', title: 'Logistics SLA & Secure Packaging', category: 'Fulfillment', duration: '1h 30m', lessons: 5, progress: 0, tutor: 'Ankit Goel (Operations VP)' }
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [webinars, setWebinars] = useState<Webinar[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [webinars] = useState<Webinar[]>([
-    { id: 'WEB-12', title: 'GST e-Invoicing Compliance under Rule 48', speaker: 'CA Nitin Patel', date: '2026-06-18', time: '11:00 AM IST', status: 'Scheduled' },
-    { id: 'WEB-13', title: 'Expanding Territory Franchise Coverages', speaker: 'Rajesh Shah (Mumbai Franchise Mgr)', date: 'Today', time: '04:00 PM IST', status: 'Live' }
-  ]);
-
-  const [certificates] = useState<Certificate[]>([
-    { id: 'CERT-A101', title: 'Certified ApexBee Retail Specialist', issuedOn: '2026-03-15', grade: 'Grade A+' }
-  ]);
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const [cRes, vRes] = await Promise.all([
+          fetch('https://server.apexbee.in/api/courses', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('https://server.apexbee.in/api/training-videos', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (cRes.ok) {
+          const data = await cRes.json();
+          setCourses(data.courses || []);
+        }
+        if (vRes.ok) {
+          const data = await vRes.json();
+          setWebinars(data.videos || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const [activeVideo, setActiveVideo] = useState<Course | null>(null);
   const [joinedWebinar, setJoinedWebinar] = useState<string | null>(null);

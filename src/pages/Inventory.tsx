@@ -22,7 +22,7 @@ export const Inventory: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStockType, setFilterStockType] = useState<'all' | 'low' | 'out'>('all');
-  
+
   // Bulk edit states
   const [isBulkEditMode, setIsBulkEditMode] = useState(false);
   const [bulkStocks, setBulkStocks] = useState<Record<string, number>>({});
@@ -127,7 +127,7 @@ export const Inventory: React.FC = () => {
 
     const targetStock = Math.max(0, original.stock + increment);
     updateProductStock(id, targetStock);
-    
+
     await logMovement(
       id,
       increment,
@@ -135,7 +135,7 @@ export const Inventory: React.FC = () => {
       'Quick Stock Adjustment',
       (original as any).batchNo || 'N/A'
     );
-    
+
     setTimeout(() => {
       fetchMovementLogs();
     }, 800);
@@ -147,7 +147,7 @@ export const Inventory: React.FC = () => {
     const velocity = parseFloat(((seed % 4) + 1.2).toFixed(1)); // 1.2 to 4.2 units/day
     const daysRemaining = stock === 0 ? 0 : Math.round(stock / velocity);
     const reorderQty = stock <= lowStockThreshold ? Math.max(50, Math.ceil(velocity * 30)) : 0;
-    
+
     return {
       velocity,
       daysRemaining,
@@ -159,23 +159,23 @@ export const Inventory: React.FC = () => {
     // Matches live approved status or backend 'Live' casing
     const matchesStatus = p.status === 'Approved' || (p.status as string) === 'Live';
     if (!matchesStatus) return false;
-    
+
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     let matchesStock = true;
     if (filterStockType === 'low') {
       matchesStock = p.stock <= lowStockThreshold && p.stock > 0;
     } else if (filterStockType === 'out') {
       matchesStock = p.stock === 0;
     }
-    
+
     return matchesSearch && matchesStock;
   });
 
   // Calculate stock metrics
   const totalStockValuation = products.reduce((sum, p) => sum + (p.stock * p.price), 0);
 
-  
+
   // Recharts data for inventory stock distribution
   const chartData = products
     .filter(p => p.status === 'Approved' || (p.status as string) === 'Live')
@@ -445,11 +445,10 @@ export const Inventory: React.FC = () => {
                 <button
                   key={t.id}
                   onClick={() => setFilterStockType(t.id as any)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer duration-150 ${
-                    filterStockType === t.id
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-                  }`}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer duration-150 ${filterStockType === t.id
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                    }`}
                 >
                   {t.label}
                 </button>
@@ -753,7 +752,7 @@ export const Inventory: React.FC = () => {
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">Simulate barcode/QR code physical scan. Enter a product SKU to quickly check/increment stock levels.</p>
-            
+
             <div className="flex flex-col gap-3">
               <input
                 type="text"

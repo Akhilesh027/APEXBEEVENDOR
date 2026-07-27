@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../components/ui/Card';
-import { Mail, Lock, User, Phone, Building, Briefcase, MapPin, Check, Loader2, ArrowRight, ArrowLeft, CheckCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, Building, Briefcase, MapPin, Check, Loader2, ArrowRight, ArrowLeft, CheckCircle, ShieldCheck, Eye, EyeOff, Store, ShoppingBag, Utensils, Wrench, Package, Calendar, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Register: React.FC = () => {
@@ -18,9 +18,10 @@ export const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Step 2: Company Details
+  // Step 2: Company Details & Store Categorization
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState<'Manufacturer' | 'Wholesaler' | 'Vendor'>('Vendor');
+  const [storeType, setStoreType] = useState<'retail_grocery' | 'restaurant_food' | 'service_provider' | 'wholesale_b2b' | 'hyperlocal_subscription' | 'course_provider'>('retail_grocery');
   const [gstNumber, setGstNumber] = useState('');
   const [category, setCategory] = useState('Apparel & Fashion');
   const [address, setAddress] = useState('');
@@ -73,6 +74,7 @@ export const Register: React.FC = () => {
         email,
         phone,
         businessType,
+        storeType,
         address,
         gstNumber: gstNumber.toUpperCase(),
         category
@@ -345,6 +347,44 @@ export const Register: React.FC = () => {
                           {errors.businessName && <span className="text-[10px] text-destructive font-semibold">{errors.businessName}</span>}
                         </div>
 
+                        {/* Store Categorization Selector */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-muted-foreground flex items-center justify-between">
+                            <span>Store Operational Type</span>
+                            <span className="text-[10px] text-indigo-400 font-semibold">Select store model</span>
+                          </label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {[
+                              { id: 'retail_grocery', name: 'Retail & Grocery', desc: 'Products & Kirana', icon: ShoppingBag },
+                              { id: 'restaurant_food', name: 'Food & Dining', desc: 'Perishable Food', icon: Utensils },
+                              { id: 'service_provider', name: 'Services & Repair', desc: 'Bookings & Visits', icon: Wrench },
+                              { id: 'wholesale_b2b', name: 'B2B Wholesale', desc: 'Bulk MOQs & Factory', icon: Package },
+                              { id: 'hyperlocal_subscription', name: 'Daily Essentials', desc: 'Subscriptions & Milk', icon: Calendar },
+                              { id: 'course_provider', name: 'Skill & Courses', desc: 'Training & Batches', icon: BookOpen },
+                            ].map((item) => {
+                              const IconComponent = item.icon;
+                              const isSelected = storeType === item.id;
+                              return (
+                                <div
+                                  key={item.id}
+                                  onClick={() => setStoreType(item.id as any)}
+                                  className={`p-2.5 rounded-lg border cursor-pointer transition-all flex flex-col items-start ${
+                                    isSelected
+                                      ? 'border-indigo-500 bg-indigo-500/10 text-foreground ring-1 ring-indigo-500/40 shadow-sm'
+                                      : 'border-border/60 bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 w-full mb-1">
+                                    <IconComponent className={`h-4 w-4 ${isSelected ? 'text-indigo-400' : 'text-muted-foreground'}`} />
+                                    <span className="text-xs font-bold truncate">{item.name}</span>
+                                  </div>
+                                  <span className="text-[10px] opacity-70 line-clamp-1">{item.desc}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
                             <label className="text-xs font-bold text-muted-foreground">Business Type</label>
@@ -376,6 +416,10 @@ export const Register: React.FC = () => {
                               <option value="Groceries & Foods" className="bg-background">Groceries & Foods</option>
                               <option value="Home & Living" className="bg-background">Home & Living</option>
                               <option value="General Merchandise" className="bg-background">General Merchandise</option>
+                              <option value="Restaurants & Sweets" className="bg-background">Restaurants & Sweets</option>
+                              <option value="Beauty & Wellness Services" className="bg-background">Beauty & Wellness Services</option>
+                              <option value="Repair & Technical Services" className="bg-background">Repair & Technical Services</option>
+                              <option value="Dairy & Daily Subscriptions" className="bg-background">Dairy & Daily Subscriptions</option>
                             </select>
                           </div>
                         </div>
