@@ -69,13 +69,13 @@ export const SubscriptionManagement: React.FC = () => {
     outcome: 'SUCCESS'
   });
 
-  const handleSelectPlan = async (plan: SubscriptionPlan, cycle = 'YEARLY' as const) => {
+  const handleSelectPlan = async (plan: SubscriptionPlan, cycle: any = 'YEARLY') => {
     setSelectedProductObj(plan);
     await startCheckout(plan.id, 'PLAN', cycle);
     setActiveTab('checkout');
   };
 
-  const handleSelectAddon = async (addon: SubscriptionAddon, cycle = 'MONTHLY' as const) => {
+  const handleSelectAddon = async (addon: SubscriptionAddon, cycle: any = 'MONTHLY') => {
     setSelectedProductObj(addon);
     await startCheckout(addon.id, 'ADDON', cycle);
     setActiveTab('checkout');
@@ -299,7 +299,7 @@ export const SubscriptionManagement: React.FC = () => {
               summary={summary}
               onRenewItem={(item) => {
                 const plan = plans.find((p) => p.id === item.productId);
-                if (plan) handleSelectPlan(plan, item.renewalBillingCycle);
+                if (plan) handleSelectPlan(plan, item.renewalBillingCycle as any);
                 else setActiveTab('checkout');
               }}
             />
