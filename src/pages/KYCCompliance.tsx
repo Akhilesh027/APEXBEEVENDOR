@@ -266,6 +266,58 @@ export const KYCCompliance: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Admin Category Governance Card */}
+          <Card className="glass shadow-lg border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3 border-b border-primary/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-primary">
+                  🏷️ Admin Permitted Business Categories
+                </CardTitle>
+                <Badge variant="success" className="text-[9px] font-bold">
+                  Verified & Active
+                </Badge>
+              </div>
+              <CardDescription className="text-[11px] text-muted-foreground mt-0.5">
+                Category and subcategories assigned to your store by ApexBee Admin Governance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 text-xs space-y-3">
+              <div>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+                  Primary Business Category
+                </span>
+                <span className="font-extrabold text-foreground text-sm block mt-0.5">
+                  {profile.primaryCategory || profile.category || 'Food & Restaurant'}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-primary/15">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block mb-1.5">
+                  Approved Subcategories Checklist ({
+                    (Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+                      ? profile.approvedSubcategories
+                      : (profile.subCategory ? [profile.subCategory] : ['General Subcategory'])).length
+                  })
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+                    ? profile.approvedSubcategories
+                    : (profile.subCategory ? [profile.subCategory] : ['General Subcategory'])
+                  ).map((sub: string, idx: number) => (
+                    <span key={idx} className="px-2.5 py-1 bg-card border border-emerald-500/30 text-emerald-600 font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm">
+                      <CheckCircle2 size={13} className="text-emerald-500" />
+                      <span>{sub}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground italic pt-1">
+                🔒 Product listing and store creation in vendor portal are restricted to these approved categories.
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Compliance Health Center */}
           <Card className="glass shadow-lg">
             <CardHeader className="pb-2">

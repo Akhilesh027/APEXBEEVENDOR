@@ -317,13 +317,32 @@ export const StoreDesign: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-                    Active Business Category
+                    Active Approved Business Category
                   </span>
-                  <span className="text-sm font-extrabold text-foreground block">
-                    {profile.category || 'Food & Dining'}
+                  <span className="text-sm font-extrabold text-primary block">
+                    {profile.primaryCategory || profile.category || 'Food & Restaurant'}
                   </span>
                   <Badge variant="secondary" className="text-[9px]">
-                    Main Category
+                    Admin Verified Category
+                  </Badge>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Permitted Store Subcategories
+                  </span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {(Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+                      ? profile.approvedSubcategories
+                      : (profile.subCategory ? [profile.subCategory] : ['General Store'])
+                    ).map((sub: string, idx: number) => (
+                      <span key={idx} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 font-bold rounded-lg text-[10px] border border-emerald-500/20">
+                        ✓ {sub}
+                      </span>
+                    ))}
+                  </div>
+                  <Badge variant="success" className="text-[9px]">
+                    Admin Permitted Subcategories
                   </Badge>
                 </div>
 
@@ -331,23 +350,11 @@ export const StoreDesign: React.FC = () => {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
                     Store Layout Mode
                   </span>
-                  <span className="text-sm font-extrabold text-primary block capitalize">
-                    {profile.category?.toLowerCase().includes('food') || profile.category?.toLowerCase().includes('restaurant') ? '🍽️ Restaurant / Food Menu Mode' : '🛒 Retail / Grocery Mode'}
-                  </span>
-                  <Badge variant="success" className="text-[9px]">
-                    Active Digital Menu
-                  </Badge>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-2">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-                    Food Safety & Features
-                  </span>
-                  <span className="text-sm font-extrabold text-emerald-500 block">
-                    {profile.fssaiNumber ? `FSSAI: ${profile.fssaiNumber}` : 'Table Booking & Delivery'}
+                  <span className="text-sm font-extrabold text-foreground block capitalize">
+                    {(profile.primaryCategory || profile.category)?.toLowerCase().includes('food') || (profile.primaryCategory || profile.category)?.toLowerCase().includes('restaurant') ? '🍽️ Digital Menu & Table Mode' : '🛒 Storefront Catalog Mode'}
                   </span>
                   <Badge variant="secondary" className="text-[9px]">
-                    Verified Compliance
+                    Active Digital Storefront
                   </Badge>
                 </div>
               </div>

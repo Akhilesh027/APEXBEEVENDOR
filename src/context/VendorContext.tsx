@@ -355,6 +355,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             businessHours: v.businessHours || {},
             storeType: v.storeType || 'retail_grocery',
             primaryCategory: v.primaryCategory || '',
+            subCategory: v.subCategory || '',
+            approvedSubcategories: Array.isArray(v.approvedSubcategories) && v.approvedSubcategories.length > 0
+              ? v.approvedSubcategories
+              : (v.subCategories && v.subCategories.length > 0 ? v.subCategories : (v.subCategory ? [v.subCategory] : [])),
             subCategories: v.subCategories || []
           });
 

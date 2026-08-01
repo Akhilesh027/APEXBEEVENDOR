@@ -248,8 +248,8 @@ export const FranchiseRelationship: React.FC = () => {
                     <div
                       key={index}
                       className={`flex flex-col max-w-[80%] rounded-lg p-2.5 ${log.sender === 'me'
-                          ? 'self-end bg-primary text-primary-foreground rounded-tr-none text-right'
-                          : 'self-start bg-secondary text-foreground rounded-tl-none text-left'
+                        ? 'self-end bg-primary text-primary-foreground rounded-tr-none text-right'
+                        : 'self-start bg-secondary text-foreground rounded-tl-none text-left'
                         }`}
                     >
                       <p className="leading-relaxed whitespace-pre-wrap">{log.text}</p>

@@ -155,7 +155,7 @@ const MainLayout: React.FC = () => {
       return <ScheduledDelivery />;
     }
 
-    if (currentPage === 'subscriptions') {
+    if (['subscriptions', 'subscription-dashboard', 'subscription-plans', 'subscription-addons', 'subscription-history', 'subscription-renewals', 'subscription-invoices'].includes(currentPage)) {
       return <SubscriptionManagement />;
     }
 

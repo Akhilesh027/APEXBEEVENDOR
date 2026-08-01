@@ -53,6 +53,8 @@ export interface VendorProfile {
   };
   storeType?: 'retail_grocery' | 'restaurant_food' | 'service_provider' | 'wholesale_b2b' | 'hyperlocal_subscription' | 'course_provider';
   primaryCategory?: string;
+  subCategory?: string;
+  approvedSubcategories?: string[];
   subCategories?: string[];
   marketplaceStatus?: 'Draft' | 'Incomplete' | 'Pending Review' | 'Approved' | 'Rejected' | 'Suspended' | 'Hidden';
   storeTags?: string[];

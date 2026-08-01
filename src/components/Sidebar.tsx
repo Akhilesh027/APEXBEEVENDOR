@@ -22,6 +22,7 @@ import {
   Loader2,
   XCircle,
   Sparkles,
+  Layers,
   AlertTriangle,
   Menu,
   X,
@@ -413,6 +414,19 @@ export const Sidebar: React.FC = () => {
     {
       groupLabel: '6. 💰 Finance',
       items: [
+        {
+          id: 'subscriptions',
+          label: 'My Subscription',
+          icon: <CreditCard className="h-4 w-4 text-indigo-500" />,
+          subItems: [
+            { id: 'subscription-dashboard', label: 'Overview', icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+            { id: 'subscription-plans', label: 'Available Plans', icon: <Sparkles className="h-3.5 w-3.5" /> },
+            { id: 'subscription-addons', label: 'Add-on Services', icon: <Layers className="h-3.5 w-3.5" /> },
+            { id: 'subscription-history', label: 'Payment History', icon: <CreditCard className="h-3.5 w-3.5" /> },
+            { id: 'subscription-renewals', label: 'Renewal History', icon: <RotateCcw className="h-3.5 w-3.5" /> },
+            { id: 'subscription-invoices', label: 'Billing & Invoices', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> }
+          ]
+        },
         {
           id: 'wallet',
           label: 'Wallet & Withdrawals',

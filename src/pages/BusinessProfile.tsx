@@ -44,6 +44,35 @@ export const BusinessProfile: React.FC = () => {
   const [address, setAddress] = useState(profile.address || '');
   const [businessType, setBusinessType] = useState(profile.businessType || 'Vendor');
 
+  // Devotional Capability Access State
+  const [capabilityAccess, setCapabilityAccess] = useState<any>(null);
+  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
+  const [requestingCaps, setRequestingCaps] = useState(false);
+  const [capMsg, setCapMsg] = useState('');
+
+  const fetchCategoryAccess = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('https://server.apexbee.in/api/devotional/vendor-access/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data && data.data.length > 0) {
+          const acc = data.data[0];
+          setCapabilityAccess(acc);
+          setSelectedCapabilities(acc.requestedCapabilities || []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch category access:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategoryAccess();
+  }, []);
+
   // Storefront Customization / Styling states
   const { storeDesign, saveStoreDesign } = useVendor();
   const [logoUrl, setLogoUrl] = useState(storeDesign?.logoUrl || '');
@@ -611,6 +640,9 @@ export const BusinessProfile: React.FC = () => {
           <TabsTrigger value="documents" className="flex items-center gap-1.5 cursor-pointer">
             <FolderOpen className="h-4 w-4" /> Business Documents
           </TabsTrigger>
+          <TabsTrigger value="capabilities" className="flex items-center gap-1.5 cursor-pointer">
+            <Award className="h-4 w-4" /> Devotional Capabilities
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab 0: My Account - Real Logged-In User Info */}
@@ -1093,8 +1125,8 @@ export const BusinessProfile: React.FC = () => {
                                 type="button"
                                 onClick={() => toggleCategoryFormat('food', fmt.id)}
                                 className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
-                                    ? 'bg-amber-500 text-white font-extrabold border-amber-600 shadow-md ring-2 ring-amber-500/30'
-                                    : 'bg-background hover:bg-amber-500/10 border-border text-foreground font-semibold'
+                                  ? 'bg-amber-500 text-white font-extrabold border-amber-600 shadow-md ring-2 ring-amber-500/30'
+                                  : 'bg-background hover:bg-amber-500/10 border-border text-foreground font-semibold'
                                   }`}
                               >
                                 <span className="text-xs flex items-center justify-between">
@@ -1227,8 +1259,8 @@ export const BusinessProfile: React.FC = () => {
                                 type="button"
                                 onClick={() => toggleCategoryFormat('grocery', fmt.id)}
                                 className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
-                                    ? 'bg-emerald-600 text-white font-extrabold border-emerald-700 shadow-md ring-2 ring-emerald-500/30'
-                                    : 'bg-background hover:bg-emerald-500/10 border-border text-foreground font-semibold'
+                                  ? 'bg-emerald-600 text-white font-extrabold border-emerald-700 shadow-md ring-2 ring-emerald-500/30'
+                                  : 'bg-background hover:bg-emerald-500/10 border-border text-foreground font-semibold'
                                   }`}
                               >
                                 <span className="text-xs flex items-center justify-between">
@@ -1296,8 +1328,8 @@ export const BusinessProfile: React.FC = () => {
                                 type="button"
                                 onClick={() => toggleCategoryFormat('fashion', fmt.id)}
                                 className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
-                                    ? 'bg-rose-600 text-white font-extrabold border-rose-700 shadow-md ring-2 ring-rose-500/30'
-                                    : 'bg-background hover:bg-rose-500/10 border-border text-foreground font-semibold'
+                                  ? 'bg-rose-600 text-white font-extrabold border-rose-700 shadow-md ring-2 ring-rose-500/30'
+                                  : 'bg-background hover:bg-rose-500/10 border-border text-foreground font-semibold'
                                   }`}
                               >
                                 <span className="text-xs flex items-center justify-between">
@@ -1360,8 +1392,8 @@ export const BusinessProfile: React.FC = () => {
                                 type="button"
                                 onClick={() => toggleCategoryFormat('service', fmt.id)}
                                 className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
-                                    ? 'bg-blue-600 text-white font-extrabold border-blue-700 shadow-md ring-2 ring-blue-500/30'
-                                    : 'bg-background hover:bg-blue-500/10 border-border text-foreground font-semibold'
+                                  ? 'bg-blue-600 text-white font-extrabold border-blue-700 shadow-md ring-2 ring-blue-500/30'
+                                  : 'bg-background hover:bg-blue-500/10 border-border text-foreground font-semibold'
                                   }`}
                               >
                                 <span className="text-xs flex items-center justify-between">
@@ -1418,8 +1450,8 @@ export const BusinessProfile: React.FC = () => {
                                 type="button"
                                 onClick={() => toggleCategoryFormat('devotional', fmt.id)}
                                 className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${isSelected
-                                    ? 'bg-orange-600 text-white font-extrabold border-orange-700 shadow-md ring-2 ring-orange-500/30'
-                                    : 'bg-background hover:bg-orange-500/10 border-border text-foreground font-semibold'
+                                  ? 'bg-orange-600 text-white font-extrabold border-orange-700 shadow-md ring-2 ring-orange-500/30'
+                                  : 'bg-background hover:bg-orange-500/10 border-border text-foreground font-semibold'
                                   }`}
                               >
                                 <span className="text-xs flex items-center justify-between">
@@ -2015,7 +2047,42 @@ export const BusinessProfile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Category-grouped documents */}
+              {/* Admin Category Governance Card */}
+              <div className="border border-primary/30 bg-primary/5 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-primary uppercase tracking-wide flex items-center gap-1.5">
+                    🏷️ Admin Permitted Business Categories
+                  </h4>
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 font-extrabold text-[10px] rounded-full border border-emerald-500/20">
+                    Active & Permitted
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-card p-3 rounded-lg border border-border/60">
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Primary Category</span>
+                    <span className="font-extrabold text-foreground block mt-0.5">{profile.primaryCategory || profile.category || 'Food & Restaurant'}</span>
+                  </div>
+
+                  <div className="bg-card p-3 rounded-lg border border-border/60 space-y-1">
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase block">Approved Subcategories ({
+                      (Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+                        ? profile.approvedSubcategories
+                        : (profile.subCategory ? [profile.subCategory] : ['General Subcategory'])).length
+                    })</span>
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+                        ? profile.approvedSubcategories
+                        : (profile.subCategory ? [profile.subCategory] : ['General Subcategory'])
+                      ).map((sub: string, idx: number) => (
+                        <span key={idx} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 font-bold rounded text-[10px]">
+                          ✓ {sub}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
               {['Identity', 'Business & Tax', 'Food & Drug License', 'Bank', 'Others'].map(category => {
                 const categoryDocs = profile.documents.filter(d => (d as any).category === category);
                 if (categoryDocs.length === 0) return null;
@@ -2310,6 +2377,166 @@ export const BusinessProfile: React.FC = () => {
                     No files currently uploaded. Please complete document registry in the KYC tab.
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Devotional Capabilities */}
+        <TabsContent value="capabilities">
+          <Card className="glass border-border/50">
+            <CardHeader className="text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    🏛️ Devotional Business Types & Capabilities
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Select all business capabilities your store operates. Submitted requests require admin verification and approval.
+                  </CardDescription>
+                </div>
+                {capabilityAccess && (
+                  <Badge variant={capabilityAccess.status === 'approved' ? 'success' : capabilityAccess.status === 'partially_approved' ? 'purple' : 'warning'} className="self-start sm:self-auto text-xs px-3 py-1">
+                    Vertical Access: {capabilityAccess.status?.toUpperCase()}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 text-left">
+              {capabilityAccess?.rejectionReason && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-500 font-medium">
+                  <strong>Admin Rejection Note:</strong> {capabilityAccess.rejectionReason}
+                </div>
+              )}
+              {capabilityAccess?.suspensionReason && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-600 font-medium">
+                  <strong>Capability Suspension Note:</strong> {capabilityAccess.suspensionReason}
+                </div>
+              )}
+
+              {capMsg && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-600 font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> {capMsg}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { id: 'pooja_store', name: 'Pooja Store', icon: '🪔', description: 'Daily pooja essentials, agarbatti, camphor, ghee, and samagri' },
+                  { id: 'flower_shop', name: 'Flower Shop', icon: '🌸', description: 'Fresh flowers, garlands, lotus, tulasi, and decorative strings' },
+                  { id: 'coconut_shop', name: 'Coconut Shop', icon: '🥥', description: 'Pooja coconuts, husked coconuts, and decorated mandap coconuts' },
+                  { id: 'fruit_shop', name: 'Fruit Shop', icon: '🍎', description: 'Fresh fruits, sacred offerings, and pooja fruit baskets' },
+                  { id: 'sweet_shop', name: 'Sweet Shop', icon: '🍬', description: 'Traditional sweets, laddus, modaks, and festival prasadams' },
+                  { id: 'prasadam_partner', name: 'Prasadam Partner', icon: '🍲', description: 'Prepared temple prasadams, pulihora, pongal, and payasam' },
+                  { id: 'idol_statue_shop', name: 'Idol & Statue Shop', icon: '🗿', description: 'Deity idols in brass, marble, clay, silver, and wood' },
+                  { id: 'photo_frame_shop', name: 'Photo Frame Shop', icon: '🖼️', description: 'Framed deity photos, canvas art, and spiritual wall frames' },
+                  { id: 'digital_printing_shop', name: 'Digital Printing Shop', icon: '🖨️', description: 'Custom deity printing, acrylic prints, and temple banners' },
+                  { id: 'brass_copper_shop', name: 'Brass & Copper Shop', icon: '🔔', description: 'Brass diyas, kalash, bells, aarti plates, and copper vessels' },
+                  { id: 'spiritual_book_shop', name: 'Spiritual Book Shop', icon: '📚', description: 'Sacred texts, Bhagavad Gita, stotra books, and panchangam' },
+                  { id: 'pooja_items_manufacturer', name: 'Pooja Items Manufacturer', icon: '🏭', description: 'Direct production of wicks, agarbatti, diyas, and accessories' },
+                  { id: 'decoration_shop', name: 'Decoration Shop', icon: '🌺', description: 'Temple mandap decorations, floral backdrops, and event decor' },
+                  { id: 'temple_service_partner', name: 'Temple Service Partner', icon: '🏛️', description: 'Archana, abhishekam, homam, and ritual service facilitation' },
+                  { id: 'priest_pandit', name: 'Priest / Pandit Service', icon: '🧘', description: 'Certified purohits for home poojas, vrathams, and ceremonies' },
+                  { id: 'devotional_wholesaler', name: 'Devotional Wholesaler', icon: '📦', description: 'B2B bulk supply of pooja items, raw materials, and brassware' },
+                ].map((cap) => {
+                  const isApproved = capabilityAccess?.approvedCapabilities?.includes(cap.id);
+                  const isRequested = selectedCapabilities.includes(cap.id);
+                  const isPending = capabilityAccess?.requestedCapabilities?.includes(cap.id) && !isApproved;
+
+                  let statusLabel = 'Not Requested';
+                  let badgeVar: any = 'secondary';
+
+                  if (isApproved) {
+                    statusLabel = 'Approved';
+                    badgeVar = 'success';
+                  } else if (isPending) {
+                    statusLabel = 'Pending Review';
+                    badgeVar = 'warning';
+                  } else if (isRequested) {
+                    statusLabel = 'Selected (Unsubmitted)';
+                    badgeVar = 'purple';
+                  }
+
+                  return (
+                    <div
+                      key={cap.id}
+                      onClick={() => {
+                        if (isApproved) return;
+                        if (selectedCapabilities.includes(cap.id)) {
+                          setSelectedCapabilities(selectedCapabilities.filter(c => c !== cap.id));
+                        } else {
+                          setSelectedCapabilities([...selectedCapabilities, cap.id]);
+                        }
+                      }}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-3 ${isApproved
+                          ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm'
+                          : isRequested
+                            ? 'border-indigo-500/50 bg-indigo-500/5 shadow-md ring-2 ring-indigo-500/20'
+                            : 'border-border/50 bg-secondary/20 hover:border-border'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{cap.icon}</span>
+                          <div>
+                            <h4 className="font-bold text-sm text-foreground">{cap.name}</h4>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isRequested || isApproved}
+                          disabled={isApproved}
+                          onChange={() => { }}
+                          className="h-4 w-4 rounded border-border text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{cap.description}</p>
+                      <div className="pt-2 border-t border-border/30 flex items-center justify-between">
+                        <Badge variant={badgeVar} className="text-[10px] px-2 py-0.5">
+                          {statusLabel}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-4 border-t border-border/50 flex justify-end">
+                <Button
+                  type="button"
+                  disabled={requestingCaps}
+                  onClick={async () => {
+                    try {
+                      setRequestingCaps(true);
+                      setCapMsg('');
+                      const token = localStorage.getItem('token');
+                      const res = await fetch('https://server.apexbee.in/api/devotional/vendor-access/request', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                          requestedCapabilities: selectedCapabilities
+                        })
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.success) {
+                        setCapMsg('Capabilities requested successfully! Awaiting admin review.');
+                        await fetchCategoryAccess();
+                      } else {
+                        alert(data.message || 'Failed to request capabilities');
+                      }
+                    } catch (err: any) {
+                      alert('Network error requesting capabilities: ' + err.message);
+                    } finally {
+                      setRequestingCaps(false);
+                    }
+                  }}
+                  className="font-bold bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-6 py-2 rounded-xl"
+                >
+                  {requestingCaps ? 'Submitting Request...' : 'Submit Capability Request 🚀'}
+                </Button>
               </div>
             </CardContent>
           </Card>
