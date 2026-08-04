@@ -5,7 +5,9 @@ export type SubscriptionStatus =
   | 'PAUSED'
   | 'PAST_DUE'
   | 'EXPIRED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'TRIAL'
+  | 'trial';
 
 export type ProductType = 'PLAN' | 'ADDON';
 
@@ -120,6 +122,7 @@ export interface SubscriptionSummary {
   planId: string;
   planName: string;
   planType: string;
+  planCode?: string;
   billingCycle: BillingCycle;
   startDate: string;
   expiryDate: string;
@@ -131,6 +134,7 @@ export interface SubscriptionSummary {
   activeAddonsCount: number;
   pricing: SubscriptionPricing;
   activeServices: ActiveAddonService[];
+  entitlements?: any;
   scheduledDowngrade?: {
     targetPlanName: string;
     effectiveDate: string;
@@ -138,6 +142,7 @@ export interface SubscriptionSummary {
 }
 
 export interface SubscriptionQuote {
+  priceId?: string;
   productId: string;
   productName: string;
   productType: ProductType;

@@ -2469,10 +2469,10 @@ export const BusinessProfile: React.FC = () => {
                         }
                       }}
                       className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-3 ${isApproved
-                          ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm'
-                          : isRequested
-                            ? 'border-indigo-500/50 bg-indigo-500/5 shadow-md ring-2 ring-indigo-500/20'
-                            : 'border-border/50 bg-secondary/20 hover:border-border'
+                        ? 'border-emerald-500/50 bg-emerald-500/5 shadow-sm'
+                        : isRequested
+                          ? 'border-indigo-500/50 bg-indigo-500/5 shadow-md ring-2 ring-indigo-500/20'
+                          : 'border-border/50 bg-secondary/20 hover:border-border'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-2">

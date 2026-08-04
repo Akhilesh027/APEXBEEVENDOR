@@ -51,10 +51,14 @@ import {
   Award,
   Phone
 } from 'lucide-react';
+import { useSubscription } from '../features/subscription/hooks/useSubscription';
 import { Badge } from './ui/Badge';
 
 export const Sidebar: React.FC = () => {
   const { currentPage, setCurrentPage, products, orders, profile } = useVendor();
+  const { summary } = useSubscription();
+  const activePlanName = summary?.planName || '15-Day Free Trial';
+  const activePlanStatus = summary?.status || 'TRIAL';
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     business: true,
     products: false,
@@ -87,12 +91,43 @@ export const Sidebar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleExpand = (menu: string) => {
-    setExpandedMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
+    setExpandedMenus(prev => {
+      const isCurrentlyExpanded = !!prev[menu];
+      if (isCurrentlyExpanded) {
+        return { ...prev, [menu]: false };
+      }
+      // Accordion mode: close other sub-menus, open only clicked menu
+      return { [menu]: true };
+    });
   };
 
   const toggleGroupExpand = (groupLabel: string) => {
-    setExpandedGroups(prev => ({ ...prev, [groupLabel]: !prev[groupLabel] }));
+    setExpandedGroups(prev => {
+      const isCurrentlyExpanded = !!prev[groupLabel];
+      if (isCurrentlyExpanded) {
+        return { ...prev, [groupLabel]: false };
+      }
+      // Accordion mode: close other groups, open only clicked group
+      return { [groupLabel]: true };
+    });
   };
+
+  // Auto-expand group & sub-menu for active currentPage while closing inactive ones
+  React.useEffect(() => {
+    menuGroups.forEach(group => {
+      const hasActive = group.items.some(item => {
+        if (item.id === currentPage) return true;
+        return item.subItems.some(sub => sub.id === currentPage);
+      });
+      if (hasActive) {
+        setExpandedGroups({ [group.groupLabel]: true });
+        const activeItemWithSub = group.items.find(item => item.subItems.some(sub => sub.id === currentPage));
+        if (activeItemWithSub) {
+          setExpandedMenus({ [activeItemWithSub.id]: true });
+        }
+      }
+    });
+  }, [currentPage]);
 
   const isGroupActive = (group: MenuGroup) => {
     return group.items.some(item => {
@@ -242,15 +277,15 @@ export const Sidebar: React.FC = () => {
           subItems: []
         },
         {
-          id: 'scheduled-delivery',
+          id: 'courier-pickup',
           label: 'Courier Pickup',
-          icon: <Calendar className="h-4 w-4 text-emerald-500" />,
+          icon: <Package className="h-4 w-4 text-amber-500" />,
           subItems: []
         },
         {
-          id: 'subscriptions',
+          id: 'scheduled-delivery',
           label: 'Scheduled Deliveries',
-          icon: <Clock className="h-4 w-4 text-primary" />,
+          icon: <Calendar className="h-4 w-4 text-emerald-500" />,
           subItems: []
         },
         {
@@ -754,6 +789,31 @@ export const Sidebar: React.FC = () => {
             <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">Vendor Hub</span>
           </div>
         </div>
+
+        {/* Prominent Active Plan Card */}
+        <div
+          onClick={() => handlePageClick('subscription')}
+          className="mx-3 my-2.5 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer transition-all flex items-center justify-between group shadow-xs"
+          title="Click to manage active subscription plan"
+        >
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col truncate">
+              <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
+                Active Plan
+              </span>
+              <span className="text-xs font-bold text-foreground group-hover:text-emerald-600 transition-colors truncate">
+                {activePlanName}
+              </span>
+            </div>
+          </div>
+          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-600 text-white shrink-0 ml-1">
+            {activePlanStatus}
+          </span>
+        </div>
+
         {renderNav()}
       </aside>
 
@@ -773,6 +833,23 @@ export const Sidebar: React.FC = () => {
                 <span className="text-[9px] text-muted-foreground font-bold uppercase">Vendor Hub</span>
               </div>
             </div>
+
+            <div
+              onClick={() => handlePageClick('subscription')}
+              className="mx-3 my-2.5 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 cursor-pointer flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <div className="flex flex-col truncate">
+                  <span className="text-[9px] font-extrabold text-emerald-600 uppercase">Active Plan</span>
+                  <span className="text-xs font-bold truncate">{activePlanName}</span>
+                </div>
+              </div>
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-600 text-white">
+                {activePlanStatus}
+              </span>
+            </div>
+
             {renderNav()}
           </aside>
         </div>

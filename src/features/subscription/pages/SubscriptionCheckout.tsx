@@ -6,6 +6,7 @@ import { ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Tag, Lock, Smartphone
 interface SubscriptionCheckoutProps {
   quote: SubscriptionQuote | null;
   productObj: SubscriptionPlan | SubscriptionAddon | null;
+  summary?: any;
   couponInput: string;
   onCouponInputChange: (val: string) => void;
   couponMessage: { text: string; success: boolean } | null;
@@ -17,6 +18,7 @@ interface SubscriptionCheckoutProps {
 export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
   quote,
   productObj,
+  summary,
   couponInput,
   onCouponInputChange,
   couponMessage,
@@ -24,11 +26,37 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
   onProceedPayment,
   onBack
 }) => {
-  const [agreedTerms, setAgreedTerms] = useState<boolean>(false);
+  const [agreedTerms, setAgreedTerms] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<string>('UPI');
   const [upiIdInput, setUpiIdInput] = useState<string>('');
 
-  if (!quote || !productObj) return null;
+  const rawBase = (productObj as any)?.yearlyPrice || (productObj as any)?.monthlyPrice || (productObj as any)?.price || 0;
+  const taxable = Math.round(rawBase * 100 / 118);
+  const gst = Math.round((rawBase - taxable) * 100) / 100;
+  const finalPayable = Math.round((rawBase + gst) * 100) / 100;
+
+  const activeQuote: SubscriptionQuote = quote || {
+    id: 'quote_demo',
+    _id: 'quote_demo',
+    productName: productObj?.name || 'Subscription Plan',
+    productType: 'PLAN',
+    billingCycle: 'YEARLY',
+    durationDays: 365,
+    subtotal: rawBase,
+    totalDiscountAmount: 0,
+    walletDeductionAmount: 0,
+    taxableAmount: taxable,
+    gstAmount: gst,
+    finalPayableAmount: finalPayable > 0 ? finalPayable : rawBase,
+    status: 'ACTIVE',
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+  } as any;
+
+  const activeProduct = productObj || {
+    name: 'Subscription Plan',
+    tier: 1,
+    features: ['Digital Storefront & Profile', 'Standard Order Management', 'Vendor Portal Access']
+  } as any;
 
   return (
     <div className="font-sans text-left space-y-6 max-w-5xl mx-auto">
@@ -60,33 +88,33 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected Item</span>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
-                  {quote.productName}
+                  {activeQuote.productName}
                 </h3>
               </div>
               <span className="px-3 py-1 rounded-full bg-amber-400 text-slate-950 font-black text-xs uppercase">
-                {quote.billingCycle}
+                {activeQuote.billingCycle}
               </span>
             </div>
 
             <div className="py-4 space-y-2 text-xs">
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Duration Validity:</span>
-                <strong className="text-slate-900 dark:text-white">{quote.durationDays} Days</strong>
+                <strong className="text-slate-900 dark:text-white">{activeQuote.durationDays} Days</strong>
               </div>
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Billing Type:</span>
-                <strong className="text-slate-900 dark:text-white">{quote.productType} Subscription</strong>
+                <strong className="text-slate-900 dark:text-white">{activeQuote.productType} Subscription</strong>
               </div>
             </div>
 
             {/* Key Features Included */}
-            {'features' in productObj && Array.isArray((productObj as any).features) && (
+            {'features' in activeProduct && Array.isArray((activeProduct as any).features) && (
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
                 <span className="font-bold text-slate-400 uppercase text-[10px] block mb-2">
                   Entitled Features Included:
                 </span>
                 <div className="space-y-1.5">
-                  {((productObj as any).features as string[]).slice(0, 5).map((feat, idx) => (
+                  {((activeProduct as any).features as string[]).slice(0, 5).map((feat, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span>{feat}</span>
@@ -105,19 +133,19 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Business Name</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">GM Super Market</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{summary?.businessName || 'Vendor Partner'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Registered Phone</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">+91 98765 43210</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Plan</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{summary?.planName || 'Free Trial'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Billing Email</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">billing@gmsupermarket.com</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Subscription Status</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">{summary?.status || 'TRIAL'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">GSTIN</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">37AAAAA0000A1Z5</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Billing Cycle</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{activeQuote.billingCycle || 'YEARLY'}</span>
               </div>
             </div>
           </div>
@@ -157,7 +185,7 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
           </div>
 
           {/* Price Breakdown */}
-          <PriceBreakdown quote={quote} />
+          <PriceBreakdown quote={activeQuote} />
 
           {/* Payment Method Selector */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs text-xs space-y-3">

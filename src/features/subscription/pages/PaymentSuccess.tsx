@@ -3,16 +3,26 @@ import { formatCurrency } from '../utils/subscription-formatters';
 import { CheckCircle2, Download, Crown, ArrowRight } from 'lucide-react';
 
 interface PaymentSuccessProps {
+  summary?: any;
+  checkoutQuote?: any;
   onGoToDashboard: () => void;
   onDownloadInvoice: () => void;
   onViewFeatures: () => void;
 }
 
 export const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
+  summary,
+  checkoutQuote,
   onGoToDashboard,
   onDownloadInvoice,
   onViewFeatures
 }) => {
+  const planTitle = summary?.planName || checkoutQuote?.productName || 'Subscription Plan';
+  const amountPaid = checkoutQuote?.finalPayableAmount || summary?.pricing?.finalPayableAmount || 0;
+  const expiryStr = summary?.expiryDate
+    ? new Date(summary.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '1 Year';
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center font-sans p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-lg w-full text-center shadow-2xl space-y-6">
@@ -25,30 +35,30 @@ export const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
             Payment Successful
           </span>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white mt-2">
-            Your POS Premium Subscription is Now Active!
+            Your {planTitle} is Now Active!
           </h2>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Your transaction has been verified. All entitled features, credits and POS access are unlocked.
+            Your transaction has been verified. All entitled features, credits and store access are unlocked.
           </p>
         </div>
 
         {/* Transaction Summary Card */}
         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl text-xs space-y-2 text-left">
           <div className="flex justify-between">
-            <span className="text-slate-500">Invoice Number:</span>
-            <strong className="text-slate-900 dark:text-white font-mono">INV-2026-001</strong>
+            <span className="text-slate-500">Subscription Status:</span>
+            <strong className="text-emerald-600 font-bold uppercase">{summary?.status || 'ACTIVE'}</strong>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Payment Reference:</span>
-            <strong className="text-slate-900 dark:text-white font-mono">UPI-REF-998877665544</strong>
+            <span className="text-slate-500">Plan Subscribed:</span>
+            <strong className="text-slate-900 dark:text-white font-bold">{planTitle}</strong>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-500">Amount Paid:</span>
-            <strong className="text-emerald-600 font-black text-sm">{formatCurrency(7999)}</strong>
+            <strong className="text-emerald-600 font-black text-sm">{formatCurrency(amountPaid)}</strong>
           </div>
           <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2">
-            <span className="text-slate-500">New Expiry Date:</span>
-            <strong className="text-slate-900 dark:text-white">31 July 2027</strong>
+            <span className="text-slate-500">Validity Expiry Date:</span>
+            <strong className="text-slate-900 dark:text-white">{expiryStr}</strong>
           </div>
         </div>
 

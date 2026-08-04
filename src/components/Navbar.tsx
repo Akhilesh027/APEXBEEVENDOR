@@ -1,15 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
-import { Search, Sun, Moon, LogOut, User, Settings, Building } from 'lucide-react';
+import { useSubscription } from '../features/subscription/hooks/useSubscription';
+import { Search, Sun, Moon, LogOut, User, Settings, Building, Sparkles } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { Badge } from './ui/Badge';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Navbar: React.FC = () => {
-  const { profile, theme, setTheme, logout } = useVendor();
+  const { profile, theme, setTheme, logout, setCurrentPage } = useVendor();
+  const { summary } = useSubscription();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const activePlanName = summary?.planName || '15-Day Free Trial';
+  const activePlanStatus = summary?.status || 'TRIAL';
 
   const getAuthUser = () => {
     try {
@@ -95,6 +100,19 @@ export const Navbar: React.FC = () => {
 
       {/* Right controls */}
       <div className="flex items-center gap-4">
+        {/* Active Subscription Plan Badge */}
+        <button
+          onClick={() => setCurrentPage('subscription')}
+          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs"
+          title="Click to view & manage your subscription plan"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+          <span>{activePlanName}</span>
+          <span className="text-[9px] px-1.5 py-0.2 rounded font-extrabold uppercase bg-emerald-600 text-white ml-0.5 shadow-xs">
+            {activePlanStatus}
+          </span>
+        </button>
+
         {/* Prominent Business Type Badge */}
         <Badge variant="purple" className="hidden sm:inline-flex items-center gap-1 px-3 py-1">
           <Building className="h-3 w-3" />

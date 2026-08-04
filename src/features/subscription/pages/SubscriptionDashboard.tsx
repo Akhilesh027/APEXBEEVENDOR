@@ -106,9 +106,9 @@ export const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({
             </button>
           </div>
 
-          {summary.activeServices.length > 0 ? (
+          {(summary.activeServices || []).length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {summary.activeServices.map((service) => (
+              {(summary.activeServices || []).map((service) => (
                 <div
                   key={service.id}
                   className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 text-xs flex flex-col justify-between"
@@ -161,7 +161,38 @@ export const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({
       </div>
 
       {/* Feature Usage & Quotas */}
-      <UsageProgress usage={MOCK_USAGE} />
+      {(() => {
+        const getEntitlement = (key: string): any => {
+          if (!summary?.entitlements) return null;
+          if (Array.isArray(summary.entitlements)) {
+            return summary.entitlements.find((e: any) => e?.featureKey === key || e?.key === key);
+          }
+          if (typeof summary.entitlements === 'object') {
+            if ((summary.entitlements as any)[key]) return (summary.entitlements as any)[key];
+            return Object.values(summary.entitlements).find((e: any) => e && (e?.featureKey === key || e?.key === key));
+          }
+          return null;
+        };
+
+        const waEnt = getEntitlement('WHATSAPP_CREDITS');
+        const smsEnt = getEntitlement('SMS_CREDITS');
+        const aiEnt = getEntitlement('AI_CREDITS');
+        const orderEnt = getEntitlement('MONTHLY_RESTAURANT_ORDERS') || getEntitlement('MONTHLY_TRANSACTIONS');
+
+        const dynamicUsage: SubscriptionUsage = {
+          whatsappUsed: waEnt?.used || 0,
+          whatsappLimit: waEnt?.limit || (summary?.planCode === 'PREMIUM' ? 2000 : summary?.planCode === 'BUSINESS' ? 500 : 0),
+          smsUsed: smsEnt?.used || 0,
+          smsLimit: smsEnt?.limit || (summary?.planCode === 'PREMIUM' ? 2000 : summary?.planCode === 'BUSINESS' ? 500 : 0),
+          aiCreditsUsed: aiEnt?.used || 0,
+          aiCreditsLimit: aiEnt?.limit || (summary?.planCode === 'PREMIUM' ? 500 : summary?.planCode === 'BUSINESS' ? 100 : 10),
+          ordersUsed: orderEnt?.used || 0,
+          ordersLimit: orderEnt?.limit || (summary?.planCode === 'PREMIUM' ? 20000 : summary?.planCode === 'BUSINESS' ? 3000 : 100),
+          storageUsedGb: 0.5,
+          storageLimitGb: summary?.planCode === 'PREMIUM' ? 100 : summary?.planCode === 'BUSINESS' ? 10 : 2
+        };
+        return <UsageProgress usage={dynamicUsage} />;
+      })()}
     </div>
   );
 };

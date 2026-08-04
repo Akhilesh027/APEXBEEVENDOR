@@ -76,4 +76,11 @@ export const productService = {
     });
     return res.data;
   },
+
+  generateAiDetails: async (payload: { name?: string; categoryId?: string; categoryName?: string; subCategoryName?: string }) => {
+    const res = await axios.post(`${API_URL}/products/ai-generator`, payload, {
+      headers: authHeaders(),
+    });
+    return res.data;
+  },
 };

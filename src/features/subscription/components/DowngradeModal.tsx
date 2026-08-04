@@ -58,9 +58,9 @@ export const DowngradeModal: React.FC<DowngradeModalProps> = ({
           <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl text-xs text-slate-600 dark:text-slate-300 space-y-1">
             <span className="font-bold block text-slate-900 dark:text-white">What changes with this downgrade?</span>
             <ul className="list-disc pl-4 space-y-0.5 text-slate-500 dark:text-slate-400">
-              <li>Order limit will change to: {targetPlan.usageLimits.monthlyOrders}</li>
-              <li>Staff accounts will be limited to: {targetPlan.usageLimits.staffAccounts}</li>
-              <li>WhatsApp credits set to: {targetPlan.usageLimits.whatsappCredits}</li>
+              <li>Order limit will change to: {targetPlan.usageLimits?.monthlyOrders || (targetPlan as any).orderLimit || '1,000 Orders'}</li>
+              <li>Staff accounts will be limited to: {targetPlan.usageLimits?.staffAccounts || (targetPlan as any).staffCount || 2}</li>
+              <li>WhatsApp credits set to: {targetPlan.usageLimits?.whatsappCredits || (targetPlan as any).whatsappCredits || 0}</li>
             </ul>
           </div>
 

@@ -151,8 +151,12 @@ const MainLayout: React.FC = () => {
       return <QRManagement />;
     }
 
+    if (currentPage === 'courier-pickup') {
+      return <ScheduledDelivery defaultTab="courier" />;
+    }
+
     if (currentPage === 'scheduled-delivery') {
-      return <ScheduledDelivery />;
+      return <ScheduledDelivery defaultTab="scheduled" />;
     }
 
     if (['subscriptions', 'subscription-dashboard', 'subscription-plans', 'subscription-addons', 'subscription-history', 'subscription-renewals', 'subscription-invoices'].includes(currentPage)) {

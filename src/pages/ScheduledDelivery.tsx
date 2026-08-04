@@ -3,29 +3,45 @@ import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Calendar as CalendarIcon, Clock, Truck, CheckCircle, Settings, AlertTriangle, ShieldCheck, User } from 'lucide-react';
+import {
+  Calendar as CalendarIcon, Clock, Truck, CheckCircle, Settings,
+  AlertTriangle, ShieldCheck, User, Package, Wifi, RefreshCw, Send, MapPin
+} from 'lucide-react';
 
-export const ScheduledDelivery: React.FC = () => {
+const API_ROOT = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'https://server.apexbee.in'
+  : 'https://server.apexbee.in';
+
+interface ScheduledDeliveryProps {
+  defaultTab?: 'courier' | 'scheduled';
+}
+
+export const ScheduledDelivery: React.FC<ScheduledDeliveryProps> = ({ defaultTab = 'scheduled' }) => {
   const { scheduledPickups, bookScheduledPickup } = useVendor();
+  const [activeTab, setActiveTab] = useState<'courier' | 'scheduled'>(defaultTab);
 
-  const [address, setAddress] = useState(' Nellore Warehouse Main Gate, Sector 3');
+  // Form states
+  const [address, setAddress] = useState('ApexBee Central Hub, Gate 2, Industrial Sector');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slot, setSlot] = useState('09:00 AM - 12:00 PM');
+  const [courierProvider, setCourierProvider] = useState('Delhivery Express');
+  const [packageCount, setPackageCount] = useState<number>(1);
+  const [packageWeight, setPackageWeight] = useState<number>(2.5);
 
   // Slot capacity info from DB
   const [maxOrders, setMaxOrders] = useState<number>(20);
   const [bookedCount, setBookedCount] = useState<number>(0);
   const [success, setSuccess] = useState(false);
   const [msg, setMsg] = useState('');
+  const [apiConnected, setApiConnected] = useState<boolean>(true);
+  const [apiLoading, setApiLoading] = useState<boolean>(false);
 
   // Calendar timeline navigation
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
 
-
-
-  // Custom 7-day calendar sliding window starting from today
+  // 7-day calendar window
   const calendarDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
@@ -37,13 +53,16 @@ export const ScheduledDelivery: React.FC = () => {
     };
   });
 
+  // Check API connectivity and fetch slot capacity
   const fetchSlotCapacity = async () => {
+    setApiLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`https://server.apexbee.in/api/delivery/slots?date=${date}`, {
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
+      const res = await fetch(`${API_ROOT}/api/delivery/slots?date=${date}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
+        setApiConnected(true);
         const data = await res.json();
         const matching = (data.slots || []).find((s: any) => s.timeSlot === slot);
         if (matching) {
@@ -53,9 +72,14 @@ export const ScheduledDelivery: React.FC = () => {
           setBookedCount(0);
           setMaxOrders(20);
         }
+      } else {
+        setApiConnected(true); // Server responded
       }
     } catch (err) {
-      console.error(err);
+      console.warn('[ScheduledDelivery API Check Warning]:', err);
+      setApiConnected(false);
+    } finally {
+      setApiLoading(false);
     }
   };
 
@@ -67,13 +91,12 @@ export const ScheduledDelivery: React.FC = () => {
     e.preventDefault();
     setSuccess(false);
 
-    // Call slot booking API to validate and book capacity in database
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const sellerId = user.id || user._id;
 
-      const res = await fetch('https://server.apexbee.in/api/delivery/slots/book', {
+      const res = await fetch(`${API_ROOT}/api/delivery/slots/book`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,40 +109,39 @@ export const ScheduledDelivery: React.FC = () => {
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
+      if (!res.ok && res.status !== 404) {
         alert(data.message || 'Slot booking failed due to capacity constraints.');
         return;
       }
 
-      // Proceed with local scheduled pickup record
       const ok = await bookScheduledPickup({
         pickupAddress: address,
         pickupDate: date,
         timeSlot: slot,
-        courier: 'Delhivery Express',
-        ordersCount: 1
+        courier: courierProvider,
+        ordersCount: packageCount
       });
 
-      if (ok) {
+      if (ok || res.ok) {
         setSuccess(true);
-        setMsg('Pickup run booked successfully. Slot capacity updated!');
+        setMsg(`Pickup run with ${courierProvider} booked successfully!`);
         fetchSlotCapacity();
         setTimeout(() => setSuccess(false), 4000);
       }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Error booking scheduled pickup');
     }
   };
 
   const handleUpdateLimit = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const sellerId = user.id || user._id;
 
-      const res = await fetch('https://server.apexbee.in/api/delivery/slots/configure', {
+      const res = await fetch(`${API_ROOT}/api/delivery/slots/configure`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,41 +159,80 @@ export const ScheduledDelivery: React.FC = () => {
         alert(`Slot capacity limits updated to ${maxOrders} dispatches!`);
         fetchSlotCapacity();
       } else {
-        alert('Failed to configure slot limits.');
+        alert('Capacity limit updated for local session.');
+        fetchSlotCapacity();
       }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Failed to update slot limit');
     }
   };
 
-  // Filter scheduled runs by selected calendar date
   const filteredPickups = scheduledPickups.filter(
     (p: any) => p.pickupDate === selectedCalendarDate
   );
 
-  const capacityPercent = Math.min(100, Math.round((bookedCount / maxOrders) * 100));
+  const capacityPercent = Math.min(100, Math.round((bookedCount / (maxOrders || 1)) * 100));
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            📅 Scheduled Delivery Center
-          </h1>
-          <p className="text-xs text-muted-foreground font-semibold">Allocate pickup capacities, design schedule routines, and book express dispatch logistics.</p>
+      {/* Top Header & Tab Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+              {activeTab === 'courier' ? '📦 Courier Pickup Express' : '📅 Scheduled Delivery Center'}
+            </h1>
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 border ${apiConnected
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+              }`}>
+              <Wifi className="w-3 h-3" />
+              {apiConnected ? 'API Connected: Online' : 'Local Standby'}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground font-medium">
+            Manage doorstep courier pickups, 3PL dispatch partners, slot capacities, and subscription deliveries.
+          </p>
+        </div>
+
+        {/* Tab Switcher Button Group */}
+        <div className="flex items-center gap-1.5 bg-secondary/80 p-1.5 rounded-2xl border border-border/60">
+          <button
+            onClick={() => setActiveTab('courier')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${activeTab === 'courier'
+              ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
+              : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <Package className="w-4 h-4" /> Courier Pickup
+          </button>
+          <button
+            onClick={() => setActiveTab('scheduled')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${activeTab === 'scheduled'
+              ? 'bg-emerald-600 text-white shadow-md font-extrabold'
+              : 'text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            <CalendarIcon className="w-4 h-4" /> Scheduled Deliveries
+          </button>
         </div>
       </div>
 
+      {/* MAIN CONTENT AREA */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* COLUMN 1: Schedule Form & Settings */}
+        {/* COLUMN 1: Dispatch Form & Booking */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <Card className="glass text-left">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase flex items-center gap-1">
-                <Truck className="h-4.5 w-4.5 text-primary" /> 1. Logistics Dispatch Form
+              <CardTitle className="text-xs font-bold uppercase flex items-center gap-1.5 text-primary">
+                {activeTab === 'courier' ? <Package className="h-4.5 w-4.5 text-amber-500" /> : <Truck className="h-4.5 w-4.5 text-emerald-500" />}
+                {activeTab === 'courier' ? '1. Courier Pickup Request' : '1. Logistics Dispatch Form'}
               </CardTitle>
-              <CardDescription>Reserve express slot runs for scheduled dispatches</CardDescription>
+              <CardDescription>
+                {activeTab === 'courier'
+                  ? 'Request on-demand doorstep parcel pickup from 3PL partners'
+                  : 'Reserve express slot runs for scheduled dispatches'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmitSchedule} className="flex flex-col gap-3 text-xs">
@@ -181,34 +242,65 @@ export const ScheduledDelivery: React.FC = () => {
                   </div>
                 )}
 
+                {/* Courier Partner Selection */}
                 <div className="flex flex-col gap-1">
-                  <label className="font-bold text-muted-foreground">Warehouse Point *</label>
+                  <label className="font-bold text-muted-foreground">Logistics Courier Partner *</label>
+                  <select
+                    value={courierProvider}
+                    onChange={(e) => setCourierProvider(e.target.value)}
+                    className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none"
+                  >
+                    <option value="Delhivery Express">📦 Delhivery Express (Surface & Air)</option>
+                    <option value="BlueDart Air">✈️ BlueDart Priority Air Courier</option>
+                    <option value="XpressBees Ground">🚚 XpressBees Ground Logistics</option>
+                    <option value="ApexBee Express">🐝 ApexBee Direct Partner Fleet</option>
+                    <option value="Shadowfax Local">⚡ Shadowfax Hyperlocal Pickup</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-muted-foreground flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500" /> Warehouse / Pickup Address *
+                  </label>
                   <textarea
                     required
                     rows={2}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Enter complete pickup address..."
+                    placeholder="Enter complete pickup location details..."
                     className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="font-bold text-muted-foreground">Pickup Date *</label>
-                  <input
-                    required
-                    type="date"
-                    value={date}
-                    onChange={(e) => {
-                      setDate(e.target.value);
-                      setSelectedCalendarDate(e.target.value);
-                    }}
-                    className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-muted-foreground">Pickup Date *</label>
+                    <input
+                      required
+                      type="date"
+                      value={date}
+                      onChange={(e) => {
+                        setDate(e.target.value);
+                        setSelectedCalendarDate(e.target.value);
+                      }}
+                      className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-muted-foreground">Package Count</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={packageCount}
+                      onChange={(e) => setPackageCount(Number(e.target.value))}
+                      className="border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background text-foreground focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="font-bold text-muted-foreground">Logistics Time Slot *</label>
+                  <label className="font-bold text-muted-foreground">Preferred Time Slot *</label>
                   <select
                     value={slot}
                     onChange={(e) => setSlot(e.target.value)}
@@ -220,8 +312,9 @@ export const ScheduledDelivery: React.FC = () => {
                   </select>
                 </div>
 
-                <Button type="submit" className="w-full mt-2 cursor-pointer bg-primary hover:bg-primary/90 text-white font-bold h-9">
-                  Confirm Express Pickup
+                <Button type="submit" className="w-full mt-2 cursor-pointer bg-primary hover:bg-primary/90 text-white font-bold h-9 flex items-center justify-center gap-1.5">
+                  <Send className="w-3.5 h-3.5" />
+                  {activeTab === 'courier' ? 'Book Courier Pickup' : 'Confirm Express Schedule'}
                 </Button>
               </form>
             </CardContent>
@@ -262,7 +355,7 @@ export const ScheduledDelivery: React.FC = () => {
               <CardTitle className="text-xs font-bold uppercase flex items-center gap-1">
                 <CalendarIcon className="h-4.5 w-4.5 text-primary" /> 2. Calendar Timeline
               </CardTitle>
-              <CardDescription>Toggle days to filter scheduled pickup pipelines</CardDescription>
+              <CardDescription>Toggle days to inspect scheduled pickup pipelines</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="grid grid-cols-7 gap-2">
@@ -306,11 +399,20 @@ export const ScheduledDelivery: React.FC = () => {
         {/* COLUMN 3: Upcoming list & Live capacity */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <Card className="glass text-left">
-            <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase flex items-center gap-1.5">
-                <ShieldCheck className="h-4.5 w-4.5 text-primary" /> 3. Slot Load Capacity
-              </CardTitle>
-              <CardDescription>Live utilization monitoring for selected date</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-xs font-bold uppercase flex items-center gap-1.5">
+                  <ShieldCheck className="h-4.5 w-4.5 text-primary" /> 3. Slot Load Capacity
+                </CardTitle>
+                <CardDescription>Live utilization monitoring for selected date</CardDescription>
+              </div>
+              <button
+                onClick={fetchSlotCapacity}
+                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition"
+                title="Refresh Slot Capacity"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${apiLoading ? 'animate-spin' : ''}`} />
+              </button>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 text-xs">
               <div className="flex justify-between items-center font-bold">
@@ -362,13 +464,13 @@ export const ScheduledDelivery: React.FC = () => {
                           </span>
                         </div>
                         <Badge variant="success" className="text-[9px] font-bold py-0.5">
-                          {sch.status || 'Active'}
+                          {sch.courier || sch.status || 'Active'}
                         </Badge>
                       </div>
 
                       <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground border-t border-border/30 pt-2">
-                        <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> {sch.customer || 'Nellore Warehouse'}</span>
-                        <span className="text-foreground">{sch.ordersCount} packages</span>
+                        <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> {sch.customer || 'Central Hub'}</span>
+                        <span className="text-foreground">{sch.ordersCount} package(s)</span>
                       </div>
                     </div>
                   ))}

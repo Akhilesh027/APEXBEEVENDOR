@@ -13,6 +13,7 @@ import {
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { compressImage, compressImages } from '../services/imageCompressor';
+import { useVendor } from '../context/VendorContext';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://server.apexbee.in';
 
@@ -80,8 +81,8 @@ const MultiSelectOptions = ({ attr, selectedValues, onChange }: any) => {
           key={option}
           onClick={() => toggleValue(option)}
           className={`px-3 py-1.5 rounded-lg text-xs border ${values.includes(option)
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-background text-muted-foreground border-border'
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'bg-background text-muted-foreground border-border'
             }`}
         >
           {option}
@@ -123,6 +124,10 @@ export const ProductManagement: React.FC = () => {
     sellerType: 'vendor',
     isStoreProduct: false,
     isSubscriptionAvailable: false,
+    deliveryScope: 'local',
+    isLocalDelivery: true,
+    isPanIndia: false,
+    minimumOrderQuantity: '1',
   });
 
   const [attributeValues, setAttributeValues] = useState<any>({});
@@ -133,13 +138,92 @@ export const ProductManagement: React.FC = () => {
   const [negotiationMessage, setNegotiationMessage] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const { profile, currentPage, setCurrentPage } = useVendor();
+
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentPage === 'add-product' || currentPage === 'products-add') {
+      setShowForm(true);
+    }
+  }, [currentPage]);
+
+  const handleGenerateAiDetails = async () => {
+    try {
+      setAiLoading(true);
+      setErrorMsg('');
+      const res = await productService.generateAiDetails({
+        name: form.name,
+        categoryId: form.categoryId,
+        categoryName: selectedCategory?.name,
+        subCategoryName: selectedSubCategory?.name
+      });
+      if (res?.success && res.data) {
+        const newTitle = res.data.title || form.name;
+        const newDesc = res.data.description || form.description;
+        const newSku = makeSku(newTitle, selectedCategory?.name);
+        setForm(prev => ({
+          ...prev,
+          name: newTitle,
+          description: newDesc,
+          sku: newSku
+        }));
+        setSuccessMsg('✨ AI Product Title & Description generated successfully!');
+        setTimeout(() => setSuccessMsg(''), 4000);
+      }
+    } catch (err: any) {
+      console.error("AI generation failed:", err);
+      setErrorMsg('Failed to generate AI content. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Auto-select category based on Vendor's business category
+  useEffect(() => {
+    if (categories.length > 0 && profile && !form.categoryId && !editingProduct) {
+      const vendorCatName = (profile.primaryCategory || profile.category || '').trim().toLowerCase();
+      if (vendorCatName) {
+        const matched = categories.find((cat) => {
+          const cName = cat.name.trim().toLowerCase();
+          return cName === vendorCatName || vendorCatName.includes(cName) || cName.includes(vendorCatName);
+        });
+        if (matched) {
+          setForm((prev) => ({ ...prev, categoryId: matched._id }));
+        }
+      }
+    }
+  }, [categories, profile, editingProduct, form.categoryId]);
 
   const selectedCategory = useMemo(
     () => categories.find((cat) => cat._id === form.categoryId),
     [categories, form.categoryId]
   );
 
-  const subCategories = selectedCategory?.children || [];
+  const vendorApprovedSubs = useMemo(() => {
+    if (!profile) return [];
+    const rawList = Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
+      ? profile.approvedSubcategories
+      : Array.isArray(profile.subCategories) && profile.subCategories.length > 0
+        ? profile.subCategories
+        : profile.subCategory
+          ? [profile.subCategory]
+          : [];
+    return rawList.map((s: string) => String(s).trim().toLowerCase()).filter(Boolean);
+  }, [profile]);
+
+  const rawSubCategories = selectedCategory?.children || [];
+
+  const subCategories = useMemo(() => {
+    if (!vendorApprovedSubs.length) return rawSubCategories;
+    const filtered = rawSubCategories.filter((sub: any) => {
+      const sName = String(sub.name || '').trim().toLowerCase();
+      return vendorApprovedSubs.some(approved =>
+        approved === sName || sName.includes(approved) || approved.includes(sName)
+      );
+    });
+    return filtered.length > 0 ? filtered : rawSubCategories;
+  }, [rawSubCategories, vendorApprovedSubs]);
 
   const selectedSubCategory = useMemo(
     () => subCategories.find((cat: any) => cat._id === form.subCategoryId),
@@ -266,6 +350,10 @@ export const ProductManagement: React.FC = () => {
       sellerType: 'vendor',
       isStoreProduct: false,
       isSubscriptionAvailable: false,
+      deliveryScope: 'both',
+      isLocalDelivery: true,
+      isPanIndia: true,
+      minimumOrderQuantity: '1',
     });
 
     setAttributeValues({});
@@ -275,6 +363,9 @@ export const ProductManagement: React.FC = () => {
     setImages([]);
     setEditingProduct(null);
     setShowForm(false);
+    if (currentPage === 'add-product' || currentPage === 'products-add') {
+      setCurrentPage('products');
+    }
   };
 
   const openEdit = (product: any) => {
@@ -295,6 +386,10 @@ export const ProductManagement: React.FC = () => {
       sellerType: product.sellerType || 'vendor',
       isStoreProduct: !!product.isStoreProduct,
       isSubscriptionAvailable: !!product.isSubscriptionAvailable,
+      deliveryScope: product.deliveryScope || (product.isPanIndia ? (product.isLocalDelivery !== false ? 'both' : 'pan_india') : 'local'),
+      isLocalDelivery: product.isLocalDelivery !== undefined ? !!product.isLocalDelivery : (product.deliveryScope === 'local' || product.deliveryScope === 'both' || !product.deliveryScope),
+      isPanIndia: product.isPanIndia !== undefined ? !!product.isPanIndia : (product.deliveryScope === 'pan_india' || product.deliveryScope === 'both'),
+      minimumOrderQuantity: String(product.minimumOrderQuantity ?? product.moq ?? product.wholesaleRules?.minOrderQty ?? 1),
     });
 
     setAttributeValues(product.attributes || {});
@@ -304,24 +399,41 @@ export const ProductManagement: React.FC = () => {
   };
 
   const generateVariants = () => {
-    const variantInputs = variantAttributes
-      .map((attr: any) => ({
-        name: attr.name,
-        values: Array.isArray(attributeValues[attr.name])
-          ? attributeValues[attr.name]
-          : attributeValues[attr.name]
-            ? [attributeValues[attr.name]]
-            : [],
-      }))
-      .filter((item: any) => item.values.length > 0);
+    const activeKeys = Object.keys(attributeValues).filter(
+      k => attributeValues[k] && (Array.isArray(attributeValues[k]) ? attributeValues[k].length > 0 : String(attributeValues[k]).trim() !== '')
+    );
+
+    const variantInputs = activeKeys.map((key) => ({
+      name: key,
+      values: Array.isArray(attributeValues[key])
+        ? attributeValues[key]
+        : [attributeValues[key]],
+    })).filter((item: any) => item.values.length > 0);
+
+    if (variantInputs.length === 0) {
+      const baseSku = form.sku || makeSku(form.name, selectedCategory?.name);
+      const defaultVariant = {
+        sku: `${baseSku}-V1`,
+        attributes: { Size: 'Standard' },
+        mrp: Number(form.baseMrp || 0),
+        discountPercent: Number(form.discountPercent || 0),
+        sellingPrice: Number(form.baseSellingPrice || 0),
+        stock: Number(form.stock || 0),
+        images: [],
+        isActive: true,
+      };
+      setVariants([defaultVariant]);
+      return;
+    }
 
     const combos = getCombinations(variantInputs);
+    const baseSku = form.sku || makeSku(form.name, selectedCategory?.name);
 
-    const generated = combos.map((combo: any) => ({
-      sku: `${form.sku}-${Object.values(combo)
+    const generated = combos.map((combo: any, idx: number) => ({
+      sku: `${baseSku}-${Object.values(combo)
         .join('-')
         .replace(/[^a-zA-Z0-9]/g, '')
-        .toUpperCase()}`,
+        .toUpperCase() || `V${idx + 1}`}`,
       attributes: combo,
       mrp: Number(form.baseMrp || 0),
       discountPercent: Number(form.discountPercent || 0),
@@ -332,6 +444,25 @@ export const ProductManagement: React.FC = () => {
     }));
 
     setVariants(generated);
+  };
+
+  const addManualVariant = () => {
+    const baseSku = form.sku || makeSku(form.name || 'ITEM', selectedCategory?.name);
+    const newVariant = {
+      sku: `${baseSku}-V${variants.length + 1}`,
+      attributes: { Option: `Variant ${variants.length + 1}` },
+      mrp: Number(form.baseMrp || 0),
+      discountPercent: Number(form.discountPercent || 0),
+      sellingPrice: Number(form.baseSellingPrice || 0),
+      stock: Number(form.stock || 0),
+      images: [],
+      isActive: true,
+    };
+    setVariants(prev => [...prev, newVariant]);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateVariant = (index: number, key: string, value: any) => {
@@ -379,6 +510,12 @@ export const ProductManagement: React.FC = () => {
       fd.append('sellerId', user.id || user._id);
       fd.append('isStoreProduct', String(form.isStoreProduct));
       fd.append('isSubscriptionAvailable', String(form.isSubscriptionAvailable));
+      const calculatedScope = form.isLocalDelivery && form.isPanIndia ? 'both' : form.isPanIndia ? 'pan_india' : 'local';
+      fd.append('deliveryScope', calculatedScope);
+      fd.append('isLocalDelivery', String(form.isLocalDelivery));
+      fd.append('isPanIndia', String(form.isPanIndia));
+      fd.append('minimumOrderQuantity', String(Number(form.minimumOrderQuantity) || 1));
+      fd.append('moq', String(Number(form.minimumOrderQuantity) || 1));
       fd.append('attributes', JSON.stringify(attributeValues));
       fd.append('variants', JSON.stringify(variants));
 
@@ -556,8 +693,8 @@ export const ProductManagement: React.FC = () => {
               key={item}
               onClick={() => setFilter(item)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${filter === item
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-muted-foreground'
                 }`}
             >
               {item}
@@ -664,9 +801,11 @@ export const ProductManagement: React.FC = () => {
                   <td className="p-3">
                     <span
                       className={`px-2 py-1 rounded-lg text-[10px] font-bold ${product.status === 'Live'
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : product.status === 'Rejected'
-                            ? 'bg-rose-500/10 text-rose-500'
+                        ? 'bg-emerald-500/10 text-emerald-500'
+                        : product.status === 'Rejected'
+                          ? 'bg-rose-500/10 text-rose-500'
+                          : product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval'
+                            ? 'bg-purple-500/10 text-purple-600'
                             : product.status === 'Awaiting Seller Approval'
                               ? 'bg-indigo-500/10 text-indigo-500'
                               : 'bg-amber-500/10 text-amber-500'
@@ -847,11 +986,23 @@ export const ProductManagement: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Product Name
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-semibold text-muted-foreground">
+                          Product Name
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleGenerateAiDetails}
+                          disabled={aiLoading}
+                          className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 transition-colors cursor-pointer"
+                        >
+                          <Wand2 className={`h-3 w-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                          {aiLoading ? 'AI Generating...' : '✨ AI Enhance Title'}
+                        </button>
+                      </div>
                       <input
                         value={form.name}
+                        placeholder="e.g. Organic Sunflower Oil 1L"
                         onChange={(e) =>
                           setForm({ ...form, name: e.target.value, sku: '' })
                         }
@@ -910,8 +1061,9 @@ export const ProductManagement: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Category
+                      <label className="block mb-1 font-semibold text-muted-foreground flex items-center justify-between">
+                        <span>Category</span>
+                        <span className="text-[10px] text-amber-600 font-normal">🔒 Assigned Business Category</span>
                       </label>
                       <select
                         value={form.categoryId}
@@ -923,7 +1075,8 @@ export const ProductManagement: React.FC = () => {
                             childCategoryId: '',
                           })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        disabled={Boolean(profile?.primaryCategory || profile?.category)}
+                        className={`w-full p-3 rounded-xl border ${Boolean(profile?.primaryCategory || profile?.category) ? 'bg-muted/50 cursor-not-allowed font-semibold text-foreground' : 'bg-background'}`}
                         required
                       >
                         <option value="">Select Category</option>
@@ -1127,7 +1280,30 @@ export const ProductManagement: React.FC = () => {
                           setForm({ ...form, stock: e.target.value })
                         }
                         className="w-full p-3 rounded-xl border bg-background"
+                        min="0"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-semibold text-muted-foreground flex items-center gap-1">
+                        Min. Order Qty (MOQ)
+                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded font-bold">BULK</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={form.minimumOrderQuantity}
+                        min="1"
+                        onChange={(e) =>
+                          setForm({ ...form, minimumOrderQuantity: e.target.value })
+                        }
+                        className="w-full p-3 rounded-xl border bg-background"
+                        placeholder="e.g. 5 (leave 1 for regular products)"
+                      />
+                      {Number(form.minimumOrderQuantity) > 1 && (
+                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1 font-medium">
+                          ⚠️ Bulk product — customers must buy at least {form.minimumOrderQuantity} units at a time.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1170,114 +1346,215 @@ export const ProductManagement: React.FC = () => {
                       </div>
                     </label>
                   </div>
+
+                  <div className="pt-3 border-t border-primary/20">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-slate-800">🚚 Shipping &amp; Delivery Reach</label>
+                      <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">✨ You can select both</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition ${form.isLocalDelivery ? 'border-indigo-600 bg-indigo-50/70' : 'border-border bg-background'}`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isLocalDelivery}
+                          onChange={(e) => {
+                            const nextLocal = e.target.checked;
+                            if (!nextLocal && !form.isPanIndia) return;
+                            const nextScope = nextLocal && form.isPanIndia ? 'both' : nextLocal ? 'local' : 'pan_india';
+                            setForm({ ...form, isLocalDelivery: nextLocal, deliveryScope: nextScope });
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div>
+                          <span className="text-xs block font-bold text-slate-800">📍 Local Quick Delivery</span>
+                          <span className="text-[10px] text-muted-foreground">Deliverable in 15-30 mins to customers in your local mandal/district territory</span>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition ${form.isPanIndia ? 'border-emerald-600 bg-emerald-50/70' : 'border-border bg-background'}`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isPanIndia}
+                          onChange={(e) => {
+                            const nextPan = e.target.checked;
+                            if (!nextPan && !form.isLocalDelivery) return;
+                            const nextScope = form.isLocalDelivery && nextPan ? 'both' : nextPan ? 'pan_india' : 'local';
+                            setForm({ ...form, isPanIndia: nextPan, deliveryScope: nextScope });
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <div>
+                          <span className="text-xs block font-bold text-slate-800">🌐 Pan India Shipping</span>
+                          <span className="text-[10px] text-muted-foreground">Deliverable &amp; orderable by customers anywhere across India via courier</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
-                {variantAttributes.length > 0 && (
-                  <div className="rounded-2xl border border-border p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-xs font-bold uppercase">5. Auto Variants</h3>
+                <div className="rounded-2xl border border-border p-4 space-y-3 bg-card shadow-sm">
+                  <div className="flex flex-wrap justify-between items-center gap-2 border-b border-border pb-3">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <span>📦 Product Variants &amp; Stock Matrix</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold">
+                          {variants.length} Variant{variants.length !== 1 ? 's' : ''} Configured
+                        </span>
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Create size/color/weight variants with custom SKU prices or auto-generate from selected attributes.
+                      </p>
+                    </div>
 
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={generateVariants}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold"
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
                       >
-                        Generate Variants
+                        <Wand2 size={13} /> Auto-Generate
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={addManualVariant}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                      >
+                        <Plus size={13} /> Add Custom Variant
                       </button>
                     </div>
-
-                    {variants.length > 0 && (
-                      <div className="border rounded-xl overflow-hidden">
-                        <table className="w-full text-xs">
-                          <thead className="bg-secondary">
-                            <tr>
-                              <th className="p-2 text-left">SKU</th>
-                              <th className="p-2 text-left">Attributes</th>
-                              <th className="p-2">MRP</th>
-                              <th className="p-2">Discount %</th>
-                              <th className="p-2">Selling</th>
-                              <th className="p-2">Stock</th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-                            {variants.map((variant, index) => (
-                              <tr key={variant.sku} className="border-t">
-                                <td className="p-2 font-mono">{variant.sku}</td>
-
-                                <td className="p-2">
-                                  {Object.entries(variant.attributes)
-                                    .map(([k, v]) => `${k}: ${v}`)
-                                    .join(', ')}
-                                </td>
-
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    value={variant.mrp}
-                                    onChange={(e) =>
-                                      updateVariant(index, 'mrp', e.target.value)
-                                    }
-                                    className="w-24 p-1 border rounded text-center bg-background"
-                                  />
-                                </td>
-
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    value={variant.discountPercent || 0}
-                                    onChange={(e) =>
-                                      updateVariant(index, 'discountPercent', e.target.value)
-                                    }
-                                    className="w-20 p-1 border rounded text-center bg-background"
-                                  />
-                                </td>
-
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    value={variant.sellingPrice}
-                                    onChange={(e) =>
-                                      updateVariant(
-                                        index,
-                                        'sellingPrice',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-24 p-1 border rounded text-center bg-background"
-                                  />
-                                </td>
-
-                                <td className="p-2 text-center">
-                                  <input
-                                    type="number"
-                                    value={variant.stock}
-                                    onChange={(e) =>
-                                      updateVariant(index, 'stock', e.target.value)
-                                    }
-                                    className="w-20 p-1 border rounded text-center bg-background"
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
                   </div>
-                )}
+
+                  {variants.length > 0 ? (
+                    <div className="border rounded-xl overflow-hidden bg-background">
+                      <table className="w-full text-xs">
+                        <thead className="bg-secondary/70 border-b border-border">
+                          <tr>
+                            <th className="p-2.5 text-left font-bold">SKU</th>
+                            <th className="p-2.5 text-left font-bold">Attributes / Specs</th>
+                            <th className="p-2.5 text-center font-bold">MRP (₹)</th>
+                            <th className="p-2.5 text-center font-bold">Discount %</th>
+                            <th className="p-2.5 text-center font-bold">Selling Price (₹)</th>
+                            <th className="p-2.5 text-center font-bold">Stock</th>
+                            <th className="p-2.5 text-center font-bold">Action</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {variants.map((variant, index) => (
+                            <tr key={index} className="border-t border-border hover:bg-secondary/20 transition">
+                              <td className="p-2.5">
+                                <input
+                                  type="text"
+                                  value={variant.sku}
+                                  onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                                  className="w-full p-1 border rounded text-xs font-mono bg-background"
+                                />
+                              </td>
+
+                              <td className="p-2.5">
+                                <span className="font-semibold text-slate-700 block">
+                                  {Object.entries(variant.attributes || {})
+                                    .map(([k, v]) => `${k}: ${v}`)
+                                    .join(', ') || 'Standard Variant'}
+                                </span>
+                              </td>
+
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={variant.mrp}
+                                  onChange={(e) =>
+                                    updateVariant(index, 'mrp', e.target.value)
+                                  }
+                                  className="w-20 p-1 border rounded text-center bg-background font-bold"
+                                />
+                              </td>
+
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={variant.discountPercent || 0}
+                                  onChange={(e) =>
+                                    updateVariant(index, 'discountPercent', e.target.value)
+                                  }
+                                  className="w-16 p-1 border rounded text-center bg-background text-emerald-600 font-bold"
+                                />
+                              </td>
+
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={variant.sellingPrice}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      index,
+                                      'sellingPrice',
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-20 p-1 border rounded text-center bg-background font-bold text-indigo-700"
+                                />
+                              </td>
+
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={variant.stock}
+                                  onChange={(e) =>
+                                    updateVariant(index, 'stock', e.target.value)
+                                  }
+                                  className="w-16 p-1 border rounded text-center bg-background font-bold"
+                                />
+                              </td>
+
+                              <td className="p-2.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => removeVariant(index)}
+                                  className="p-1 rounded text-red-500 hover:bg-red-50 transition"
+                                  title="Delete Variant"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 border-2 border-dashed rounded-xl bg-secondary/10">
+                      <Package size={24} className="mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground font-medium">No variants created yet.</p>
+                      <p className="text-[10px] text-muted-foreground">Click "Auto-Generate" or "Add Custom Variant" above to add size/weight/color options.</p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase">6. Media & Description</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase">6. Media &amp; Description</h3>
+                    <button
+                      type="button"
+                      onClick={handleGenerateAiDetails}
+                      disabled={aiLoading}
+                      className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg border border-indigo-200 shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Wand2 className={`h-3.5 w-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
+                      {aiLoading ? 'Generating AI Details...' : '✨ Auto-Generate with AI'}
+                    </button>
+                  </div>
 
                   <textarea
-                    placeholder="Description"
+                    placeholder="Product Description (Click 'Auto-Generate with AI' to build a rich SEO description automatically)"
                     value={form.description}
                     onChange={(e) =>
                       setForm({ ...form, description: e.target.value })
                     }
                     className="w-full p-3 rounded-xl border bg-background"
-                    rows={3}
+                    rows={4}
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1422,7 +1699,7 @@ export const ProductManagement: React.FC = () => {
                     <div className="p-2 rounded-xl bg-emerald-500/10">
                       <p className="text-muted-foreground">Seller Gets</p>
                       <b className="text-emerald-600">
-                        ₹{selectedProduct.adminPricing?.finalSellerAmount || 0}
+                        ₹{Number(selectedProduct.adminPricing?.finalSellerAmount || 0).toFixed(2)}
                       </b>
                     </div>
 
@@ -1456,7 +1733,7 @@ export const ProductManagement: React.FC = () => {
 
                 <p>Seller Amount</p>
                 <b className="text-emerald-500">
-                  ₹{selectedProduct.adminPricing?.finalSellerAmount}
+                  ₹{Number(selectedProduct.adminPricing?.finalSellerAmount || 0).toFixed(2)}
                 </b>
 
                 <p>Customer Selling Amount</p>

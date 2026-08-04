@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useVendor } from "../context/VendorContext";
+import { useSubscription } from "../features/subscription/hooks/useSubscription";
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ import {
   Calendar,
   Zap,
   Truck,
+  Sparkles,
 } from "lucide-react";
 import {
   AreaChart,
@@ -60,6 +62,10 @@ const formatCurrency = (amount?: number) =>
 
 export const Dashboard: React.FC = () => {
   const { stats, profile, notifications, setCurrentPage, orders, products } = useVendor();
+  const { summary } = useSubscription();
+  const activePlanName = summary?.planName || '15-Day Free Trial';
+  const activePlanStatus = summary?.status || 'TRIAL';
+  const daysRemaining = summary?.daysRemaining ?? summary?.trialDaysRemaining ?? ((summary?.status as any) === 'TRIAL' || (summary?.status as any) === 'TRIALING' ? 14 : 30);
 
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -192,12 +198,12 @@ export const Dashboard: React.FC = () => {
   const transitOrdersCount = orders.filter(o => normalizeStatus(o.deliveryStatus) === 'Shipped').length;
   const completedOrdersCount = orders.filter(o => normalizeStatus(o.deliveryStatus) === 'Delivered').length;
 
-  // Top Selling Products
+  // Top Selling Products (Real Data Only)
   const [topSellingTimeframe, setTopSellingTimeframe] = useState<'today' | 'week' | 'month'>('week');
   const topSellingProducts = useMemo(() => {
     const itemMap: Record<string, { name: string; qty: number; revenue: number; category: string }> = {};
     orders.forEach(o => {
-      o.items.forEach(item => {
+      (o.items || []).forEach(item => {
         const name = (item as any).name || item.productName || 'Unnamed Product';
         if (!itemMap[name]) {
           itemMap[name] = { name, qty: 0, revenue: 0, category: (item as any).category || 'General' };
@@ -206,59 +212,48 @@ export const Dashboard: React.FC = () => {
         itemMap[name].revenue += item.price * item.quantity;
       });
     });
-    // Add default products if orders have no items
-    if (Object.keys(itemMap).length === 0 && products) {
-      products.slice(0, 5).forEach((p, idx) => {
-        itemMap[p.name] = {
-          name: p.name,
-          qty: 24 - idx * 4,
-          revenue: (24 - idx * 4) * p.price,
-          category: p.category || 'General'
-        };
-      });
-    }
     return Object.values(itemMap).sort((a, b) => b.qty - a.qty).slice(0, 5);
-  }, [orders, products]);
-
-  // Payment Breakdown
-  const paymentSummary = useMemo(() => {
-    let cash = 0, online = 0, wallet = 0, cod = 0, upi = 0;
-    orders.forEach((o, index) => {
-      const amt = o.totalAmount;
-      const mod = index % 5;
-      if (mod === 0) cash += amt;
-      else if (mod === 1) online += amt;
-      else if (mod === 2) wallet += amt;
-      else if (mod === 3) cod += amt;
-      else upi += amt;
-    });
-    if (cash === 0 && online === 0) {
-      cash = 12450; online = 48500; wallet = 8300; cod = 15300; upi = 34500;
-    }
-    return { cash, online, wallet, cod, upi };
   }, [orders]);
 
-  // Best Customers List
+  // Payment Breakdown (Real Data Only)
+  const paymentSummary = useMemo(() => {
+    let cash = 0, online = 0, wallet = 0, cod = 0, upi = 0;
+    orders.forEach((o) => {
+      const amt = o.totalAmount || 0;
+      const method = (o.paymentMethod || '').toLowerCase();
+      if (method.includes('cod') || method.includes('cash_on_delivery')) cod += amt;
+      else if (method.includes('upi')) upi += amt;
+      else if (method.includes('wallet')) wallet += amt;
+      else if (method.includes('cash')) cash += amt;
+      else online += amt;
+    });
+    const total = cash + online + wallet + cod + upi || 1;
+    return {
+      cash, online, wallet, cod, upi,
+      cashPct: Math.round((cash / total) * 100),
+      onlinePct: Math.round((online / total) * 100),
+      walletPct: Math.round((wallet / total) * 100),
+      codPct: Math.round((cod / total) * 100),
+      upiPct: Math.round((upi / total) * 100),
+    };
+  }, [orders]);
+
+  // Best Customers List (Real Data Only)
   const bestCustomers = useMemo(() => {
     const custMap: Record<string, { name: string; orders: number; spend: number }> = {};
     orders.forEach(o => {
-      const name = o.customerName;
+      const name = o.customerName || 'Customer';
       if (!custMap[name]) {
         custMap[name] = { name, orders: 0, spend: 0 };
       }
       custMap[name].orders += 1;
       custMap[name].spend += o.totalAmount;
     });
-    if (Object.keys(custMap).length === 0) {
-      return [
-        { name: 'Kalyan Fabrics', orders: 12, spend: 45200 },
-        { name: 'Surat Textiles Hub', orders: 8, spend: 31200 },
-        { name: 'Surya Apparels', orders: 9, spend: 18400 },
-        { name: 'Nellore Wholesalers', orders: 5, spend: 12500 }
-      ];
-    }
     return Object.values(custMap).sort((a, b) => b.spend - a.spend).slice(0, 5);
   }, [orders]);
+
+  // Dynamic Location Context
+  const locationLabel = profile.district && profile.state ? `${profile.district}, ${profile.state}` : (profile.state || 'Location Active');
 
   // Yesterday Comparison Deltas
   const getYesterdayDelta = (title: string) => {
@@ -271,8 +266,8 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Nice to have widgets lists
-  const simulatedWeather = { temp: '32°C', label: 'Partly Sunny', location: 'Nellore, AP' };
+  // Weather & Holiday Context
+  const simulatedWeather = { temp: '32°C', label: 'Partly Sunny', location: locationLabel };
   const upcomingHolidays = [
     { title: 'Independence Day', date: '15 Aug 2026' },
     { title: 'Raksha Bandhan', date: '28 Aug 2026' }
@@ -386,16 +381,26 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
-      <div className="bg-gradient-to-r from-primary to-purple-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-primary via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative z-10">
-          <div className="flex items-center gap-2">
-            <span className="bg-white/25 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-white/25 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide">
               {profile.businessType}
             </span>
+            <button
+              onClick={() => setCurrentPage('subscription')}
+              className="bg-emerald-500 text-white hover:bg-emerald-600 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>{activePlanName}</span>
+              <span className="bg-white/30 px-1.5 py-0.2 rounded text-[8px]">
+                {activePlanStatus}
+              </span>
+            </button>
             <span className="text-white/80 text-xs">ID: {profile.id}</span>
           </div>
 
-          <h1 className="text-xl md:text-2xl font-extrabold mt-1">
+          <h1 className="text-xl md:text-2xl font-extrabold mt-2">
             Welcome back, {profile.ownerName}!
           </h1>
 
@@ -406,15 +411,68 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10">
-          <span className="text-[10px] text-white/70 uppercase font-bold">
-            Wallet Balance
-          </span>
-          <p className="text-xl font-extrabold">
-            {formatCurrency(stats.walletBalance)}
-          </p>
+        <div className="flex items-center gap-3">
+          {/* Active Subscription Pill */}
+          <div
+            onClick={() => setCurrentPage('subscription')}
+            className="bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 cursor-pointer transition-all flex flex-col justify-center text-left"
+          >
+            <span className="text-[10px] text-white/80 uppercase font-extrabold flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-emerald-300" /> Active Subscription
+            </span>
+            <p className="text-sm font-extrabold text-white truncate max-w-[140px]">
+              {activePlanName}
+            </p>
+            <span className="text-[9px] text-emerald-200 font-bold">
+              {daysRemaining} Days Remaining
+            </span>
+          </div>
+
+          {/* Wallet Balance */}
+          <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 text-left">
+            <span className="text-[10px] text-white/70 uppercase font-bold">
+              Wallet Balance
+            </span>
+            <p className="text-xl font-extrabold">
+              {formatCurrency(stats.walletBalance)}
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Active Subscription Overview Card */}
+      <Card className="border border-emerald-500/30 bg-emerald-500/[0.04] shadow-sm">
+        <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-left">
+          <div className="flex items-center gap-3.5">
+            <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shrink-0">
+              <Sparkles className="h-5 w-5 animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold text-foreground">{activePlanName}</span>
+                <span className="text-[9px] px-2 py-0.5 rounded font-black uppercase bg-emerald-600 text-white">
+                  {activePlanStatus}
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground mt-0.5">
+                {activePlanStatus === 'TRIAL'
+                  ? `15-Day Free Trial Active • ${daysRemaining} days remaining in trial period`
+                  : `Commercial Subscription Active • ${daysRemaining} days remaining`}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setCurrentPage('subscription')}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Manage / Upgrade Plan</span>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* AI CEO Dashboard Card */}
       <Card className="border border-primary/20 bg-primary/[0.02] shadow-sm">
@@ -494,7 +552,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setCurrentPage('products')}
+              onClick={() => setCurrentPage('add-product')}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition shadow-sm"
             >
               ➕ Add Product
@@ -838,26 +896,30 @@ export const Dashboard: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="border-b border-border/60 text-muted-foreground font-bold bg-secondary/20">
-                    <th className="py-2 px-3">Product Name</th>
-                    <th className="py-2 px-2 text-center">Qty</th>
-                    <th className="py-2 px-3 text-right">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topSellingProducts.map((p: any, idx: number) => (
-                    <tr key={idx} className="border-b border-border/30 hover:bg-muted/10">
-                      <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[140px]" title={p.name}>{p.name}</td>
-                      <td className="py-2 px-2 text-center font-extrabold text-muted-foreground">{p.qty}</td>
-                      <td className="py-2 px-3 text-right text-primary font-black">{formatCurrency(p.revenue)}</td>
+            {topSellingProducts.length === 0 ? (
+              <EmptyState text="No top selling products recorded yet" />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="border-b border-border/60 text-muted-foreground font-bold bg-secondary/20">
+                      <th className="py-2 px-3">Product Name</th>
+                      <th className="py-2 px-2 text-center">Qty</th>
+                      <th className="py-2 px-3 text-right">Revenue</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {topSellingProducts.map((p: any, idx: number) => (
+                      <tr key={idx} className="border-b border-border/30 hover:bg-muted/10">
+                        <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[140px]" title={p.name}>{p.name}</td>
+                        <td className="py-2 px-2 text-center font-extrabold text-muted-foreground">{p.qty}</td>
+                        <td className="py-2 px-3 text-right text-primary font-black">{formatCurrency(p.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -872,11 +934,11 @@ export const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             {[
-              { label: 'UPI Payments', val: paymentSummary.upi, pct: 40, color: 'bg-primary' },
-              { label: 'Net Banking / Cards', val: paymentSummary.online, pct: 30, color: 'bg-indigo-500' },
-              { label: 'Cash On Delivery (COD)', val: paymentSummary.cod, pct: 15, color: 'bg-amber-500' },
-              { label: 'ApexBee Wallet', val: paymentSummary.wallet, pct: 10, color: 'bg-purple-500' },
-              { label: 'Physical Cash Ledger', val: paymentSummary.cash, pct: 5, color: 'bg-emerald-500' },
+              { label: 'UPI Payments', val: paymentSummary.upi, pct: paymentSummary.upiPct, color: 'bg-primary' },
+              { label: 'Net Banking / Cards', val: paymentSummary.online, pct: paymentSummary.onlinePct, color: 'bg-indigo-500' },
+              { label: 'Cash On Delivery (COD)', val: paymentSummary.cod, pct: paymentSummary.codPct, color: 'bg-amber-500' },
+              { label: 'ApexBee Wallet', val: paymentSummary.wallet, pct: paymentSummary.walletPct, color: 'bg-purple-500' },
+              { label: 'Physical Cash Ledger', val: paymentSummary.cash, pct: paymentSummary.cashPct, color: 'bg-emerald-500' },
             ].map((p, idx) => (
               <div key={idx} className="flex flex-col gap-1 text-xs">
                 <div className="flex justify-between items-center font-bold">
@@ -901,26 +963,30 @@ export const Dashboard: React.FC = () => {
             <CardDescription>Top business accounts by order spend</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="border-b border-border/60 text-muted-foreground font-bold bg-secondary/20">
-                    <th className="py-2 px-3">Customer Name</th>
-                    <th className="py-2 px-2 text-center">Orders</th>
-                    <th className="py-2 px-3 text-right">Total Spent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bestCustomers.map((c: any, idx: number) => (
-                    <tr key={idx} className="border-b border-border/30 hover:bg-muted/10">
-                      <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[140px]">{c.name}</td>
-                      <td className="py-2 px-2 text-center font-extrabold text-muted-foreground">{c.orders} runs</td>
-                      <td className="py-2 px-3 text-right text-emerald-600 font-bold">{formatCurrency(c.spend)}</td>
+            {bestCustomers.length === 0 ? (
+              <EmptyState text="No customer orders recorded yet" />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="border-b border-border/60 text-muted-foreground font-bold bg-secondary/20">
+                      <th className="py-2 px-3">Customer Name</th>
+                      <th className="py-2 px-2 text-center">Orders</th>
+                      <th className="py-2 px-3 text-right">Total Spent</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {bestCustomers.map((c: any, idx: number) => (
+                      <tr key={idx} className="border-b border-border/30 hover:bg-muted/10">
+                        <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[140px]">{c.name}</td>
+                        <td className="py-2 px-2 text-center font-extrabold text-muted-foreground">{c.orders} runs</td>
+                        <td className="py-2 px-3 text-right text-emerald-600 font-bold">{formatCurrency(c.spend)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

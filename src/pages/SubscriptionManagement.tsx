@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useSubscription } from '../features/subscription/hooks/useSubscription';
-import { ScenarioSwitcher } from '../features/subscription/components/ScenarioSwitcher';
 import { SubscriptionDashboard } from '../features/subscription/pages/SubscriptionDashboard';
 import { AvailablePlans } from '../features/subscription/pages/AvailablePlans';
 import { AddonServices } from '../features/subscription/pages/AddonServices';
@@ -14,9 +13,9 @@ import { InvoiceHistory } from '../features/subscription/pages/InvoiceHistory';
 import { RenewalCenter } from '../features/subscription/pages/RenewalCenter';
 import { UpgradeModal } from '../features/subscription/components/UpgradeModal';
 import { DowngradeModal } from '../features/subscription/components/DowngradeModal';
+import { SubscriptionLoadingSkeleton } from '../features/subscription/components/SubscriptionLoadingSkeleton';
 import type { SubscriptionPlan, SubscriptionAddon } from '../features/subscription/types/subscription.types';
 import {
-  Crown,
   LayoutDashboard,
   Sparkles,
   Layers,
@@ -28,8 +27,6 @@ import {
 
 export const SubscriptionManagement: React.FC = () => {
   const {
-    scenario,
-    changeScenario,
     summary,
     plans,
     addons,
@@ -44,12 +41,14 @@ export const SubscriptionManagement: React.FC = () => {
     couponMessage,
     startCheckout,
     applyCoupon,
+    completeCheckoutPayment,
     upgradeModalOpen,
     setUpgradeModalOpen,
     downgradeModalOpen,
     setDowngradeModalOpen,
     targetPlan,
-    setTargetPlan
+    setTargetPlan,
+    refetch
   } = useSubscription();
 
   const [activeTab, setActiveTab] = useState<
@@ -63,8 +62,8 @@ export const SubscriptionManagement: React.FC = () => {
     paymentMethod: string;
     outcome: 'SUCCESS' | 'FAILED' | 'PENDING';
   }>({
-    productTitle: 'POS Premium Subscription',
-    amount: 7999,
+    productTitle: 'Subscription Plan',
+    amount: 999,
     paymentMethod: 'UPI',
     outcome: 'SUCCESS'
   });
@@ -81,25 +80,18 @@ export const SubscriptionManagement: React.FC = () => {
     setActiveTab('checkout');
   };
 
-  const handleProceedPayment = (method: string, outcome: 'SUCCESS' | 'FAILED' | 'PENDING') => {
-    setProcessingDetails({
-      productTitle: checkoutQuote?.productName || 'Subscription Product',
-      amount: checkoutQuote?.finalPayableAmount || 7999,
-      paymentMethod: method,
-      outcome
-    });
-    setActiveTab('processing');
-  };
-
-  const handleProcessingComplete = (outcome: 'SUCCESS' | 'FAILED' | 'PENDING') => {
+  const handleProceedPayment = async (method: string, outcome: 'SUCCESS' | 'FAILED' | 'PENDING') => {
     if (outcome === 'SUCCESS') {
-      changeScenario('active');
-      setActiveTab('success');
+      const res = await completeCheckoutPayment(method);
+      if (res && res.success) {
+        await refetch();
+        setActiveTab('success');
+      } else {
+        setActiveTab('failed');
+      }
     } else if (outcome === 'FAILED') {
-      changeScenario('failed');
       setActiveTab('failed');
     } else if (outcome === 'PENDING') {
-      changeScenario('pending');
       setActiveTab('pending');
     }
   };
@@ -111,8 +103,10 @@ export const SubscriptionManagement: React.FC = () => {
 
   const handleUpgradeClick = () => {
     const higherPlan = plans.find((p) => p.tier === 3) || plans[2];
-    setTargetPlan(higherPlan);
-    setUpgradeModalOpen(true);
+    if (higherPlan) {
+      setTargetPlan(higherPlan);
+      setUpgradeModalOpen(true);
+    }
   };
 
   const handleConfirmUpgrade = (plan: SubscriptionPlan) => {
@@ -126,14 +120,15 @@ export const SubscriptionManagement: React.FC = () => {
     setActiveTab('overview');
   };
 
+  const handleProcessingComplete = (outcome: 'SUCCESS' | 'FAILED' | 'PENDING') => {
+    refetch();
+    if (outcome === 'SUCCESS') setActiveTab('success');
+    else if (outcome === 'FAILED') setActiveTab('failed');
+    else setActiveTab('pending');
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-left">
-      {/* QA Scenario Switcher Bar */}
-      <ScenarioSwitcher
-        currentScenario={scenario}
-        onSelectScenario={(s) => changeScenario(s)}
-      />
-
       {/* Navigation Sub-Tabs Header */}
       {!['checkout', 'processing', 'success', 'failed', 'pending'].includes(activeTab) && (
         <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto whitespace-nowrap text-xs font-bold scrollbar-none">
@@ -202,10 +197,7 @@ export const SubscriptionManagement: React.FC = () => {
 
       {/* Main View Router Switch */}
       {loading ? (
-        <div className="py-20 text-center">
-          <Loader2 className="w-10 h-10 animate-spin mx-auto text-indigo-600" />
-          <p className="text-xs text-slate-500 font-bold mt-2">Loading subscription details...</p>
-        </div>
+        <SubscriptionLoadingSkeleton />
       ) : (
         <>
           {activeTab === 'overview' && (
@@ -240,6 +232,7 @@ export const SubscriptionManagement: React.FC = () => {
             <SubscriptionCheckout
               quote={checkoutQuote}
               productObj={selectedProductObj}
+              summary={summary}
               couponInput={couponInput}
               onCouponInputChange={setCouponInput}
               couponMessage={couponMessage}
@@ -255,12 +248,15 @@ export const SubscriptionManagement: React.FC = () => {
               amount={processingDetails.amount}
               paymentMethod={processingDetails.paymentMethod}
               outcome={processingDetails.outcome}
+              onExecutePayment={() => completeCheckoutPayment(processingDetails.paymentMethod)}
               onComplete={handleProcessingComplete}
             />
           )}
 
           {activeTab === 'success' && (
             <PaymentSuccess
+              summary={summary}
+              checkoutQuote={checkoutQuote}
               onGoToDashboard={() => setActiveTab('overview')}
               onDownloadInvoice={() => setActiveTab('invoices')}
               onViewFeatures={() => setActiveTab('overview')}
@@ -276,7 +272,7 @@ export const SubscriptionManagement: React.FC = () => {
 
           {activeTab === 'pending' && (
             <PaymentPending
-              onCheckStatus={() => changeScenario('active')}
+              onCheckStatus={() => refetch()}
               onReturnToDashboard={() => setActiveTab('overview')}
             />
           )}

@@ -47,10 +47,10 @@ export const SubscriptionSummaryCard: React.FC<SubscriptionSummaryCardProps> = (
         </div>
         <div>
           <h3 className="text-base font-black text-slate-900 dark:text-white">
-            {formatDate(summary.expiryDate)}
+            {formatDate(summary.expiryDate || (summary as any).currentPeriodEnd)}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Start: {formatDate(summary.startDate)}
+            Start: {formatDate(summary.startDate || (summary as any).currentPeriodStart)}
           </p>
         </div>
       </div>

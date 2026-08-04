@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import type { SubscriptionPlan, BillingCycle, SubscriptionSummary } from '../types/subscription.types';
 import { PlanCard } from '../components/PlanCard';
-import { PLAN_COMPARISON_ROWS } from '../mocks/subscription.mock';
-import { Sparkles, Check, HelpCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface AvailablePlansProps {
   plans: SubscriptionPlan[];
@@ -19,15 +18,28 @@ export const AvailablePlans: React.FC<AvailablePlansProps> = ({
 }) => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('YEARLY');
 
-  const currentPlanCode = summary?.planId === 'plan-premium' ? 'PREMIUM' : summary?.planId === 'plan-basic' ? 'BASIC' : 'FREE';
-  const currentPlanObj = plans.find((p) => p.code === currentPlanCode) || plans[1];
+  const currentPlanCode = summary?.planId === 'plan-premium' ? 'PREMIUM' : summary?.planId === 'plan-basic' ? 'BUSINESS' : 'STARTER';
+  const currentPlanObj = plans.find((p) => p.code === currentPlanCode) || plans[0] || null;
+  const currentPlanTier = currentPlanObj ? currentPlanObj.tier || 1 : 1;
+
+  const comparisonRows = [
+    { featureName: 'Branch Outlets', starter: '1 Branch', business: '2 Branches', premium: '5 Outlets' },
+    { featureName: 'Listings / Menu Limit', starter: '50 Listings', business: '500 Listings', premium: 'Unlimited Listings' },
+    { featureName: 'Monthly Orders / Transactions', starter: '100 Orders/mo', business: '3,000 Orders/mo', premium: '20,000 Orders/mo' },
+    { featureName: 'Staff User Accounts', starter: '2 Users', business: '10 Users', premium: '50 Staff Users' },
+    { featureName: 'POS & Kitchen / Slot Engine', starter: 'Basic POS', business: '✓ Kitchen Display & Table Ops', premium: '✓ Omnichannel Multi-Counter POS' },
+    { featureName: 'Business Intelligence & Reports', starter: 'Basic Reports', business: '✓ Standard BI Reports', premium: '✓ Full Advanced AI Reports' },
+    { featureName: 'Customer CRM & Loyalty', starter: '❌ No', business: '✓ Customer CRM', premium: '✓ Full CRM & Loyalty Engine' },
+    { featureName: 'WhatsApp & SMS Credits', starter: '0 Credits', business: '500 Credits/mo', premium: '2,000 Credits/mo' },
+    { featureName: 'Support Level', starter: 'Standard Email', business: 'Priority Chat & Email', premium: '24/7 Dedicated Account Manager' }
+  ];
 
   return (
     <div className="font-sans text-left space-y-8">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto space-y-2">
         <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider border border-indigo-200 dark:border-indigo-800">
-          Flexible Subscription Plans
+          Universal Subscription Tiers
         </span>
         <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
           Choose the Perfect Plan for Your Business
@@ -67,14 +79,14 @@ export const AvailablePlans: React.FC<AvailablePlansProps> = ({
       </div>
 
       {/* Plan Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <PlanCard
             key={plan.id}
             plan={plan}
             billingCycle={billingCycle}
             isCurrentPlan={plan.code === currentPlanCode}
-            currentPlanTier={currentPlanObj.tier}
+            currentPlanTier={currentPlanTier}
             onSelectPlan={(p) => onSelectPlan(p, billingCycle)}
             onDowngradeClick={onDowngradeClick}
           />
@@ -85,10 +97,10 @@ export const AvailablePlans: React.FC<AvailablePlansProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs mt-12">
         <div className="mb-6">
           <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500" /> Complete Plan Feature Comparison
+            <Sparkles className="w-5 h-5 text-amber-500" /> Category-Specific Plan Feature Comparison
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Detailed breakdown of order limits, staff accounts, and marketing quotas across all tiers.
+            Detailed breakdown of order limits, staff accounts, and operational tools across the 3 master tiers.
           </p>
         </div>
 
@@ -97,29 +109,25 @@ export const AvailablePlans: React.FC<AvailablePlansProps> = ({
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-extrabold">
                 <th className="py-3 px-4 w-1/3">Feature Capabilities</th>
-                <th className="py-3 px-3 text-center">Free</th>
-                <th className="py-3 px-3 text-center">Basic</th>
-                <th className="py-3 px-3 text-center text-amber-600 font-black">POS Premium</th>
-                <th className="py-3 px-3 text-center">Enterprise</th>
+                <th className="py-3 px-3 text-center">Starter</th>
+                <th className="py-3 px-3 text-center text-amber-600 font-black">Business (Popular)</th>
+                <th className="py-3 px-3 text-center text-indigo-600 font-black">Premium (Best Value)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {PLAN_COMPARISON_ROWS.map((row, idx) => (
+              {comparisonRows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
                   <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
                     {row.featureName}
                   </td>
-                  <td className="py-3 px-3 text-center font-medium text-slate-500 dark:text-slate-400">
-                    {row.free}
-                  </td>
-                  <td className="py-3 px-3 text-center font-medium text-slate-700 dark:text-slate-300">
-                    {row.basic}
+                  <td className="py-3 px-3 text-center font-medium text-slate-600 dark:text-slate-400">
+                    {row.starter}
                   </td>
                   <td className="py-3 px-3 text-center font-bold text-amber-600 dark:text-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
-                    {row.premium}
+                    {row.business}
                   </td>
                   <td className="py-3 px-3 text-center font-bold text-indigo-600 dark:text-indigo-400">
-                    {row.enterprise}
+                    {row.premium}
                   </td>
                 </tr>
               ))}

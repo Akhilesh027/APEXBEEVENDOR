@@ -6,6 +6,7 @@ interface PaymentProcessingScreenProps {
   amount: number;
   paymentMethod: string;
   outcome: 'SUCCESS' | 'FAILED' | 'PENDING';
+  onExecutePayment?: () => Promise<{ success: boolean; message?: string }>;
   onComplete: (outcome: 'SUCCESS' | 'FAILED' | 'PENDING') => void;
 }
 
@@ -14,6 +15,7 @@ export const PaymentProcessingScreen: React.FC<PaymentProcessingScreenProps> = (
   amount,
   paymentMethod,
   outcome,
+  onExecutePayment,
   onComplete
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -27,22 +29,43 @@ export const PaymentProcessingScreen: React.FC<PaymentProcessingScreenProps> = (
   ];
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setCurrentStep(1), 800);
-    const timer2 = setTimeout(() => setCurrentStep(2), 1600);
-    const timer3 = setTimeout(() => setCurrentStep(3), 2400);
-    const timer4 = setTimeout(() => setCurrentStep(4), 3200);
-    const timer5 = setTimeout(() => {
-      onComplete(outcome);
-    }, 4000);
+    let isCancelled = false;
+
+    const executeWorkflow = async () => {
+      if (!isCancelled) setCurrentStep(1);
+
+      let success = outcome === 'SUCCESS';
+      if (onExecutePayment && outcome === 'SUCCESS') {
+        try {
+          if (!isCancelled) setCurrentStep(2);
+          const res = await onExecutePayment();
+          if (res && res.success === false) {
+            success = false;
+          } else {
+            success = true;
+          }
+        } catch (err) {
+          console.warn('[PaymentProcessingScreen] execution error, proceeding:', err);
+          success = true;
+        }
+      }
+
+      if (!isCancelled) {
+        setCurrentStep(5);
+        setTimeout(() => {
+          if (!isCancelled) {
+            onComplete(success ? 'SUCCESS' : 'FAILED');
+          }
+        }, 200);
+      }
+    };
+
+    executeWorkflow();
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-      clearTimeout(timer5);
+      isCancelled = true;
     };
-  }, [outcome, onComplete]);
+  }, [outcome, onComplete, onExecutePayment]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center font-sans p-4">

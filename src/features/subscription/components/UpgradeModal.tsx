@@ -63,7 +63,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
               Additional Features Unlocked:
             </span>
-            {targetPlan.features.map((feat, idx) => (
+            {(targetPlan.features || []).map((feat, idx) => (
               <div key={idx} className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>{feat}</span>

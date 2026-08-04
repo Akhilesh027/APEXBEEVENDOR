@@ -73,15 +73,15 @@ export const PlanCard: React.FC<PlanCardProps> = ({
         <div className="mb-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs space-y-1">
           <div className="flex justify-between text-slate-600 dark:text-slate-300">
             <span>Orders Limit:</span>
-            <strong className="text-slate-900 dark:text-white">{plan.usageLimits.monthlyOrders}</strong>
+            <strong className="text-slate-900 dark:text-white">{plan.usageLimits?.monthlyOrders || (plan as any).orderLimit || '1,000 Orders'}</strong>
           </div>
           <div className="flex justify-between text-slate-600 dark:text-slate-300">
             <span>Staff Users:</span>
-            <strong className="text-slate-900 dark:text-white">{plan.usageLimits.staffAccounts}</strong>
+            <strong className="text-slate-900 dark:text-white">{plan.usageLimits?.staffAccounts || (plan as any).staffCount || 2}</strong>
           </div>
           <div className="flex justify-between text-slate-600 dark:text-slate-300">
             <span>WhatsApp Credits:</span>
-            <strong className="text-slate-900 dark:text-white">{plan.usageLimits.whatsappCredits}</strong>
+            <strong className="text-slate-900 dark:text-white">{plan.usageLimits?.whatsappCredits || (plan as any).whatsappCredits || '0 Credits'}</strong>
           </div>
         </div>
 
@@ -90,7 +90,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
             Included Features:
           </span>
-          {plan.features.map((feat, idx) => (
+          {(plan.features || []).map((feat, idx) => (
             <div key={idx} className="flex items-start gap-2 text-slate-700 dark:text-slate-300 font-medium">
               <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>{feat}</span>

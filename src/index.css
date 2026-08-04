@@ -164,3 +164,63 @@ body {
 .chart-glow {
   filter: drop-shadow(0px 4px 12px rgba(99, 102, 241, 0.15));
 }
+
+/* Vendor Portal Typography & Font Size Enhancements */
+html {
+  font-size: 15px;
+}
+
+body {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Micro text scaling overrides for maximum readability */
+.text-\[8px\],
+.text-\[9px\] {
+  font-size: 11px !important;
+}
+
+.text-\[10px\] {
+  font-size: 11.5px !important;
+}
+
+.text-\[11px\] {
+  font-size: 12px !important;
+}
+
+.text-xs {
+  font-size: 0.8125rem !important; /* 13px */
+  line-height: 1.35rem !important;
+}
+
+.text-sm {
+  font-size: 0.9375rem !important; /* 15px */
+  line-height: 1.45rem !important;
+}
+
+/* Button & Form Controls readability */
+button,
+input,
+select,
+textarea {
+  font-size: 0.875rem; /* 14px */
+}
+
+/* Sidebar navigation font boost */
+nav button {
+  font-size: 0.875rem !important; /* 14px */
+}
+
+/* Table headers and cell typography */
+table th {
+  font-size: 0.8125rem !important; /* 13px */
+  letter-spacing: 0.03em;
+}
+
+table td {
+  font-size: 0.875rem !important; /* 14px */
+}
+
