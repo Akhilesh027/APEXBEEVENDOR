@@ -248,7 +248,34 @@ export const ProductManagement: React.FC = () => {
     childCategories,
   ]);
 
-  const categoryAttributes = finalSelectedCategory?.attributes || [];
+  const [loadedAttributes, setLoadedAttributes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!finalSelectedCategory?._id) {
+      setLoadedAttributes([]);
+      return;
+    }
+
+    if (finalSelectedCategory.attributes && finalSelectedCategory.attributes.length > 0) {
+      setLoadedAttributes(finalSelectedCategory.attributes);
+      return;
+    }
+
+    let isMounted = true;
+    categoryService.getMergedAttributes(finalSelectedCategory._id)
+      .then((attrs) => {
+        if (isMounted && attrs && attrs.length > 0) {
+          setLoadedAttributes(attrs);
+        }
+      })
+      .catch((err) => console.warn('Failed to load merged attributes:', err));
+
+    return () => { isMounted = false; };
+  }, [finalSelectedCategory?._id]);
+
+  const categoryAttributes = loadedAttributes.length > 0
+    ? loadedAttributes
+    : (finalSelectedCategory?.attributes || []);
 
   const categoryBrands =
     finalSelectedCategory?.brands ||
@@ -1176,23 +1203,25 @@ export const ProductManagement: React.FC = () => {
                             attr.isVariant ? (
                               <MultiSelectOptions
                                 attr={attr}
-                                selectedValues={attributeValues[attr.name]}
+                                selectedValues={attributeValues[attr.key || attr.name] || attributeValues[attr.name]}
                                 onChange={(values: string[]) =>
                                   setAttributeValues({
                                     ...attributeValues,
+                                    [attr.key || attr.name]: values,
                                     [attr.name]: values,
                                   })
                                 }
                               />
                             ) : (
                               <select
-                                value={attributeValues[attr.name] || ''}
-                                onChange={(e) =>
-                                  setAttributeValues({
-                                    ...attributeValues,
-                                    [attr.name]: e.target.value,
-                                  })
-                                }
+                                value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = { ...attributeValues };
+                                  if (attr.key) updated[attr.key] = val;
+                                  if (attr.name) updated[attr.name] = val;
+                                  setAttributeValues(updated);
+                                }}
                                 className="w-full p-3 rounded-xl border bg-background"
                               >
                                 <option value="">Select {attr.name}</option>
@@ -1206,13 +1235,14 @@ export const ProductManagement: React.FC = () => {
                           ) : (
                             <input
                               type={attr.type === 'number' ? 'number' : 'text'}
-                              value={attributeValues[attr.name] || ''}
-                              onChange={(e) =>
-                                setAttributeValues({
-                                  ...attributeValues,
-                                  [attr.name]: e.target.value,
-                                })
-                              }
+                              value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...attributeValues };
+                                if (attr.key) updated[attr.key] = val;
+                                if (attr.name) updated[attr.name] = val;
+                                setAttributeValues(updated);
+                              }}
                               className="w-full p-3 rounded-xl border bg-background"
                               placeholder={`Enter ${attr.name}`}
                             />
