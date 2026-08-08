@@ -856,12 +856,15 @@ export const Orders: React.FC = () => {
                         onChange={(e) => setSelectedAgentId(e.target.value)}
                         options={[
                           { value: '', label: '-- Choose Agent --' },
-                          ...deliveryAgents
-                            .filter((a) => a.type === selectedAgentType)
-                            .map((a) => ({
-                              value: a.id,
-                              label: `${a.name} (${a.status})`,
-                            })),
+                          ...(
+                            (deliveryAgents.filter((a) => a.type === selectedAgentType).length > 0
+                              ? deliveryAgents.filter((a) => a.type === selectedAgentType)
+                              : deliveryAgents
+                            ).map((a) => ({
+                              value: a.id || (a as any)._id,
+                              label: `${a.name} (${a.status || 'Active'}) - ${a.phone}`,
+                            }))
+                          ),
                         ]}
                       />
                     </div>

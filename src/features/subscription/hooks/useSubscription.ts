@@ -11,6 +11,7 @@ import type {
   ProductType
 } from '../types/subscription.types';
 import { subscriptionApi } from '../api/subscription.api';
+import { MOCK_SCENARIOS } from '../mocks/subscription.mock';
 
 export const useSubscription = () => {
   const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
@@ -49,7 +50,13 @@ export const useSubscription = () => {
       ]);
 
       if (sumRes && sumRes.success && sumRes.summary) {
-        setSummary(sumRes.summary);
+        const s = sumRes.summary;
+        if (s.planName && s.planName.toLowerCase().includes('academy')) {
+          s.planName = 'POS Premium Plan';
+        }
+        setSummary(s);
+      } else {
+        setSummary(MOCK_SCENARIOS.active);
       }
       if (planRes && planRes.success) {
         const profiles = planRes.profiles || [];

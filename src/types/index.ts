@@ -131,6 +131,10 @@ export interface OrderTimeline {
 
 export interface Order {
   id: string;
+  _id?: string;
+  orderNumber?: string;
+  orderStatus?: string;
+  deliveredAt?: string;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;

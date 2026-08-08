@@ -338,15 +338,15 @@ export const EarningsCommissions: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.filter(o => o.deliveryStatus === 'Delivered').map(o => (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-mono text-xs font-bold text-foreground">{o.id}</TableCell>
+                  {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').map(o => (
+                    <TableRow key={o._id || o.id}>
+                      <TableCell className="font-mono text-xs font-bold text-foreground">{o.orderNumber || o.id}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Recent'}
+                        {o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('en-IN') : (o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN') : 'Today')}
                       </TableCell>
                       <TableCell className="text-right font-semibold">₹{(o.totalAmount || 0).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right text-destructive font-medium">-₹{Math.round((o.subtotal || o.totalAmount || 0) * 0.1).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{Math.round((o.totalAmount || 0) - ((o.subtotal || o.totalAmount || 0) * 0.1)).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right text-destructive font-medium">-₹{Math.round((o.totalAmount || 0) * 0.1).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{Math.round((o.totalAmount || 0) * 0.9).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
                           <Clock className="h-3.5 w-3.5 animate-spin" />
@@ -355,7 +355,7 @@ export const EarningsCommissions: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {orders.filter(o => o.deliveryStatus === 'Delivered').length === 0 && (
+                  {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
                         No delivered orders pending clearance currently.
