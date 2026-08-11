@@ -83,8 +83,8 @@ const MultiSelectOptions = ({ attr, selectedValues, onChange }: any) => {
             key={option}
             onClick={() => toggleValue(option)}
             className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all cursor-pointer shadow-sm ${isSelected
-                ? 'bg-primary text-primary-foreground border-primary scale-105 shadow-md ring-2 ring-primary/40'
-                : 'bg-card text-foreground border-border hover:border-primary/60 hover:bg-secondary/40'
+              ? 'bg-primary text-primary-foreground border-primary scale-105 shadow-md ring-2 ring-primary/40'
+              : 'bg-card text-foreground border-border hover:border-primary/60 hover:bg-secondary/40'
               }`}
           >
             {isSelected ? '✓ ' : '+ '}{option}
@@ -1145,8 +1145,8 @@ export const ProductManagement: React.FC = () => {
                         }
                         disabled={Boolean(form.categoryId && (profile?.primaryCategory || profile?.category))}
                         className={`w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border ${Boolean(form.categoryId && (profile?.primaryCategory || profile?.category))
-                            ? 'bg-muted/50 text-foreground border-border'
-                            : 'bg-background text-foreground border-border focus:ring-2 focus:ring-primary'
+                          ? 'bg-muted/50 text-foreground border-border'
+                          : 'bg-background text-foreground border-border focus:ring-2 focus:ring-primary'
                           }`}
                         required
                       >
