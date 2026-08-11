@@ -68,6 +68,32 @@ export const DynamicAttributeField: React.FC<DynamicAttributeFieldProps> = ({
         </select>
       )}
 
+      {attribute.type === 'multiselect' && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {(attribute.options || []).map((opt) => {
+            const isSelected = Array.isArray(value) ? value.includes(opt) : value === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  const current = Array.isArray(value) ? value : (value ? [value] : []);
+                  const updated = isSelected ? current.filter((v: string) => v !== opt) : [...current, opt];
+                  onChange(attribute.key, updated);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {isSelected ? '✓ ' : '+ '}{opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {attribute.type === 'boolean' && (
         <div className="flex items-center mt-2">
           <input

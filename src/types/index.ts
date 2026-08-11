@@ -156,9 +156,15 @@ export interface Order {
   returnPhotos?: string[];
   refundStatus?: 'Pending' | 'Approved' | 'Rejected' | 'None';
   isScheduledSubscription?: boolean;
+  isSubscription?: boolean;
   scheduleDetails?: any;
   isLocalShopOrder?: boolean;
   deliveryAgentId?: string;
+  fulfillment?: any;
+  deliveryType?: string;
+  pickupVerification?: any;
+  deliveryDetails?: any;
+  isSelfPickup?: boolean;
 }
 
 export interface DeliveryAgent {

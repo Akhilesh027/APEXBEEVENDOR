@@ -59,6 +59,7 @@ export const Orders: React.FC = () => {
   }, [currentPage]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'normal' | 'pickup' | 'subscribed'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedSubscription, setSelectedSubscription] = useState<any | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -210,12 +211,20 @@ export const Orders: React.FC = () => {
     switch (current) {
       case 'New':
         return <Badge variant="info">New Order</Badge>;
+      case 'Accepted':
+      case 'Assigned':
+      case 'assigned':
+        return <Badge variant="warning">🛵 Rider Accepted</Badge>;
+      case 'Reached Vendor':
+        return <Badge variant="purple">🏬 Rider at Store</Badge>;
       case 'Processing':
-        return <Badge variant="warning">Accepted / Processing</Badge>;
+        return <Badge variant="warning">Confirmed / Processing</Badge>;
       case 'Packed':
         return <Badge variant="purple">Packed / Ready</Badge>;
       case 'Shipped':
         return <Badge variant="purple">Shipped / In Transit</Badge>;
+      case 'Reached Customer':
+        return <Badge variant="purple">📍 Arrived at Customer</Badge>;
       case 'Delivered':
         return <Badge variant="success">Delivered</Badge>;
       case 'Returned':
@@ -254,9 +263,18 @@ export const Orders: React.FC = () => {
         matchesType = !!o.isScheduledSubscription;
       }
 
-      return matchesSearch && matchesStatus && matchesType;
+      // 3 Order Types: Normal, Self Pickup, Subscribed
+      let matchesOrderType = true;
+      const isSub = Boolean(o.isScheduledSubscription || o.isSubscription);
+      const isPickup = Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup);
+
+      if (orderTypeFilter === 'normal') matchesOrderType = !isSub && !isPickup;
+      else if (orderTypeFilter === 'pickup') matchesOrderType = isPickup && !isSub;
+      else if (orderTypeFilter === 'subscribed') matchesOrderType = isSub;
+
+      return matchesSearch && matchesStatus && matchesType && matchesOrderType;
     });
-  }, [orders, searchQuery, filterStatus, mainView]);
+  }, [orders, searchQuery, filterStatus, orderTypeFilter, mainView]);
 
   const getSubMetrics = (sub: any) => {
     if (!sub || !sub.startDate) {
@@ -324,6 +342,27 @@ export const Orders: React.FC = () => {
 
       {mainView !== 'localshop' ? (
         <>
+          {/* 3 Order Types Bar: Normal Delivery, Self Pickup, Subscribed */}
+          <div className="flex items-center gap-2 p-1.5 bg-secondary/30 rounded-xl border border-border/60 w-fit">
+            {[
+              { id: 'all', label: '🌐 All Types' },
+              { id: 'normal', label: '🚚 Normal Delivery' },
+              { id: 'pickup', label: '🏪 In-Store Self Pickup' },
+              { id: 'subscribed', label: '🔁 Subscribed Orders' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setOrderTypeFilter(t.id as any)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${orderTypeFilter === t.id
+                  ? 'bg-primary text-primary-foreground shadow-xs font-black'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <Card className="glass">
             <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
               <div className="relative w-full md:w-80 flex items-center">
@@ -403,12 +442,12 @@ export const Orders: React.FC = () => {
                       </TableCell>
 
                       <TableCell>
-                        {o.isScheduledSubscription ? (
-                          <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-extrabold text-[9px]">🔁 Subscription</span>
-                        ) : o.isLocalShopOrder ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-extrabold text-[9px]">🏪 Local Store</span>
+                        {Boolean(o.isScheduledSubscription || o.isSubscription) ? (
+                          <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 font-black text-[10px] border border-purple-500/30">🔁 Subscribed</span>
+                        ) : Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup) ? (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 font-black text-[10px] border border-amber-500/30">🏪 Self Pickup</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-extrabold text-[9px]">⚡ Express</span>
+                          <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 font-black text-[10px] border border-blue-500/30">🚚 Normal Delivery</span>
                         )}
                       </TableCell>
 
@@ -565,6 +604,30 @@ export const Orders: React.FC = () => {
                     </p>
                   </div>
                 </div>
+
+                {(selectedOrder.fulfillment?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
+                  <div className="border border-amber-500/30 bg-amber-500/10 p-4 rounded-xl flex flex-col gap-2 text-xs">
+                    <span className="font-bold text-foreground uppercase tracking-wider text-[10px] flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                      <Store className="h-4 w-4 text-amber-600" /> In-Store Self Pickup Order Details
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mt-1 text-muted-foreground">
+                      <div>
+                        <span className="font-bold text-foreground block">Pickup Store</span>
+                        <span>{selectedOrder.fulfillment?.pickupLocationId || 'Main Store Hub'}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-foreground block">Pickup Time Slot</span>
+                        <span>{selectedOrder.fulfillment?.pickupSlot?.date || 'Today'} • {selectedOrder.fulfillment?.pickupSlot?.time || '10:00 AM - 06:00 PM'}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-amber-700 dark:text-amber-400 block">STORE PICKUP OTP</span>
+                        <span className="font-mono font-black text-sm text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          {selectedOrder.pickupVerification?.otp || '9823'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {selectedOrder.isScheduledSubscription && selectedOrder.scheduleDetails && (
                   <div className="border border-indigo-500/30 bg-indigo-500/5 p-4 rounded-xl flex flex-col gap-2 text-xs">

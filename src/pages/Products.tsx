@@ -74,20 +74,23 @@ const MultiSelectOptions = ({ attr, selectedValues, onChange }: any) => {
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {attr.options?.map((option: string) => (
-        <button
-          type="button"
-          key={option}
-          onClick={() => toggleValue(option)}
-          className={`px-3 py-1.5 rounded-lg text-xs border ${values.includes(option)
-            ? 'bg-primary text-primary-foreground border-primary'
-            : 'bg-background text-muted-foreground border-border'
-            }`}
-        >
-          {option}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-2.5 pt-1">
+      {attr.options?.map((option: string) => {
+        const isSelected = values.includes(option);
+        return (
+          <button
+            type="button"
+            key={option}
+            onClick={() => toggleValue(option)}
+            className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all cursor-pointer shadow-sm ${isSelected
+                ? 'bg-primary text-primary-foreground border-primary scale-105 shadow-md ring-2 ring-primary/40'
+                : 'bg-card text-foreground border-border hover:border-primary/60 hover:bg-secondary/40'
+              }`}
+          >
+            {isSelected ? '✓ ' : '+ '}{option}
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -122,11 +125,12 @@ export const ProductManagement: React.FC = () => {
     baseSellingPrice: '',
     stock: '',
     sellerType: 'vendor',
-    isStoreProduct: false,
+    isStoreProduct: true,
     isSubscriptionAvailable: false,
-    deliveryScope: 'local',
+    isSelfPickup: true,
+    deliveryScope: 'both',
     isLocalDelivery: true,
-    isPanIndia: false,
+    isPanIndia: true,
     minimumOrderQuantity: '1',
   });
 
@@ -190,7 +194,11 @@ export const ProductManagement: React.FC = () => {
         });
         if (matched) {
           setForm((prev) => ({ ...prev, categoryId: matched._id }));
+        } else if (categories.length > 0) {
+          setForm((prev) => ({ ...prev, categoryId: categories[0]._id }));
         }
+      } else if (categories.length > 0) {
+        setForm((prev) => ({ ...prev, categoryId: categories[0]._id }));
       }
     }
   }, [categories, profile, editingProduct, form.categoryId]);
@@ -224,6 +232,23 @@ export const ProductManagement: React.FC = () => {
     });
     return filtered.length > 0 ? filtered : rawSubCategories;
   }, [rawSubCategories, vendorApprovedSubs]);
+
+  // Auto-select subcategory when subCategories list updates
+  useEffect(() => {
+    if (subCategories.length > 0 && !form.subCategoryId && !editingProduct) {
+      if (subCategories.length === 1) {
+        setForm((prev) => ({ ...prev, subCategoryId: subCategories[0]._id }));
+      } else if (vendorApprovedSubs.length > 0) {
+        const matchedSub = subCategories.find((sub: any) => {
+          const sName = String(sub.name || '').trim().toLowerCase();
+          return vendorApprovedSubs.some(approved => approved === sName || sName.includes(approved) || approved.includes(sName));
+        });
+        if (matchedSub) {
+          setForm((prev) => ({ ...prev, subCategoryId: matchedSub._id }));
+        }
+      }
+    }
+  }, [subCategories, form.subCategoryId, editingProduct, vendorApprovedSubs]);
 
   const selectedSubCategory = useMemo(
     () => subCategories.find((cat: any) => cat._id === form.subCategoryId),
@@ -375,8 +400,9 @@ export const ProductManagement: React.FC = () => {
       baseSellingPrice: '',
       stock: '',
       sellerType: 'vendor',
-      isStoreProduct: false,
+      isStoreProduct: true,
       isSubscriptionAvailable: false,
+      isSelfPickup: true,
       deliveryScope: 'both',
       isLocalDelivery: true,
       isPanIndia: true,
@@ -413,6 +439,7 @@ export const ProductManagement: React.FC = () => {
       sellerType: product.sellerType || 'vendor',
       isStoreProduct: !!product.isStoreProduct,
       isSubscriptionAvailable: !!product.isSubscriptionAvailable,
+      isSelfPickup: product.isSelfPickup !== false,
       deliveryScope: product.deliveryScope || (product.isPanIndia ? (product.isLocalDelivery !== false ? 'both' : 'pan_india') : 'local'),
       isLocalDelivery: product.isLocalDelivery !== undefined ? !!product.isLocalDelivery : (product.deliveryScope === 'local' || product.deliveryScope === 'both' || !product.deliveryScope),
       isPanIndia: product.isPanIndia !== undefined ? !!product.isPanIndia : (product.deliveryScope === 'pan_india' || product.deliveryScope === 'both'),
@@ -537,6 +564,7 @@ export const ProductManagement: React.FC = () => {
       fd.append('sellerId', user.id || user._id);
       fd.append('isStoreProduct', String(form.isStoreProduct));
       fd.append('isSubscriptionAvailable', String(form.isSubscriptionAvailable));
+      fd.append('isSelfPickup', String(form.isSelfPickup));
       const calculatedScope = form.isLocalDelivery && form.isPanIndia ? 'both' : form.isPanIndia ? 'pan_india' : 'local';
       fd.append('deliveryScope', calculatedScope);
       fd.append('isLocalDelivery', String(form.isLocalDelivery));
@@ -1006,24 +1034,27 @@ export const ProductManagement: React.FC = () => {
 
               <form
                 onSubmit={handleSaveProduct}
-                className="space-y-4 overflow-y-auto pr-1 text-xs"
+                className="space-y-6 overflow-y-auto pr-2 text-sm"
               >
-                <div className="rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase">1. Basic Details</h3>
+                {/* 1. BASIC DETAILS */}
+                <div className="rounded-2xl border-2 border-border/80 bg-card p-5 space-y-4 shadow-sm hover:border-primary/40 transition-all">
+                  <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider text-primary border-b border-border/60 pb-2.5 flex items-center gap-2">
+                    <span>📝</span> 1. Basic Product Details
+                  </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="font-semibold text-muted-foreground">
-                          Product Name
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs md:text-sm font-bold text-foreground">
+                          Product Name *
                         </label>
                         <button
                           type="button"
                           onClick={handleGenerateAiDetails}
                           disabled={aiLoading}
-                          className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-lg border border-indigo-500/30 transition-colors cursor-pointer"
                         >
-                          <Wand2 className={`h-3 w-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                          <Wand2 className={`h-3.5 w-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
                           {aiLoading ? 'AI Generating...' : '✨ AI Enhance Title'}
                         </button>
                       </div>
@@ -1033,20 +1064,20 @@ export const ProductManagement: React.FC = () => {
                         onChange={(e) =>
                           setForm({ ...form, name: e.target.value, sku: '' })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-medium rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Auto SKU
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
+                        Auto SKU Identifier
                       </label>
                       <div className="flex gap-2">
                         <input
                           value={form.sku}
                           readOnly
-                          className="w-full p-3 rounded-xl border bg-secondary/30 font-mono"
+                          className="w-full p-3.5 text-sm md:text-base rounded-xl border border-border bg-secondary/30 font-mono text-foreground font-semibold"
                           required
                         />
                         <button
@@ -1057,41 +1088,51 @@ export const ProductManagement: React.FC = () => {
                               sku: makeSku(form.name, finalSelectedCategory?.name),
                             })
                           }
-                          className="px-3 rounded-xl bg-primary text-white"
+                          className="px-3.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                          title="Generate SKU"
                         >
-                          <Wand2 size={15} />
+                          <Wand2 size={16} />
                         </button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Seller Type
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
+                        Seller Role / Type
                       </label>
                       <select
                         value={form.sellerType}
                         onChange={(e) =>
                           setForm({ ...form, sellerType: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                       >
-                        <option value="vendor">Vendor</option>
-                        <option value="manufacturer">Manufacturer</option>
-                        <option value="wholesaler">Wholesaler</option>
+                        <option value="vendor">Vendor (Retail Seller)</option>
+                        <option value="manufacturer">Manufacturer (Brand Owner)</option>
+                        <option value="wholesaler">Wholesaler (Bulk Supplier)</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase">2. Category Selection</h3>
+                {/* 2. CATEGORY SELECTION */}
+                <div className="rounded-2xl border-2 border-border/80 bg-card p-5 space-y-4 shadow-sm hover:border-primary/40 transition-all">
+                  <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider text-primary border-b border-border/60 pb-2.5 flex items-center gap-2">
+                    <span>🏷️</span> 2. Category &amp; Brand Selection
+                  </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground flex items-center justify-between">
-                        <span>Category</span>
-                        <span className="text-[10px] text-amber-600 font-normal">🔒 Assigned Business Category</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs md:text-sm font-bold text-foreground">
+                          Main Category *
+                        </label>
+                        {profile?.primaryCategory && (
+                          <span className="px-2 py-0.5 text-[10px] font-extrabold text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-full">
+                            🔒 Assigned Category
+                          </span>
+                        )}
+                      </div>
                       <select
                         value={form.categoryId}
                         onChange={(e) =>
@@ -1102,11 +1143,14 @@ export const ProductManagement: React.FC = () => {
                             childCategoryId: '',
                           })
                         }
-                        disabled={Boolean(profile?.primaryCategory || profile?.category)}
-                        className={`w-full p-3 rounded-xl border ${Boolean(profile?.primaryCategory || profile?.category) ? 'bg-muted/50 cursor-not-allowed font-semibold text-foreground' : 'bg-background'}`}
+                        disabled={Boolean(form.categoryId && (profile?.primaryCategory || profile?.category))}
+                        className={`w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border ${Boolean(form.categoryId && (profile?.primaryCategory || profile?.category))
+                            ? 'bg-muted/50 text-foreground border-border'
+                            : 'bg-background text-foreground border-border focus:ring-2 focus:ring-primary'
+                          }`}
                         required
                       >
-                        <option value="">Select Category</option>
+                        <option value="">-- Select Category --</option>
                         {categories.map((cat) => (
                           <option key={cat._id} value={cat._id}>
                             {cat.name}
@@ -1116,7 +1160,7 @@ export const ProductManagement: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
                         Sub Category
                       </label>
                       <select
@@ -1128,10 +1172,10 @@ export const ProductManagement: React.FC = () => {
                             childCategoryId: '',
                           })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                         disabled={!subCategories.length}
                       >
-                        <option value="">Select Sub Category</option>
+                        <option value="">-- Select Sub Category --</option>
                         {subCategories.map((cat: any) => (
                           <option key={cat._id} value={cat._id}>
                             {cat.name}
@@ -1141,7 +1185,7 @@ export const ProductManagement: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
                         Child Category
                       </label>
                       <select
@@ -1149,10 +1193,10 @@ export const ProductManagement: React.FC = () => {
                         onChange={(e) =>
                           setForm({ ...form, childCategoryId: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                         disabled={!childCategories.length}
                       >
-                        <option value="">Select Child Category</option>
+                        <option value="">-- Select Child Category --</option>
                         {childCategories.map((cat: any) => (
                           <option key={cat._id} value={cat._id}>
                             {cat.name}
@@ -1163,17 +1207,17 @@ export const ProductManagement: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block mb-1 font-semibold text-muted-foreground">
-                      Brand
+                    <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
+                      Product Brand
                     </label>
                     <select
                       value={form.brand}
                       onChange={(e) =>
                         setForm({ ...form, brand: e.target.value })
                       }
-                      className="w-full p-3 rounded-xl border bg-background"
+                      className="w-full p-3.5 text-sm md:text-base font-semibold rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
                     >
-                      <option value="">Select Brand</option>
+                      <option value="">-- Select Brand --</option>
                       {categoryBrands.map((brand: string) => (
                         <option key={brand} value={brand}>
                           {brand}
@@ -1183,24 +1227,29 @@ export const ProductManagement: React.FC = () => {
                   </div>
                 </div>
 
+                {/* 3. ATTRIBUTES */}
                 {categoryAttributes.length > 0 && (
-                  <div className="rounded-2xl border border-border p-4 space-y-3">
-                    <h3 className="text-xs font-bold uppercase">3. Attributes</h3>
+                  <div className="rounded-2xl border-2 border-border/80 bg-card p-5 space-y-4 shadow-sm hover:border-primary/40 transition-all">
+                    <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider text-primary border-b border-border/60 pb-2.5 flex items-center gap-2">
+                      <span>⚙️</span> 3. Product Specifications &amp; Attributes
+                    </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {categoryAttributes.map((attr: any) => (
-                        <div key={attr._id || attr.name} className="space-y-1">
-                          <label className="block font-semibold text-muted-foreground">
-                            {attr.name}
+                        <div key={attr._id || attr.name} className="space-y-1.5 p-3.5 rounded-xl border border-border/60 bg-secondary/10">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs md:text-sm font-bold text-foreground">
+                              {attr.name} {attr.unit ? `(${attr.unit})` : ''}
+                            </label>
                             {attr.isVariant && (
-                              <span className="ml-1 text-primary">
-                                Multiple allowed
+                              <span className="text-[10px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                                Multi-Select Variant
                               </span>
                             )}
-                          </label>
+                          </div>
 
-                          {attr.type === 'select' && attr.options?.length ? (
-                            attr.isVariant ? (
+                          {attr.options?.length ? (
+                            attr.isVariant || attr.type === 'multiselect' ? (
                               <MultiSelectOptions
                                 attr={attr}
                                 selectedValues={attributeValues[attr.key || attr.name] || attributeValues[attr.name]}
@@ -1222,7 +1271,7 @@ export const ProductManagement: React.FC = () => {
                                   if (attr.name) updated[attr.name] = val;
                                   setAttributeValues(updated);
                                 }}
-                                className="w-full p-3 rounded-xl border bg-background"
+                                className="w-full p-3.5 text-sm font-semibold rounded-xl border border-border bg-background text-foreground outline-none"
                               >
                                 <option value="">Select {attr.name}</option>
                                 {attr.options.map((opt: string) => (
@@ -1243,8 +1292,8 @@ export const ProductManagement: React.FC = () => {
                                 if (attr.name) updated[attr.name] = val;
                                 setAttributeValues(updated);
                               }}
-                              className="w-full p-3 rounded-xl border bg-background"
-                              placeholder={`Enter ${attr.name}`}
+                              className="w-full p-3.5 text-sm font-medium rounded-xl border border-border bg-background text-foreground outline-none"
+                              placeholder={attr.placeholder || `Enter ${attr.name}`}
                             />
                           )}
                         </div>
@@ -1253,55 +1302,63 @@ export const ProductManagement: React.FC = () => {
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase">4. Seller Pricing</h3>
+                {/* 4. SELLER PRICING */}
+                <div className="rounded-2xl border-2 border-border/80 bg-card p-5 space-y-4 shadow-sm hover:border-primary/40 transition-all">
+                  <h3 className="text-sm md:text-base font-extrabold uppercase tracking-wider text-primary border-b border-border/60 pb-2.5 flex items-center gap-2">
+                    <span>💰</span> 4. Pricing &amp; Inventory
+                  </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        MRP
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
+                        MRP (₹) *
                       </label>
                       <input
                         type="number"
                         value={form.baseMrp}
+                        placeholder="e.g. 500"
                         onChange={(e) =>
                           setForm({ ...form, baseMrp: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-bold rounded-xl border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary"
+                        required
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
                         Discount %
                       </label>
                       <input
                         type="number"
                         value={form.discountPercent}
+                        placeholder="e.g. 10"
                         onChange={(e) =>
                           setForm({ ...form, discountPercent: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-bold rounded-xl border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Selling Price
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-primary">
+                        Selling Price (₹) *
                       </label>
                       <input
                         type="number"
                         value={form.baseSellingPrice}
+                        placeholder="e.g. 450"
                         onChange={(e) =>
                           setForm({ ...form, baseSellingPrice: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-secondary/30"
+                        className="w-full p-3.5 text-sm md:text-base font-extrabold rounded-xl border-2 border-primary bg-primary/10 text-primary outline-none focus:ring-2 focus:ring-primary"
+                        required
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground">
-                        Stock
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground">
+                        Available Stock *
                       </label>
                       <input
                         type="number"
@@ -1309,15 +1366,16 @@ export const ProductManagement: React.FC = () => {
                         onChange={(e) =>
                           setForm({ ...form, stock: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
+                        className="w-full p-3.5 text-sm md:text-base font-bold rounded-xl border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary"
                         min="0"
+                        required
                       />
                     </div>
 
                     <div>
-                      <label className="block mb-1 font-semibold text-muted-foreground flex items-center gap-1">
-                        Min. Order Qty (MOQ)
-                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded font-bold">BULK</span>
+                      <label className="block mb-1.5 text-xs md:text-sm font-bold text-foreground flex items-center justify-between">
+                        <span>Min. Order (MOQ)</span>
+                        <span className="text-[9px] bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded font-extrabold">BULK</span>
                       </label>
                       <input
                         type="number"
@@ -1326,97 +1384,144 @@ export const ProductManagement: React.FC = () => {
                         onChange={(e) =>
                           setForm({ ...form, minimumOrderQuantity: e.target.value })
                         }
-                        className="w-full p-3 rounded-xl border bg-background"
-                        placeholder="e.g. 5 (leave 1 for regular products)"
+                        className="w-full p-3.5 text-sm md:text-base font-bold rounded-xl border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="1"
                       />
                       {Number(form.minimumOrderQuantity) > 1 && (
-                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1 font-medium">
-                          ⚠️ Bulk product — customers must buy at least {form.minimumOrderQuantity} units at a time.
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1 mt-1 font-semibold">
+                          ⚠️ Bulk product — customers must buy at least {form.minimumOrderQuantity} units.
                         </p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-                  <h3 className="text-xs font-bold uppercase text-primary">5. 🏪 Storefront &amp; Subscription Settings</h3>
-                  <p className="text-[11px] text-muted-foreground">Control where this product appears and which delivery modes are available to customers.</p>
-
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <label className={`flex-1 flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 transition ${form.isStoreProduct ? 'border-primary bg-primary/10' : 'border-border bg-background'
-                      }`}>
-                      <input
-                        type="checkbox"
-                        checked={form.isStoreProduct}
-                        onChange={(e) =>
-                          setForm({ ...form, isStoreProduct: e.target.checked })
-                        }
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <span className="text-sm font-bold text-slate-800 block">🏪 Show in Local Store</span>
-                        <span className="text-[10px] text-muted-foreground">Customers nearby can see and order this product from your local store page</span>
-                      </div>
-                    </label>
-
-                    <label className={`flex-1 flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 transition ${form.isSubscriptionAvailable ? 'border-orange-400 bg-orange-50' : 'border-border bg-background'
-                      } ${!form.isStoreProduct ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={form.isSubscriptionAvailable}
-                        disabled={!form.isStoreProduct}
-                        onChange={(e) =>
-                          setForm({ ...form, isSubscriptionAvailable: e.target.checked })
-                        }
-                        className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                      />
-                      <div>
-                        <span className="text-sm font-bold text-slate-800 block">🔁 Enable Subscription</span>
-                        <span className="text-[10px] text-muted-foreground">Customers can subscribe for daily/weekly recurring delivery (requires Local Store enabled)</span>
-                      </div>
-                    </label>
+                <div className="rounded-2xl border-2 border-primary/20 bg-card p-5 space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border/60 pb-3 gap-2">
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <span>🏪</span> 5. Store Operations &amp; Delivery Settings
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Configure store visibility, recurring subscriptions, and customer delivery reach.
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full border border-emerald-500/20">
+                      ✓ Store Visible by Default
+                    </span>
                   </div>
 
-                  <div className="pt-3 border-t border-primary/20">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-slate-800">🚚 Shipping &amp; Delivery Reach</label>
-                      <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">✨ You can select both</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Store Visibility */}
+                    <div className="p-4 rounded-xl border border-border bg-secondary/10 space-y-2">
+                      <span className="text-xs font-bold text-foreground block">
+                        🏬 Storefront Visibility
+                      </span>
+                      <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.isStoreProduct ? 'border-emerald-500 bg-emerald-500/10' : 'border-border bg-background'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isStoreProduct}
+                          onChange={(e) =>
+                            setForm({ ...form, isStoreProduct: e.target.checked })
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-foreground block">Show in Vendor Storefront</span>
+                          <span className="text-[10px] text-muted-foreground">Product will be listed on your store page for nearby customers</span>
+                        </div>
+                      </label>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition ${form.isLocalDelivery ? 'border-indigo-600 bg-indigo-50/70' : 'border-border bg-background'}`}>
+                    {/* Subscription Orders */}
+                    <div className="p-4 rounded-xl border border-border bg-secondary/10 space-y-2">
+                      <span className="text-xs font-bold text-foreground block">
+                        🔁 Recurring Order Subscription
+                      </span>
+                      <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${form.isSubscriptionAvailable ? 'border-amber-500 bg-amber-500/10' : 'border-border bg-background'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isSubscriptionAvailable}
+                          onChange={(e) =>
+                            setForm({ ...form, isSubscriptionAvailable: e.target.checked })
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-foreground block">Enable Daily / Weekly Subscriptions</span>
+                          <span className="text-[10px] text-muted-foreground">Ideal for milk, groceries, fresh meals, water cans, or daily essentials</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Delivery & Pickup Options */}
+                  <div className="p-4 rounded-xl border border-border bg-secondary/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs md:text-sm font-bold text-foreground block">
+                        🚚 Shipping, Delivery &amp; Pickup Options
+                      </span>
+                      <span className="text-[10px] md:text-xs text-indigo-600 font-bold bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full border border-indigo-100 dark:border-indigo-900">
+                        ✨ Select any combination of fulfillment methods
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <label className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${form.isLocalDelivery ? 'border-indigo-600 bg-indigo-500/10' : 'border-border bg-background'
+                        }`}>
                         <input
                           type="checkbox"
                           checked={form.isLocalDelivery}
                           onChange={(e) => {
                             const nextLocal = e.target.checked;
-                            if (!nextLocal && !form.isPanIndia) return;
+                            if (!nextLocal && !form.isPanIndia && !form.isSelfPickup) return;
                             const nextScope = nextLocal && form.isPanIndia ? 'both' : nextLocal ? 'local' : 'pan_india';
                             setForm({ ...form, isLocalDelivery: nextLocal, deliveryScope: nextScope });
                           }}
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
                         />
                         <div>
-                          <span className="text-xs block font-bold text-slate-800">📍 Local Quick Delivery</span>
-                          <span className="text-[10px] text-muted-foreground">Deliverable in 15-30 mins to customers in your local mandal/district territory</span>
+                          <span className="text-xs md:text-sm font-bold text-foreground block">📍 Local Quick Delivery</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground block">15-30 Min store rider delivery in mandal/district</span>
                         </div>
                       </label>
 
-                      <label className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition ${form.isPanIndia ? 'border-emerald-600 bg-emerald-50/70' : 'border-border bg-background'}`}>
+                      <label className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${form.isSelfPickup ? 'border-amber-500 bg-amber-500/10' : 'border-border bg-background'
+                        }`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isSelfPickup}
+                          onChange={(e) => {
+                            const nextPickup = e.target.checked;
+                            if (!nextPickup && !form.isLocalDelivery && !form.isPanIndia) return;
+                            setForm({ ...form, isSelfPickup: nextPickup });
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 mt-0.5"
+                        />
+                        <div>
+                          <span className="text-xs md:text-sm font-bold text-foreground block">🏪 In-Store Self Pickup</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground block">Customer orders online &amp; picks up directly at your store</span>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${form.isPanIndia ? 'border-blue-600 bg-blue-500/10' : 'border-border bg-background'
+                        }`}>
                         <input
                           type="checkbox"
                           checked={form.isPanIndia}
                           onChange={(e) => {
                             const nextPan = e.target.checked;
-                            if (!nextPan && !form.isLocalDelivery) return;
+                            if (!nextPan && !form.isLocalDelivery && !form.isSelfPickup) return;
                             const nextScope = form.isLocalDelivery && nextPan ? 'both' : nextPan ? 'pan_india' : 'local';
                             setForm({ ...form, isPanIndia: nextPan, deliveryScope: nextScope });
                           }}
-                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5"
                         />
                         <div>
-                          <span className="text-xs block font-bold text-slate-800">🌐 Pan India Shipping</span>
-                          <span className="text-[10px] text-muted-foreground">Deliverable &amp; orderable by customers anywhere across India via courier</span>
+                          <span className="text-xs md:text-sm font-bold text-foreground block">🌐 Pan-India Shipping</span>
+                          <span className="text-[10px] md:text-xs text-muted-foreground block">Courier delivery to customers anywhere across India</span>
                         </div>
                       </label>
                     </div>
@@ -1647,10 +1752,10 @@ export const ProductManagement: React.FC = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-base md:text-lg disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
                 >
                   {saving && (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   )}
                   {saving
                     ? 'Saving Product...'

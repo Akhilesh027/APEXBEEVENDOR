@@ -322,18 +322,18 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const isDevotionalVendor = v.email === 'vendor1@gmail.com' || v.category === 'Devotional' || v.primaryCategory === 'Devotional' || (v.category && v.category.toLowerCase().includes('devoti'));
           const resolvedCategory = isDevotionalVendor
             ? 'Devotional'
-            : (v.category && !v.category.toLowerCase().includes('academy')
-              ? v.category
-              : (v.primaryCategory && !v.primaryCategory.toLowerCase().includes('academy')
-                ? v.primaryCategory
-                : 'Devotional'));
+            : (v.primaryCategory && !v.primaryCategory.toLowerCase().includes('academy')
+              ? v.primaryCategory
+              : (v.category && !v.category.toLowerCase().includes('academy')
+                ? v.category
+                : 'General Retail'));
 
           setProfile({
             id: v._id,
             businessName: isDevotionalVendor && (!v.businessName || v.businessName.toLowerCase().includes('academy'))
               ? 'Devotional Store & Pooja Needs'
-              : (v.businessName || 'Devotional Store & Pooja Needs'),
-            ownerName: v.ownerName || 'Devotional Store Manager',
+              : (v.businessName || 'Retail Store'),
+            ownerName: v.ownerName || (isDevotionalVendor ? 'Devotional Store Manager' : 'Store Manager'),
             email: v.email,
             phone: v.mobile || v.phone || '',
             businessType: v.businessType || 'Vendor',
@@ -427,13 +427,17 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 : 'Pending';
 
           let deliveryStatus: any = 'New';
-          if (order.orderStatus === 'Placed') deliveryStatus = 'New';
+          if (order.orderStatus === 'Placed' || order.orderStatus === 'placed' || order.orderStatus === 'pending_payment') deliveryStatus = 'New';
+          else if (['Accepted', 'Assigned', 'assigned'].includes(order.orderStatus)) deliveryStatus = 'Accepted';
+          else if (['Reached Vendor', 'Pickup OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Vendor';
+          else if (['Picked Up', 'Shipped', 'Out for Delivery'].includes(order.orderStatus)) deliveryStatus = 'Shipped';
+          else if (['Reached Customer', 'Delivery OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Customer';
           else if (order.orderStatus === 'Confirmed') deliveryStatus = 'Processing';
           else if (order.orderStatus === 'Packed') deliveryStatus = 'Packed';
-          else if (order.orderStatus === 'Shipped') deliveryStatus = 'Shipped';
           else if (order.orderStatus === 'Delivered') deliveryStatus = 'Delivered';
           else if (order.orderStatus === 'Returned') deliveryStatus = 'Returned';
           else if (order.orderStatus === 'Payment Verified') deliveryStatus = 'Processing';
+          else deliveryStatus = order.orderStatus || 'New';
 
           return {
             id: order.orderNumber || order._id,
@@ -465,7 +469,12 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             customerNotes: order.customerNotes || '',
             refundStatus: order.refundStatus || 'None',
             isScheduledSubscription: order.isScheduledSubscription || false,
-            scheduleDetails: order.scheduleDetails || null
+            scheduleDetails: order.scheduleDetails || null,
+            fulfillment: order.fulfillment || null,
+            isSelfPickup: order.isSelfPickup || order.fulfillment?.type === 'pickup' || order.deliveryType === 'pickup' || false,
+            deliveryType: order.deliveryType || null,
+            pickupVerification: order.pickupVerification || null,
+            deliveryDetails: order.deliveryDetails || null
           };
         });
         setOrders(mapped);
@@ -977,7 +986,12 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updated.pincode !== undefined) payload.pincode = updated.pincode;
       if (updated.businessHours !== undefined) payload.businessHours = updated.businessHours;
       if (updated.storeType !== undefined) payload.storeType = updated.storeType;
-      if (updated.primaryCategory !== undefined) payload.primaryCategory = updated.primaryCategory;
+      if (updated.primaryCategory !== undefined) {
+        payload.primaryCategory = updated.primaryCategory;
+        payload.category = updated.primaryCategory;
+      }
+      if (updated.subCategory !== undefined) payload.subCategory = updated.subCategory;
+      if (updated.approvedSubcategories !== undefined) payload.approvedSubcategories = updated.approvedSubcategories;
       if (updated.subCategories !== undefined) payload.subCategories = updated.subCategories;
 
       await fetch(`https://server.apexbee.in/api/vendor/profile/${user.id || user._id}`, {
