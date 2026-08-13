@@ -195,22 +195,22 @@ export const ScheduledDelivery: React.FC<ScheduledDeliveryProps> = ({ defaultTab
           </p>
         </div>
 
-        {/* Tab Switcher Button Group */}
-        <div className="flex items-center gap-1.5 bg-secondary/80 p-1.5 rounded-2xl border border-border/60">
+        {/* High-Contrast Colored Tabs Container */}
+        <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex items-center gap-2 text-left">
           <button
             onClick={() => setActiveTab('courier')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${activeTab === 'courier'
-              ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-              : 'text-muted-foreground hover:text-foreground'
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border-none ${activeTab === 'courier'
+              ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+              : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
               }`}
           >
             <Package className="w-4 h-4" /> Courier Pickup
           </button>
           <button
             onClick={() => setActiveTab('scheduled')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${activeTab === 'scheduled'
-              ? 'bg-emerald-600 text-white shadow-md font-extrabold'
-              : 'text-muted-foreground hover:text-foreground'
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border-none ${activeTab === 'scheduled'
+              ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+              : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
               }`}
           >
             <CalendarIcon className="w-4 h-4" /> Scheduled Deliveries

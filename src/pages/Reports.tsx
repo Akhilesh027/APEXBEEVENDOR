@@ -1,22 +1,32 @@
 import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Select } from '../components/ui/Select';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
-import { Download, TrendingUp, Calendar } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
+import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Select';
+import { Download, Calendar, TrendingUp, BarChart3, Info, FileSpreadsheet, Sparkles, Filter, RefreshCw, Mail, Clock, ArrowUpRight, ArrowDownRight, Layers, FileText } from 'lucide-react';
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 
 export const Reports: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="Reports & Analytics"
+      sectionName="📊 Dashboard"
+      icon="bar-chart"
+      description="We are upgrading Reports & Analytics with instant multi-branch data export, real-time revenue heatmaps, and customizable audit logs."
+      keyFeatures={[
+        'Real-time multi-branch revenue tracking',
+        'Instant CSV / Excel / PDF custom exports',
+        'Interactive performance heatmaps',
+        'Automated scheduled report emails'
+      ]}
+    />
+  );
+};
+
+export const LegacyReports: React.FC = () => {
   const {
     stats,
     orders,
@@ -398,7 +408,7 @@ export const Reports: React.FC = () => {
             <Select
               label="Report Category"
               value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
+              onChange={(e: any) => setReportType(e.target.value)}
               options={[
                 { value: 'sales', label: 'Sales & Order Volumes' },
                 { value: 'products', label: 'Product Performance Report' },
@@ -420,7 +430,7 @@ export const Reports: React.FC = () => {
             <Select
               label="Reporting Timeframe"
               value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
+              onChange={(e: any) => setTimeframe(e.target.value)}
               options={[
                 { value: 'daily', label: 'Daily Reports' },
                 { value: 'weekly', label: 'Weekly Summary' },
@@ -431,7 +441,7 @@ export const Reports: React.FC = () => {
             <Select
               label="Branch Location"
               value={branch}
-              onChange={(e) => setBranch(e.target.value)}
+              onChange={(e: any) => setBranch(e.target.value)}
               options={[
                 { value: 'all', label: 'All Branches (Default)' },
                 { value: 'nellore', label: 'Nellore Central Store' },

@@ -19,10 +19,20 @@ import {
 } from 'lucide-react';
 
 export const WalletPage: React.FC = () => {
-  const { transactions = [], stats, withdrawals = [], profile, orders = [] } = useVendor();
+  const { transactions = [], stats, withdrawals = [], profile, orders = [], products = [] } = useVendor();
   const [activeTab, setActiveTab] = useState<'overview' | 'settlements' | 'accounts' | 'statements'>('overview');
   const [autoSettlement, setAutoSettlement] = useState<'daily' | 'weekly' | 'monthly' | 'manual'>('daily');
   const [orderAmount, setOrderAmount] = useState('1000');
+
+  const calcResults = React.useMemo(() => {
+    const isZeroCommModel = products.every((p: any) => !p.commissionRate || p.commissionRate === 0);
+    const commRate = isZeroCommModel ? 0 : 5;
+    const parsedAmt = parseFloat(orderAmount || '0');
+    const commAmt = Math.round(parsedAmt * (commRate / 100));
+    const gstAmt = Math.round(commAmt * 0.18);
+    const netPayout = Math.max(0, parsedAmt - commAmt - gstAmt);
+    return { isZeroCommModel, commRate, parsedAmt, commAmt, gstAmt, netPayout };
+  }, [products, orderAmount]);
 
   // Auto-derived figures from database available wallet
   const bal = stats?.walletBalance || 0;
@@ -97,12 +107,26 @@ export const WalletPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-border/30 pb-1 text-xs font-bold text-muted-foreground">
-        <button onClick={() => setActiveTab('overview')} className={`pb-2 px-1 border-b-2 cursor-pointer transition-all ${activeTab === 'overview' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'}`}>Overview &amp; Wallet</button>
-        <button onClick={() => setActiveTab('settlements')} className={`pb-2 px-1 border-b-2 cursor-pointer transition-all ${activeTab === 'settlements' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'}`}>Settlements Calendar</button>
-        <button onClick={() => setActiveTab('accounts')} className={`pb-2 px-1 border-b-2 cursor-pointer transition-all ${activeTab === 'accounts' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'}`}>Bank Accounts</button>
-        <button onClick={() => setActiveTab('statements')} className={`pb-2 px-1 border-b-2 cursor-pointer transition-all ${activeTab === 'statements' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'}`}>Statements Download</button>
+      {/* High-Contrast Colored Tabs Container */}
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
+        {[
+          { id: 'overview', label: 'Overview & Wallet' },
+          { id: 'settlements', label: 'Settlements Calendar' },
+          { id: 'accounts', label: 'Bank Accounts' },
+          { id: 'statements', label: 'Statements Download' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              activeTab === tab.id
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'overview' && (
@@ -384,27 +408,33 @@ export const WalletPage: React.FC = () => {
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-normal">
-                    * Standard platform fee is 5.0% of customer checkouts. GST is 18.0% of the platform commission fee itself.
+                    {calcResults.isZeroCommModel
+                      ? '* Platform Direct Model Active: 0% Platform Commission — 100% Sales Payout to Vendor.'
+                      : '* Standard platform fee is 5.0% of customer checkouts. GST is 18.0% of the platform commission fee itself.'}
                   </p>
                 </div>
-                
+
                 <div className="flex-1 bg-secondary/20 p-4 border border-border/60 rounded-xl flex flex-col gap-2.5 font-semibold text-xs text-muted-foreground">
                   <div className="flex justify-between items-center pb-1.5 border-b border-border/20">
                     <span>Order Total:</span>
-                    <span className="text-foreground font-black">₹{parseFloat(orderAmount || '0').toLocaleString()}</span>
+                    <span className="text-foreground font-black">₹{calcResults.parsedAmt.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center pb-1.5 border-b border-border/20">
-                    <span>Platform Commission (5%):</span>
-                    <span className="text-rose-500 font-extrabold">-₹{(Math.round(parseFloat(orderAmount || '0') * 0.05)).toLocaleString()}</span>
+                    <span>Platform Commission ({calcResults.commRate}%):</span>
+                    <span className={calcResults.commAmt > 0 ? "text-rose-500 font-extrabold" : "text-emerald-500 font-extrabold"}>
+                      {calcResults.commAmt > 0 ? `-₹${calcResults.commAmt.toLocaleString()}` : '₹0 (Platform Model)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center pb-1.5 border-b border-border/20">
                     <span>GST Commission Tax (18% on fee):</span>
-                    <span className="text-rose-500 font-extrabold">-₹{(Math.round(parseFloat(orderAmount || '0') * 0.05 * 0.18)).toLocaleString()}</span>
+                    <span className={calcResults.gstAmt > 0 ? "text-rose-500 font-extrabold" : "text-emerald-500 font-extrabold"}>
+                      {calcResults.gstAmt > 0 ? `-₹${calcResults.gstAmt.toLocaleString()}` : '₹0'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center text-foreground font-black text-sm pt-1">
                     <span>Net Settle Payout:</span>
                     <span className="text-emerald-500">
-                      ₹{(Math.max(0, Math.round(parseFloat(orderAmount || '0') * 0.941))).toLocaleString()}
+                      ₹{calcResults.netPayout.toLocaleString()}
                     </span>
                   </div>
                 </div>

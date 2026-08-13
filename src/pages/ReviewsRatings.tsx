@@ -205,20 +205,20 @@ export const ReviewsRatings: React.FC = () => {
         </Card>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      {/* High-Contrast Colored Tabs Container */}
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
         {[
-          { id: 'product', label: 'Product Reviews', icon: <MessageSquare className="h-3.5 w-3.5" /> },
-          { id: 'store', label: 'Storefront Feedback', icon: <Star className="h-3.5 w-3.5" /> },
-          { id: 'analytics', label: 'Reputation Analytics', icon: <TrendingUp className="h-3.5 w-3.5" /> }
+          { id: 'product', label: 'Product Reviews', icon: <MessageSquare className="h-4 w-4" /> },
+          { id: 'store', label: 'Storefront Feedback', icon: <Star className="h-4 w-4" /> },
+          { id: 'analytics', label: 'Reputation Analytics', icon: <TrendingUp className="h-4 w-4" /> }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             {tab.icon}

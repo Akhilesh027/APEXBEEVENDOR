@@ -478,7 +478,7 @@ export const FranchiseConnect: React.FC = () => {
                       <TableRow key={item.id}>
                         <TableCell className="font-extrabold text-foreground text-xs">{item.location}</TableCell>
                         <TableCell className="text-xs">{item.level}</TableCell>
-                        <TableCell className="font-bold text-emerald-500 text-xs">₹{item.proposedRevenue.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold text-emerald-500 text-xs">₹{(item.proposedRevenue || 0).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge variant="warning">
                             {item.status}

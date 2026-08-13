@@ -734,15 +734,17 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Fetch actual reviews for vendor storefront
       try {
-        let reviewsRes = await fetch(`https://server.apexbee.in/api/product-reviews/vendor/${userId}`, {
+        const reviewUrl = `https://server.apexbee.in/api/product-reviews/vendor/${userId}`;
+        let reviewsRes = await fetch(reviewUrl, {
           headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!reviewsRes.ok) {
+        }).catch(() => null);
+
+        if (!reviewsRes || !reviewsRes.ok) {
           reviewsRes = await fetch(`https://server.apexbee.in/api/vendor/${userId}/reviews`, {
             headers: { 'Authorization': `Bearer ${token}` }
-          });
+          }).catch(() => null);
         }
-        if (reviewsRes.ok) {
+        if (reviewsRes && reviewsRes.ok) {
           const reviewsData = await reviewsRes.json();
           const rlist = (reviewsData.reviews || []).map((r: any) => ({
             id: r._id || r.id,

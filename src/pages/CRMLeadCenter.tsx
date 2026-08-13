@@ -46,6 +46,7 @@ export const CRMLeadCenter: React.FC = () => {
   const isSources = currentPage === 'crm-sources';
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   React.useEffect(() => {
@@ -67,8 +68,6 @@ export const CRMLeadCenter: React.FC = () => {
     };
     fetchLeads();
   }, []);
-
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
   const [activeCall, setActiveCall] = useState<Lead | null>(null);
   const [activeChat, setActiveChat] = useState<Lead | null>(null);

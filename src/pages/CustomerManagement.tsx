@@ -32,31 +32,37 @@ export const CustomerManagement: React.FC = () => {
     const map: Record<string, any> = {};
     
     orders.forEach((order: any, index) => {
-      const key = (order.customerPhone || order.customerName || 'Customer').trim();
+      const cName = order.customerName || order.customer?.name || order.user?.name || order.shippingAddress?.name;
+      const cPhone = order.customerPhone || order.phone || order.customer?.phone || order.user?.phone;
+      const cEmail = order.customerEmail || order.email || order.user?.email || (cName ? `${cName.toLowerCase().replace(/[^a-z]/g, '')}@gmail.com` : '');
+
+      if (!cName && !cPhone && !cEmail) return;
+
+      const key = (cPhone || cEmail || cName).trim();
       if (!map[key]) {
         map[key] = {
           id: order._id || `CUST-${index + 101}`,
-          userId: order.customerId?._id || order.customerId || `USER-${index + 500}`,
-          name: order.customerName || 'Local Customer',
-          email: order.customerEmail || `${order.customerName?.toLowerCase().replace(/[^a-z]/g, '') || 'customer'}@gmail.com`,
-          phone: order.customerPhone || '+91 XXXXX XXXXX',
+          userId: order.customerId?._id || order.customerId || order.userId || `USER-${index + 500}`,
+          name: cName || 'Customer',
+          email: cEmail || 'N/A',
+          phone: cPhone || 'N/A',
           ordersCount: 0,
           spend: 0,
-          rating: 4.8 + (index % 3) * 0.1,
+          rating: 5.0,
           tier: 'Silver',
           points: 0,
-          address: order.deliveryAddress || 'No Address Logged',
+          address: order.deliveryAddress || order.shippingAddress?.address || 'N/A',
           recentOrdersList: []
         };
       }
 
       const record = map[key];
       record.ordersCount += 1;
-      record.spend += order.totalAmount;
+      record.spend += Number(order.totalAmount || order.finalAmount || 0);
       record.recentOrdersList.push({
         id: order.id || order._id,
-        amount: order.totalAmount,
-        status: order.deliveryStatus || 'Processing',
+        amount: Number(order.totalAmount || order.finalAmount || 0),
+        status: order.deliveryStatus || order.status || 'Processing',
         date: order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-IN') : 'Today'
       });
     });
@@ -65,15 +71,13 @@ export const CustomerManagement: React.FC = () => {
   }, [orders]);
 
   const customersList = useMemo(() => {
-    const list = Object.values(customerMap).map(c => {
+    return Object.values(customerMap).map((c: any) => {
       c.points = Math.round(c.spend * 0.1);
       if (c.spend > 15000) c.tier = 'VIP';
       else if (c.spend > 5000) c.tier = 'Gold';
       else c.tier = 'Silver';
       return c;
     });
-
-    return list;
   }, [customerMap]);
 
   const filtered = useMemo(() => {

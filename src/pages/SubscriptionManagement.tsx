@@ -131,63 +131,63 @@ export const SubscriptionManagement: React.FC = () => {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans text-left">
       {/* Navigation Sub-Tabs Header */}
       {!['checkout', 'processing', 'success', 'failed', 'pending'].includes(activeTab) && (
-        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto whitespace-nowrap text-xs font-bold scrollbar-none">
+        <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'overview'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <LayoutDashboard className="w-4 h-4 text-amber-500" /> Overview
           </button>
           <button
             onClick={() => setActiveTab('plans')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'plans'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <Sparkles className="w-4 h-4 text-indigo-500" /> Available Plans
           </button>
           <button
             onClick={() => setActiveTab('addons')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'addons'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <Layers className="w-4 h-4 text-purple-500" /> Add-on Services
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'history'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <CreditCard className="w-4 h-4 text-emerald-500" /> Payment History
           </button>
           <button
             onClick={() => setActiveTab('renewals')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'renewals'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <RotateCcw className="w-4 h-4 text-amber-500" /> Renewal History
           </button>
           <button
             onClick={() => setActiveTab('invoices')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'invoices'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             <Receipt className="w-4 h-4 text-sky-500" /> Billing & Invoices

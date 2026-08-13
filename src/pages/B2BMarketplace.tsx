@@ -1,23 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { 
-  Search, 
-  ShoppingCart, 
-  FileCheck, 
-  Coins, 
-  ArrowLeftRight,
-  Sparkles,
-  Heart,
-  Grid,
-  List,
-  MessageSquare
-} from 'lucide-react';
+import { ShoppingBag, Search, Plus, Filter, CheckCircle2, Clock, MapPin, Building2, Store, FileText, Send, Sparkles, MessageSquare, ExternalLink, FileCheck, List, Grid, ShoppingCart, Heart, Coins, ArrowLeftRight } from 'lucide-react';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 
 export const B2BMarketplace: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="B2B Marketplace"
+      sectionName="🏭 Procurement"
+      icon="shopping-bag"
+      description="We are upgrading B2B Marketplace with verified wholesaler matching, bulk pricing negotiations, and instant RFQ response engines."
+      keyFeatures={[
+        'Verified wholesaler & manufacturer directory',
+        'Multi-tiered bulk volume pricing quotes',
+        'Direct Request-for-Quote (RFQ) bidding',
+        'Escrow-backed payment protection'
+      ]}
+    />
+  );
+};
+
+export const LegacyB2BMarketplace: React.FC = () => {
   const { currentPage, b2bProducts = [], b2bRfqs, b2bPos, addB2bRfq, addB2bPo } = useVendor();
   const [searchQuery, setSearchQuery] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
@@ -193,10 +200,10 @@ export const B2BMarketplace: React.FC = () => {
 
   const comparisonData = useMemo(() => {
     if (!selectedSupplierA || !selectedSupplierB) return null;
-    const supA = databaseSuppliers.find(s => s.name === selectedSupplierA);
-    const supB = databaseSuppliers.find(s => s.name === selectedSupplierB);
-    const prodA = b2bProducts.find(p => p.brand === selectedSupplierA);
-    const prodB = b2bProducts.find(p => p.brand === selectedSupplierB);
+    const supA = databaseSuppliers.find((s: any) => s.name === selectedSupplierA);
+    const supB = databaseSuppliers.find((s: any) => s.name === selectedSupplierB);
+    const prodA = b2bProducts.find((p: any) => p.brand === selectedSupplierA);
+    const prodB = b2bProducts.find((p: any) => p.brand === selectedSupplierB);
 
     return {
       priceA: prodA ? `₹${Math.round(prodA.price * 0.7)} / unit` : "N/A",
@@ -302,13 +309,13 @@ export const B2BMarketplace: React.FC = () => {
       <div className="flex gap-3 items-center">
         <select value={selectedSupplierA} onChange={(e) => setSelectedSupplierA(e.target.value)} className="border border-border rounded-lg p-2 text-xs bg-background text-foreground focus:outline-none">
           <option value="">-- Choose Supplier A --</option>
-          {databaseSuppliers.map(sup => (
+          {databaseSuppliers.map((sup: any) => (
             <option key={sup.id} value={sup.name}>{sup.name}</option>
           ))}
         </select>
         <select value={selectedSupplierB} onChange={(e) => setSelectedSupplierB(e.target.value)} className="border border-border rounded-lg p-2 text-xs bg-background text-foreground focus:outline-none">
           <option value="">-- Choose Supplier B --</option>
-          {databaseSuppliers.map(sup => (
+          {databaseSuppliers.map((sup: any) => (
             <option key={sup.id} value={sup.name}>{sup.name}</option>
           ))}
         </select>
@@ -341,7 +348,7 @@ export const B2BMarketplace: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map(p => (
+                    {filteredProducts.map((p: any) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-bold text-foreground">
                           <div>{p.name}</div>
@@ -385,7 +392,7 @@ export const B2BMarketplace: React.FC = () => {
                 </Table>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 text-left">
-                  {filteredProducts.map(p => (
+                  {filteredProducts.map((p: any) => (
                     <Card key={p.id} className="border border-border bg-card">
                       <CardContent className="p-4 flex flex-col gap-3">
                         <div className="flex justify-between items-start">
@@ -528,7 +535,7 @@ export const B2BMarketplace: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
             {databaseSuppliers.length === 0 ? (
               <p className="text-xs text-muted-foreground col-span-2 py-6">No registered wholesalers found in the territory database.</p>
-            ) : databaseSuppliers.map(sup => (
+            ) : databaseSuppliers.map((sup: any) => (
               <Card key={sup.id} className="border border-border">
                 <CardContent className="p-4 flex flex-col gap-3">
                   <div className="flex justify-between items-center">
@@ -553,7 +560,7 @@ export const B2BMarketplace: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
             {databaseSuppliers.length === 0 ? (
               <p className="text-xs text-muted-foreground col-span-2 py-6">No direct manufacturers registered in the territory database.</p>
-            ) : databaseSuppliers.map(sup => (
+            ) : databaseSuppliers.map((sup: any) => (
               <Card key={sup.id} className="border border-border overflow-hidden bg-card">
                 {/* Simulated Factory Image */}
                 <div className="h-28 bg-gradient-to-br from-slate-800 to-indigo-950 flex items-center justify-center text-[10px] text-indigo-300 font-extrabold uppercase tracking-widest relative">

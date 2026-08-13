@@ -276,12 +276,12 @@ export const DynamicProductFormContainer: React.FC<DynamicProductFormContainerPr
 
       {/* Media Section */}
       <MediaSection
-        thumbnail={thumbnail}
-        images={images}
-        onChange={(field, val) => {
-          if (field === 'thumbnail') setThumbnail(val);
-          if (field === 'images') setImages(val);
-        }}
+        thumbnailPreview={thumbnail}
+        imagePreviews={images}
+        onThumbnailSelect={(_, preview) => setThumbnail(preview)}
+        onImagesSelect={(_, previews) => setImages(previews)}
+        onDescriptionChange={() => {}}
+        onGenerateAiDetails={() => {}}
       />
 
       {/* Delivery Rules */}
@@ -308,13 +308,13 @@ export const DynamicProductFormContainer: React.FC<DynamicProductFormContainerPr
         }
       />
 
-      <div className="pt-4 flex justify-end">
+      <div className="pt-6 flex justify-end">
         <button
           type="submit"
           disabled={isLoading}
-          className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-semibold text-sm rounded-lg shadow-md transition-colors"
+          className="px-8 py-3.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 disabled:opacity-50 text-blue-950 font-black text-sm uppercase tracking-wider rounded-xl shadow-xl transition-all cursor-pointer transform hover:scale-105"
         >
-          {isLoading ? 'Saving Product...' : 'Submit Product for Approval'}
+          {isLoading ? 'Saving Product...' : 'Submit Product for Approval 🚀'}
         </button>
       </div>
     </form>

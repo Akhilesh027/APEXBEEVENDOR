@@ -190,19 +190,40 @@ export const Orders: React.FC = () => {
   };
 
   const getOrderPayout = (order: Order) => {
+    const orderDistType = ((order as any).distributionType || (order as any).commissionType || (order as any).fulfillmentType || '').toLowerCase();
+    const distributedFrom = ((order as any).distributedFrom || (order as any).commissionSource || '').toLowerCase();
+    const vendorCommAmount = (order as any).vendorCommissionAmount;
+
+    // Strictly check if order is under ApexBee Commission model vs Platform Fee model
+    // If distributedFrom === 'platform_fee' or vendorCommissionAmount === 0, it is NOT an ApexBee vendor commission deduction!
+    const isExplicitApexBeeCommission =
+      (distributedFrom === 'apexbee_commission' || distributedFrom === 'apexbee' || orderDistType === 'apexbee') &&
+      vendorCommAmount !== 0;
+
     let totalComm = 0;
 
-    order.items.forEach((item) => {
-      const prod = products.find((p) => p.id === item.productId);
-      const rate = prod ? prod.commissionRate : 10;
-      totalComm += Math.round(item.price * item.quantity * (rate / 100));
-    });
+    if (isExplicitApexBeeCommission) {
+      totalComm = (order as any).commissionAmount ?? (order as any).vendorCommissionAmount ?? (order as any).platformCommission ?? 0;
+
+      if (!totalComm && order.items && order.items.length > 0) {
+        order.items.forEach((item) => {
+          const prod = products.find((p) => p.id === item.productId);
+          const rate = prod && typeof prod.commissionRate === 'number' ? prod.commissionRate : 0;
+          totalComm += Math.round(item.price * item.quantity * (rate / 100));
+        });
+      }
+    } else {
+      // Platform fee model or standard order: 0 commission deduction for vendor
+      totalComm = 0;
+    }
 
     const payout = Math.max(0, order.totalAmount - totalComm);
     const avgRate =
-      order.subtotal > 0 ? Math.round((totalComm / order.subtotal) * 100) : 10;
+      order.subtotal > 0 && totalComm > 0 ? Math.round((totalComm / order.subtotal) * 100) : 0;
 
-    return { payout, commission: totalComm, avgRate };
+    const isApexBeeCommissionModel = isExplicitApexBeeCommission && totalComm > 0;
+
+    return { payout, commission: totalComm, avgRate, isApexBeeCommissionModel };
   };
 
   const getDeliveryStatusBadge = (status: string) => {
@@ -329,21 +350,20 @@ export const Orders: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5 text-left">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">
+        <div className="flex flex-col gap-1 text-left">
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
             Order & Subscriber Hub
           </h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-blue-300">
             Fulfill hyperlocal orders, manage subscriber schedules, assign delivery agents, and process return requests.
           </p>
         </div>
       </div>
 
-
       {mainView !== 'localshop' ? (
         <>
           {/* 3 Order Types Bar: Normal Delivery, Self Pickup, Subscribed */}
-          <div className="flex items-center gap-2 p-1.5 bg-secondary/30 rounded-xl border border-border/60 w-fit">
+          <div className="flex items-center gap-2 p-2 bg-slate-900/90 rounded-2xl shadow-xl w-fit flex-wrap">
             {[
               { id: 'all', label: '🌐 All Types' },
               { id: 'normal', label: '🚚 Normal Delivery' },
@@ -353,9 +373,9 @@ export const Orders: React.FC = () => {
               <button
                 key={t.id}
                 onClick={() => setOrderTypeFilter(t.id as any)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${orderTypeFilter === t.id
-                  ? 'bg-primary text-primary-foreground shadow-xs font-black'
-                  : 'text-muted-foreground hover:text-foreground'
+                className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${orderTypeFilter === t.id
+                  ? 'bg-amber-400 text-blue-950 shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
                   }`}
               >
                 {t.label}
@@ -363,53 +383,51 @@ export const Orders: React.FC = () => {
             ))}
           </div>
 
-          <Card className="glass">
-            <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-              <div className="relative w-full md:w-80 flex items-center">
-                <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search by Order ID or customer name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-secondary/50 text-foreground border border-border rounded-lg pl-9 pr-4 py-2 text-xs focus:ring-2 focus:ring-ring focus:outline-none"
-                />
-              </div>
+          <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div className="relative w-full md:w-80 flex items-center">
+              <Search className="absolute left-3.5 h-4 w-4 text-blue-300 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by Order ID or customer name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-950/80 text-white border-none rounded-xl pl-10 pr-4 py-2.5 text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none shadow-inner"
+              />
+            </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto justify-end">
-                <SlidersHorizontal className="h-4 w-4 text-muted-foreground mr-1 hidden md:block" />
-                {[
-                  { id: 'all', label: 'All Orders' },
-                  { id: 'new', label: 'New' },
-                  { id: 'processing', label: 'Processing' },
-                  { id: 'packed', label: 'Packed' },
-                  { id: 'shipped', label: 'Shipped' },
-                  { id: 'delivered', label: 'Delivered' },
-                  { id: 'returns', label: 'Return Requests' },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setFilterStatus(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer duration-150 ${filterStatus === tab.id
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
-                      }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowReturnLedgerModal(true)}
-                  className="text-xs font-bold border-border bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 h-8 flex items-center cursor-pointer"
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+              <SlidersHorizontal className="h-4 w-4 text-blue-300 mr-1 hidden md:block" />
+              {[
+                { id: 'all', label: 'All Orders' },
+                { id: 'new', label: 'New' },
+                { id: 'processing', label: 'Processing' },
+                { id: 'packed', label: 'Packed' },
+                { id: 'shipped', label: 'Shipped' },
+                { id: 'delivered', label: 'Delivered' },
+                { id: 'returns', label: 'Return Requests' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterStatus(tab.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all ${filterStatus === tab.id
+                    ? 'bg-amber-400 text-blue-950 shadow-md font-black'
+                    : 'bg-slate-950/60 text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
                 >
-                  🔄 Returns Ledger
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  {tab.label}
+                </button>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReturnLedgerModal(true)}
+                className="text-xs font-black border-none bg-amber-400 text-blue-950 hover:bg-amber-500 rounded-xl h-9 flex items-center cursor-pointer shadow-md"
+              >
+                🔄 Returns Ledger
+              </Button>
+            </div>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -571,57 +589,112 @@ export const Orders: React.FC = () => {
               title={`Order Details: ${selectedOrder.id}`}
               size="lg"
             >
-              <div className="flex flex-col gap-6 text-left pb-10">
+              <div className="flex flex-col gap-5 text-left pb-10 text-slate-100">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border border-border p-3.5 rounded-xl bg-muted/20 flex flex-col gap-1.5 text-xs">
-                    <span className="font-bold text-foreground uppercase tracking-wider text-[10px] flex items-center gap-1 text-primary">
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-2 text-xs shadow-xl">
+                    <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
                       <Smile className="h-4 w-4" /> Customer Contact
                     </span>
-                    <span className="font-bold text-sm text-foreground">
+                    <span className="font-extrabold text-base text-white">
                       {selectedOrder.customerName}
                     </span>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3.5 w-3.5" /> {selectedOrder.customerPhone}
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                      <span className="text-blue-200 flex items-center gap-1 font-mono">
+                        <Phone className="h-3.5 w-3.5 text-blue-400" /> {selectedOrder.customerPhone}
                       </span>
                       <a
                         href={`https://wa.me/91${selectedOrder.customerPhone}?text=Hello%20${selectedOrder.customerName},%20this%20is%20regarding%20your%20ApexBee%20order%20%23${selectedOrder.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-emerald-600 hover:text-emerald-700 font-extrabold flex items-center gap-1 text-[11px]"
+                        className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 px-3 py-1 rounded-xl font-black flex items-center gap-1 text-[11px] transition-all"
                       >
                         💬 WhatsApp Chat
                       </a>
                     </div>
                   </div>
 
-                  <div className="border border-border p-3.5 rounded-xl bg-muted/20 flex flex-col gap-1.5 text-xs">
-                    <span className="font-bold text-foreground uppercase tracking-wider text-[10px] flex items-center gap-1 text-primary">
-                      <MapPin className="h-4 w-4" /> Shipping Address
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-2 text-xs shadow-xl">
+                    <span className="font-extrabold text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
+                      <MapPin className="h-4 w-4" /> Delivery Address
                     </span>
-                    <p className="text-muted-foreground leading-normal">
+                    <p className="text-blue-200 leading-relaxed text-xs">
                       {selectedOrder.deliveryAddress}
                     </p>
                   </div>
                 </div>
 
+                {/* 📝 Customer Selected Delivery Preferences & Driver Instructions */}
+                {selectedOrder.fulfillment?.type !== 'pickup' && (
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-3 text-xs shadow-xl border border-amber-500/30">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
+                        <span>📝</span> Customer Delivery Preferences & Driver Instructions
+                      </span>
+                      <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full uppercase">
+                        {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
+                          ? '🚀 Express 15-30 Min'
+                          : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
+                            ? '🌆 Same Day Slot'
+                            : '🚚 Standard Delivery'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left text-blue-200">
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="font-extrabold text-white block text-[11px] mb-1">⚡ Selected Delivery Speed</span>
+                        <span className="font-bold text-amber-300">
+                          {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
+                            ? '🚀 Express 15-30 Mins (+₹49)'
+                            : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
+                              ? '🌆 Same Day Slot (+₹19)'
+                              : '🚚 Standard Local Delivery (Free)'}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="font-extrabold text-white block text-[11px] mb-1">🔔 Driver Drop-off Preference</span>
+                        <span className="font-bold text-emerald-300">
+                          {selectedOrder.fulfillment?.deliveryInstruction === 'call_before' || (selectedOrder as any).deliveryInstruction === 'call_before'
+                            ? '📞 Call me before delivery'
+                            : selectedOrder.fulfillment?.deliveryInstruction === 'ring_bell' || (selectedOrder as any).deliveryInstruction === 'ring_bell'
+                              ? '🔔 Ring doorbell'
+                              : selectedOrder.fulfillment?.deliveryInstruction === 'leave_gate' || (selectedOrder as any).deliveryInstruction === 'leave_gate'
+                                ? '🚪 Leave at gate / door'
+                                : selectedOrder.fulfillment?.deliveryInstruction === 'contactless' || (selectedOrder as any).deliveryInstruction === 'contactless'
+                                  ? '🛡️ Contactless drop-off'
+                                  : '📞 Call me before delivery'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions) && (
+                      <div className="bg-amber-950/40 p-3 rounded-xl border border-amber-500/40 text-amber-200">
+                        <span className="font-extrabold text-amber-400 block text-[11px] mb-0.5">💬 Special Driver Note from Customer:</span>
+                        <p className="font-medium text-xs italic">
+                          "{selectedOrder.fulfillment?.customInstruction || (selectedOrder as any).customInstruction || (selectedOrder as any).deliveryInstructions}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {(selectedOrder.fulfillment?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup) && (
-                  <div className="border border-amber-500/30 bg-amber-500/10 p-4 rounded-xl flex flex-col gap-2 text-xs">
-                    <span className="font-bold text-foreground uppercase tracking-wider text-[10px] flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-                      <Store className="h-4 w-4 text-amber-600" /> In-Store Self Pickup Order Details
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-2.5 text-xs shadow-xl">
+                    <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
+                      <Store className="h-4 w-4" /> In-Store Self Pickup Order Details
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mt-1 text-muted-foreground">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-blue-200">
                       <div>
-                        <span className="font-bold text-foreground block">Pickup Store</span>
+                        <span className="font-extrabold text-white block">Pickup Store</span>
                         <span>{selectedOrder.fulfillment?.pickupLocationId || 'Main Store Hub'}</span>
                       </div>
                       <div>
-                        <span className="font-bold text-foreground block">Pickup Time Slot</span>
+                        <span className="font-extrabold text-white block">Pickup Time Slot</span>
                         <span>{selectedOrder.fulfillment?.pickupSlot?.date || 'Today'} • {selectedOrder.fulfillment?.pickupSlot?.time || '10:00 AM - 06:00 PM'}</span>
                       </div>
                       <div>
-                        <span className="font-bold text-amber-700 dark:text-amber-400 block">STORE PICKUP OTP</span>
-                        <span className="font-mono font-black text-sm text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        <span className="font-extrabold text-amber-400 block">STORE PICKUP OTP</span>
+                        <span className="font-mono font-black text-sm text-emerald-300 bg-emerald-500/20 px-2.5 py-1 rounded-xl">
                           {selectedOrder.pickupVerification?.otp || '9823'}
                         </span>
                       </div>
@@ -630,21 +703,21 @@ export const Orders: React.FC = () => {
                 )}
 
                 {selectedOrder.isScheduledSubscription && selectedOrder.scheduleDetails && (
-                  <div className="border border-indigo-500/30 bg-indigo-500/5 p-4 rounded-xl flex flex-col gap-2 text-xs">
-                    <span className="font-bold text-foreground uppercase tracking-wider text-[10px] flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-2.5 text-xs shadow-xl">
+                    <span className="font-extrabold text-purple-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
                       <CalendarDays className="h-4 w-4" /> Subscription Plan Details
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mt-1 text-muted-foreground">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left text-blue-200">
                       <div>
-                        <span className="font-bold text-foreground block">Delivery Frequency</span>
+                        <span className="font-extrabold text-white block">Delivery Frequency</span>
                         <span className="capitalize">{selectedOrder.scheduleDetails.frequency || 'Daily'}</span>
                       </div>
                       <div>
-                        <span className="font-bold text-foreground block">Duration Limit</span>
+                        <span className="font-extrabold text-white block">Duration Limit</span>
                         <span>{selectedOrder.scheduleDetails.durationMonths || '1'} Month(s)</span>
                       </div>
                       <div>
-                        <span className="font-bold text-foreground block">Start Date</span>
+                        <span className="font-extrabold text-white block">Start Date</span>
                         <span>{selectedOrder.scheduleDetails.startDate || 'Immediate'}</span>
                       </div>
                     </div>
@@ -652,8 +725,8 @@ export const Orders: React.FC = () => {
                 )}
 
                 {/* Internal staff notes card */}
-                <div className="border border-border p-4 rounded-xl space-y-2 text-xs">
-                  <span className="font-bold text-foreground">✍️ Internal Fulfillment Staff Notes</span>
+                <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-2.5 text-xs shadow-xl">
+                  <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] font-heading block">✍️ Internal Fulfillment Staff Notes</span>
                   <textarea
                     value={orderNotes[selectedOrder.id] || tempNote}
                     onChange={(e) => {
@@ -661,37 +734,37 @@ export const Orders: React.FC = () => {
                       setOrderNotes(prev => ({ ...prev, [selectedOrder.id]: e.target.value }));
                     }}
                     placeholder="e.g. Wrap in cold pack, check mango freshness, leave at gate..."
-                    className="w-full p-2.5 rounded-xl border bg-background text-foreground text-xs focus:outline-none"
+                    className="w-full p-3 rounded-xl bg-slate-900 text-white text-xs focus:ring-2 focus:ring-amber-400 focus:outline-none border-none shadow-inner"
                     rows={2}
                   />
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-muted-foreground">Notes are auto-saved locally.</span>
+                    <span className="text-blue-300">Notes are auto-saved locally.</span>
                     <button
                       type="button"
                       onClick={() => {
                         alert("Internal order note saved to registry!");
                       }}
-                      className="text-primary font-bold hover:underline cursor-pointer border-0 bg-transparent"
+                      className="text-amber-400 font-extrabold hover:underline cursor-pointer border-0 bg-transparent"
                     >
-                      Save Note
+                      Save Note ➔
                     </button>
                   </div>
                 </div>
 
                 {/* Courier dispatch ETA card */}
-                <div className="border border-border p-4 rounded-xl space-y-2 text-xs bg-muted/20">
-                  <span className="font-bold text-foreground block">🚚 Hyperlocal Courier Dispatch ETA Log</span>
-                  <div className="grid grid-cols-2 gap-3 text-left">
-                    <div>Courier Assigned: <b className="text-foreground">{deliveryAgents.find(a => a.id === selectedOrder.deliveryAgentId)?.name || 'Awaiting Assign'}</b></div>
-                    <div>Estimated Delivery ETA: <b className="text-foreground">{selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}</b></div>
+                <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-2 text-xs shadow-xl">
+                  <span className="font-extrabold text-blue-400 uppercase tracking-wider text-[11px] font-heading block">🚚 Hyperlocal Courier Dispatch ETA Log</span>
+                  <div className="grid grid-cols-2 gap-3 text-left text-blue-200">
+                    <div>Courier Assigned: <b className="text-white">{deliveryAgents.find(a => a.id === selectedOrder.deliveryAgentId)?.name || 'Awaiting Assign'}</b></div>
+                    <div>Estimated Delivery ETA: <b className="text-white">{selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}</b></div>
                   </div>
                 </div>
 
                 {/* Secure OTP Verification confirmation input */}
                 {selectedStatus !== 'New' && selectedStatus !== 'Delivered' && (
-                  <div className="border border-indigo-500/20 bg-indigo-500/5 p-4 rounded-xl space-y-3 text-xs">
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400 block">🔐 Dispatch/Delivery Secure OTP verification</span>
-                    <p className="text-[10px] text-muted-foreground">Enter 4-digit OTP provided by customer or driver to execute state transfer check.</p>
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-3 text-xs shadow-xl">
+                    <span className="font-extrabold text-indigo-400 uppercase tracking-wider text-[11px] font-heading block">🔐 Dispatch/Delivery Secure OTP verification</span>
+                    <p className="text-xs text-blue-300">Enter 4-digit OTP provided by customer or driver to execute state transfer check.</p>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -699,7 +772,7 @@ export const Orders: React.FC = () => {
                         placeholder="XXXX"
                         value={otpValue}
                         onChange={(e) => setOtpValue(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="w-20 border border-border rounded-xl p-2 bg-background text-foreground text-center font-mono font-bold"
+                        className="w-24 border-none rounded-xl p-2.5 bg-slate-900 text-white text-center font-mono font-black text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-400"
                       />
                       <button
                         type="button"
@@ -712,90 +785,185 @@ export const Orders: React.FC = () => {
                             alert("Invalid verification code. Try again.");
                           }
                         }}
-                        className="px-3 bg-primary text-primary-foreground font-bold rounded-xl border-0 cursor-pointer text-xs"
+                        className="px-4 bg-amber-400 text-blue-950 font-black rounded-xl border-0 cursor-pointer text-xs shadow-md"
                       >
                         Verify OTP Handshake
                       </button>
                     </div>
                     {validatedOrders.includes(selectedOrder.id) && (
-                      <span className="text-[10px] text-emerald-500 font-extrabold block">✓ Verified OTP Handoff Handshake Complete</span>
+                      <span className="text-xs text-emerald-400 font-black block">✓ Verified OTP Handoff Handshake Complete</span>
                     )}
                   </div>
                 )}
 
-                <div className="flex flex-col gap-2.5">
-                  <span className="text-xs font-bold text-foreground">
-                    Items List ({selectedOrder.items.length})
+                <div className="flex flex-col gap-3">
+                  <span className="text-xs font-extrabold text-white uppercase tracking-wider font-heading flex items-center justify-between">
+                    <span>📦 Ordered Products List ({selectedOrder.items.length} items)</span>
+                    <span className="text-[10px] text-amber-400 font-bold lowercase">packing checklist</span>
                   </span>
 
-                  <div className="border border-border/60 rounded-xl overflow-hidden divide-y divide-border/40">
-                    {selectedOrder.items.map((item) => (
-                      <div
-                        key={item.sku}
-                        className="p-3 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={checkedItems.includes(item.productId)}
-                              onChange={() => handleToggleChecklist(item.productId)}
-                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                            />
-                            <img
-                              src={item.image}
-                              alt={item.productName}
-                              className="h-9 w-9 rounded object-cover border border-border flex-shrink-0"
-                            />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-foreground line-clamp-1">
-                              {item.productName}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              SKU: {item.sku}
-                            </span>
-                            {item.variantAttributes && (
-                              <span className="text-[9px] text-primary">
-                                {Object.entries(item.variantAttributes)
-                                  .map(([k, v]) => `${k}: ${v}`)
-                                  .join(', ')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                  <div className="rounded-2xl bg-slate-950/90 overflow-hidden divide-y divide-slate-800/80 border border-slate-800 shadow-2xl">
+                    {selectedOrder.items.map((item) => {
+                      // Extract all variant attributes (with SKU suffix & title fallback parsing)
+                      const attrObj = item.variantAttributes || (item as any).selectedAttributes || (item as any).attributes;
+                      const attrsList: string[] = [];
+                      if (attrObj && typeof attrObj === 'object') {
+                        Object.entries(attrObj).forEach(([k, v]) => {
+                          if (v && v !== 'default' && k !== 'default') {
+                            attrsList.push(`${k}: ${v}`);
+                          }
+                        });
+                      }
+                      if (attrsList.length === 0) {
+                        if ((item as any).color && (item as any).color !== 'default') attrsList.push(`Color: ${(item as any).color}`);
+                        if ((item as any).size && (item as any).size !== 'default') attrsList.push(`Size: ${(item as any).size}`);
+                        if ((item as any).selectedColor && (item as any).selectedColor !== 'default') attrsList.push(`Color: ${(item as any).selectedColor}`);
+                        if ((item as any).selectedSize && (item as any).selectedSize !== 'default') attrsList.push(`Size: ${(item as any).selectedSize}`);
+                      }
+                      if (attrsList.length === 0 && (item as any).variantName) {
+                        attrsList.push(`Variant: ${(item as any).variantName}`);
+                      }
+                      // Fallback: Parse SKU hyphenated variant e.g. PHO-IDOL-06384-2CM -> 2CM
+                      if (attrsList.length === 0 && item.sku && typeof item.sku === 'string') {
+                        const parts = item.sku.split('-');
+                        if (parts.length > 1) {
+                          const lastPart = parts[parts.length - 1].trim();
+                          if (/^(\d+cm|\d+g|\d+kg|xl|l|m|s|2cm|3cm|4cm|5cm)$/i.test(lastPart) || lastPart.length <= 5) {
+                            attrsList.push(`Variant / Size: ${lastPart.toUpperCase()}`);
+                          }
+                        }
+                      }
+                      // Fallback: Parse Title bracket e.g. "Idol (2cm)"
+                      if (attrsList.length === 0 && (item.productName || (item as any).itemName)) {
+                        const titleText = item.productName || (item as any).itemName;
+                        const match = titleText.match(/\(([^)]+)\)/);
+                        if (match && match[1]) {
+                          attrsList.push(`Variant: ${match[1]}`);
+                        }
+                      }
 
-                        <div className="text-right flex flex-col gap-0.5">
-                          <span className="font-bold text-foreground">₹{item.price}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            Qty: {item.quantity}
-                          </span>
+                      const hasSub = (item as any).isSubscription || (item as any).subscriptionFrequency || selectedOrder.isScheduledSubscription;
+                      const subFreq = (item as any).subscriptionFrequency || selectedOrder.scheduleDetails?.frequency || 'Daily';
+                      const subSlot = (item as any).deliverySlot || selectedOrder.scheduleDetails?.deliverySlot || '6:00 AM - 8:00 AM';
+
+                      return (
+                        <div
+                          key={item.sku || item.productId}
+                          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-slate-900/40 hover:bg-slate-900/80 transition-all"
+                        >
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 shrink-0 pt-1">
+                              <input
+                                type="checkbox"
+                                checked={checkedItems.includes(item.productId)}
+                                onChange={() => handleToggleChecklist(item.productId)}
+                                className="h-4 w-4 rounded border-none bg-slate-950 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                              />
+                              <img
+                                src={item.image || "/placeholder.svg"}
+                                alt={item.productName}
+                                className="h-12 w-12 rounded-xl object-cover border border-slate-700 flex-shrink-0 shadow-md bg-slate-950"
+                              />
+                            </div>
+
+                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                              <span className="font-extrabold text-white text-xs leading-snug">
+                                {item.productName}
+                              </span>
+
+                              <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                                <span className="text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                                  SKU: {item.sku || 'N/A'}
+                                </span>
+
+                                {(item as any).brand && (
+                                  <span className="text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                    {(item as any).brand}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Selected Variant Badges */}
+                              {attrsList.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">Selected Variant:</span>
+                                  {attrsList.map((attr, idx) => (
+                                    <span key={idx} className="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-md shadow-xs">
+                                      {attr}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Subscription badge on item */}
+                              {hasSub && (
+                                <div className="mt-1 flex items-center gap-1.5 bg-purple-950/80 border border-purple-800/80 rounded-lg p-1.5 text-[10px]">
+                                  <span className="text-purple-300 font-bold">🔄 Recurring Subscription:</span>
+                                  <span className="text-amber-400 font-black uppercase">{subFreq}</span>
+                                  <span className="text-purple-200">({subSlot})</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right flex sm:flex-col items-end justify-between sm:justify-center gap-1 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                            <span className="font-black text-white text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                            <span className="text-slate-400 text-[11px] font-medium">
+                              ₹{item.price} × {item.quantity} units
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="border-t border-border/40 pt-4 flex flex-col gap-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">₹{selectedOrder.subtotal}</span>
+                    <span className="text-foreground font-semibold">₹{selectedOrder.subtotal}</span>
                   </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping / Delivery Charge</span>
-                    <span className="text-foreground">₹{selectedOrder.shippingCharge}</span>
-                  </div>
+                  {/* GST Tax Breakdown */}
+                  {(() => {
+                    const gstPct = (selectedOrder as any).gstPercent || (selectedOrder as any).gstRate || (selectedOrder as any).taxPercent || 5;
+                    const gstVal = (selectedOrder as any).gstAmount || Math.round(selectedOrder.subtotal * (gstPct / 100));
+                    return (
+                      <div className="flex justify-between text-slate-300">
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span>🧾 GST ({gstPct}% Tax Included)</span>
+                        </span>
+                        <span className="font-mono text-amber-400 text-[11px]">₹{gstVal}</span>
+                      </div>
+                    );
+                  })()}
 
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Packing Charge</span>
-                    <span className="text-foreground">₹{selectedOrder.packingCharge}</span>
-                  </div>
+                  {selectedOrder.shippingCharge > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Shipping / Delivery Charge</span>
+                      <span className="text-foreground">₹{selectedOrder.shippingCharge}</span>
+                    </div>
+                  )}
 
-                  {selectedOrder.discount > 0 && (
-                    <div className="flex justify-between text-emerald-500 font-medium">
-                      <span>Discount</span>
-                      <span>-₹{selectedOrder.discount}</span>
+                  {selectedOrder.packingCharge > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Packing Charge</span>
+                      <span className="text-foreground">₹{selectedOrder.packingCharge}</span>
+                    </div>
+                  )}
+
+                  {/* Applied Coupon / Discount Breakdown - ONLY IF ACTUALLY APPLIED */}
+                  {(((selectedOrder as any).couponCode || (selectedOrder as any).coupon) && ((selectedOrder as any).couponDiscount > 0 || selectedOrder.discount > 0)) && (
+                    <div className="flex justify-between items-center text-emerald-400 font-extrabold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20 my-1">
+                      <span className="flex items-center gap-1.5">
+                        <span>🎟️ Coupon Applied:</span>
+                        <span className="font-mono bg-emerald-950 px-2 py-0.5 rounded text-amber-400 border border-emerald-800 text-[11px]">
+                          {(selectedOrder as any).couponCode || (selectedOrder as any).coupon}
+                        </span>
+                      </span>
+                      <span className="text-emerald-300 font-mono font-black text-sm">
+                        -₹{(selectedOrder as any).couponDiscount || selectedOrder.discount}
+                      </span>
                     </div>
                   )}
 
@@ -805,20 +973,22 @@ export const Orders: React.FC = () => {
                   </div>
 
                   {(() => {
-                    const { payout, commission, avgRate } = getOrderPayout(selectedOrder);
+                    const { payout, commission, avgRate, isApexBeeCommissionModel } = getOrderPayout(selectedOrder);
 
                     return (
-                      <div className="mt-2 bg-secondary/30 border border-border/60 rounded-xl p-3 flex flex-col gap-1.5">
+                      <div className="mt-2 bg-secondary/30 border border-border/60 rounded-xl p-3 flex flex-col gap-1.5 text-left">
                         <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                          Settlement & Earnings Sheet
+                          Settlement &amp; Earnings Sheet
                         </span>
 
-                        <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-                          <span>Platform Commission ({avgRate}%)</span>
-                          <span className="text-destructive font-semibold">
-                            -₹{commission}
-                          </span>
-                        </div>
+                        {isApexBeeCommissionModel ? (
+                          <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                            <span>ApexBee Commission ({avgRate}%)</span>
+                            <span className="text-destructive font-semibold">
+                              -₹{commission}
+                            </span>
+                          </div>
+                        ) : null}
 
                         <div className="flex justify-between items-center text-xs font-black text-indigo-600 dark:text-indigo-400 border-t border-border/30 pt-1.5 mt-0.5">
                           <span>Net Vendor Earnings</span>

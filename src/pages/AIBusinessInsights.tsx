@@ -1,24 +1,33 @@
 import React, { useMemo, useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
-import { 
-  Sparkles, 
-  TrendingUp, 
-  AlertTriangle, 
-  HelpCircle, 
-  RefreshCw, 
-  MessageSquare,
-  X,
-  ShieldCheck,
-  Activity
-} from 'lucide-react';
+import { Badge } from '../components/ui/Badge';
+import { Sparkles, Brain, TrendingUp, AlertTriangle, Lightbulb, RefreshCw, Zap, ArrowUpRight, ArrowDownRight, Bot, Send, MessageSquare, HelpCircle, Activity, ShieldCheck, X } from 'lucide-react';
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const AIBusinessInsights: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="AI Business Insights"
+      sectionName="📈 Growth & Marketing"
+      icon="sparkles"
+      description="We are upgrading AI Business Insights with deep predictive neural analytics, automated stockout warnings, and smart revenue optimization models."
+      keyFeatures={[
+        'Automated demand forecasting & stock warnings',
+        'AI pricing & margin optimization tips',
+        'Customer behavior cohort predictions',
+        'Voice-enabled AI Business Co-Pilot'
+      ]}
+    />
+  );
+};
+
+export const LegacyAIBusinessInsights: React.FC = () => {
   const { currentPage, stats, orders, products, setCurrentPage } = useVendor();
   const [refreshing, setRefreshing] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
@@ -300,7 +309,7 @@ export const AIBusinessInsights: React.FC = () => {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
                         <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                        <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                        <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} tickFormatter={(v: any) => `₹${(v/1000).toFixed(0)}k`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
                           formatter={(value: any) => value != null ? [`₹${Number(value).toLocaleString('en-IN')}`, ''] : ['—', '']}

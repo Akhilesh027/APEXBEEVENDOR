@@ -1,22 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { 
-  Boxes, 
-  Search, 
-  FileCheck, 
-  FileText, 
-  Calendar, 
-  Download, 
-  CheckCircle, 
-  Truck, 
-  X
-} from 'lucide-react';
+import { Download, Calendar, X, FileCheck, Truck, Plus, Search, CheckCircle, Package, Boxes, FileText } from 'lucide-react';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 
 export const ProcurementHub: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="Procurement Hub"
+      sectionName="🏭 Procurement"
+      icon="truck"
+      description="We are upgrading Procurement Hub with automated Goods Received Note (GRN) generation, purchase order tracking, and supplier lead-time scoring."
+      keyFeatures={[
+        'Automated PO & GRN inventory sync',
+        'Real-time purchase order shipment tracking',
+        'Supplier quality & lead-time rating engine',
+        'Smart reorder threshold trigger automation'
+      ]}
+    />
+  );
+};
+
+export const LegacyProcurementHub: React.FC = () => {
   const { products = [], b2bPos = [], updateB2bPo, profile } = useVendor();
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -297,7 +305,7 @@ export const ProcurementHub: React.FC = () => {
             <CardContent className="p-3 flex flex-col gap-2.5">
               {b2bPos.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">No dispatches to generate invoices.</p>
-              ) : b2bPos.map(po => (
+              ) : b2bPos.map((po: any) => (
                 <div key={po._id} className="p-2.5 bg-secondary/30 rounded-xl border border-border/50 flex justify-between items-center text-xs">
                   <div className="flex flex-col text-left gap-0.5">
                     <span className="font-bold text-foreground">{po.poNumber}</span>
@@ -331,7 +339,7 @@ export const ProcurementHub: React.FC = () => {
               <div className="grid grid-cols-5 gap-1.5 text-left mt-1 text-[9px] font-semibold text-muted-foreground">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, idx) => {
                   // Filter POs scheduled on this day of the week
-                  const dayPos = b2bPos.filter((po) => {
+                  const dayPos = b2bPos.filter((po: any) => {
                     const poDay = new Date(po.expectedDelivery).getDay(); // Sunday=0, Monday=1, ... Saturday=6
                     // Map Sunday/Saturday to Monday/Friday for grid fit
                     const mappedDay = poDay === 0 ? 1 : poDay === 6 ? 5 : poDay;
@@ -342,7 +350,7 @@ export const ProcurementHub: React.FC = () => {
                       {dayPos.length === 0 ? (
                         <span className="text-[8px] text-muted-foreground/40 italic mt-0.5 text-center">Idle</span>
                       ) : (
-                        dayPos.map(po => (
+                        dayPos.map((po: any) => (
                           <div key={po._id} className="bg-primary/10 p-1 rounded border border-primary/20 text-foreground flex flex-col leading-none">
                             <span className="font-extrabold text-primary text-[8px]">{po.poNumber}</span>
                             <span className="text-[7.5px] truncate mt-0.5 text-foreground/80">{po.supplierName}</span>

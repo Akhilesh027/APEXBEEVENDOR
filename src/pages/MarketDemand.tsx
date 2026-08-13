@@ -1,27 +1,30 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
-import {
-  Compass,
-  MapPin,
-  Lightbulb,
-  Bookmark,
-  Flame,
-  CloudRain,
-  BookOpen,
-  Info,
-  RefreshCw,
-  TrendingUp
-} from 'lucide-react';
-import { useVendor } from '../context/VendorContext';
-
-const API_ROOT = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? 'https://server.apexbee.in'
-  : 'https://server.apexbee.in';
+import { Badge } from '../components/ui/Badge';
+import { TrendingUp, Flame, Search, Sparkles, Check, Bookmark, ArrowUpRight, MapPin, Activity, ChevronRight, AlertCircle, Coins, Building2, Filter, Compass, RefreshCw, Lightbulb, Info, CloudRain, BookOpen } from 'lucide-react';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 
 export const MarketDemand: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="Market Demand"
+      sectionName="📈 Growth & Marketing"
+      icon="trending-up"
+      description="We are upgrading Market Demand with hyper-local search intent maps, trending product category alerts, and competitive price index benchmarks."
+      keyFeatures={[
+        'Pincode & district level search heatmaps',
+        'Top trending product category radar',
+        'Real-time price & demand gap discovery',
+        'Automated product sourcing recommendations'
+      ]}
+    />
+  );
+};
+
+export const LegacyMarketDemand: React.FC = () => {
   const { setCurrentPage, products, profile } = useVendor();
 
   const [activeRegion, setActiveRegion] = useState<'Area' | 'Mandal' | 'District' | 'Andhra Pradesh' | 'India'>('Mandal');
@@ -32,6 +35,8 @@ export const MarketDemand: React.FC = () => {
   const toggleSaveOpportunity = (id: string) => {
     setSavedOpportunities(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const API_ROOT = import.meta.env.VITE_API_URL || 'http://localhost:5500';
 
   // Fetch real market demand metrics from backend
   const fetchMarketDemand = async () => {

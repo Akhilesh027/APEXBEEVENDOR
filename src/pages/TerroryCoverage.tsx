@@ -153,7 +153,7 @@ export const TerritoryCoverage: React.FC = () => {
                     <td className="py-3 px-4 text-foreground">{ter.district}</td>
                     <td className="py-3 px-4 text-muted-foreground">{ter.mandal}</td>
                     <td className="py-3 px-4 text-center text-foreground font-bold">{ter.activePartners} stores</td>
-                    <td className="py-3 px-4 text-primary">₹{ter.salesVolume.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-primary">₹{(ter.salesVolume || 0).toLocaleString()}</td>
                     <td className="py-3 px-4">
                       <Badge variant={ter.status === 'Active' ? 'success' : 'warning'} className="text-[9px] font-bold">
                         {ter.status}

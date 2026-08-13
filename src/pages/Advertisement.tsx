@@ -2,23 +2,30 @@ import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { 
-  Megaphone, 
-  Plus, 
-  Pause, 
-  Play, 
-  XCircle,
-  Sparkles,
-  Copy,
-  Smartphone,
-  ChevronRight,
-  ChevronLeft
-} from 'lucide-react';
+import { Badge } from '../components/ui/Badge';
+import { Megaphone, Plus, Trash2, Eye, MousePointer, TrendingUp, Sparkles, Filter, CheckCircle2, Clock, X, Play, Pause, XCircle, ChevronLeft, ChevronRight, Smartphone, Copy } from 'lucide-react';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 import type { AdCampaign } from '../types';
 
 export const Advertisement: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="Advertisements"
+      sectionName="📈 Growth & Marketing"
+      icon="megaphone"
+      description="We are upgrading Advertisements with sponsored search placement controls, AI ad creative generator, and real-time impression analytics."
+      keyFeatures={[
+        'Category & search keyword sponsored ads',
+        'AI automated copy & banner generator',
+        'Cost-Per-Click (CPC) budget optimization',
+        'Real-time impression & conversion metrics'
+      ]}
+    />
+  );
+};
+
+export const LegacyAdvertisement: React.FC = () => {
   const { ads: contextAds, addAd, toggleAdStatus, deleteAd, products } = useVendor();
   const [showForm, setShowForm] = useState(false);
   const [formStep, setFormStep] = useState(1);

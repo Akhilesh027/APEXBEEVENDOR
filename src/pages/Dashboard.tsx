@@ -354,164 +354,303 @@ export const Dashboard: React.FC = () => {
   }) => {
     const deltaInfo = getYesterdayDelta(title);
     return (
-      <Card className="hover:shadow-md transition-all">
-        <CardContent className="p-4 flex justify-between items-center gap-3 text-left">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
-              {title}
-              {deltaInfo.delta !== '0%' && (
-                <span className="text-[8px] font-black px-1.5 py-0.25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded">
-                  {deltaInfo.delta}
-                </span>
-              )}
-            </span>
-            <span className="text-lg font-extrabold text-foreground">
-              {value}
-            </span>
-            {sub && <span className="text-[9px] text-muted-foreground">{sub}</span>}
-          </div>
+      <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex justify-between items-center gap-3 text-left">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-black uppercase text-blue-300 tracking-wider flex items-center gap-2">
+            {title}
+            {deltaInfo.delta !== '0%' && (
+              <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30">
+                ↗ {deltaInfo.delta}
+              </span>
+            )}
+          </span>
+          <span className="text-xl font-black text-white font-heading">
+            {value}
+          </span>
+          {sub && <span className="text-xs font-semibold text-blue-300">{sub}</span>}
+        </div>
 
-          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <Icon size={18} />
-          </div>
-        </CardContent>
-      </Card>
+        <div className="h-11 w-11 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 font-black shadow-md border border-amber-400/30">
+          <Icon size={20} />
+        </div>
+      </div>
     );
   };
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
-      <div className="bg-gradient-to-r from-primary via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="bg-white/25 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide">
-              {profile.businessType}
+      {/* Enterprise Executive Dashboard Hero Banner */}
+      <div className="rounded-3xl bg-slate-900/90 p-6 md:p-8 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative z-10 space-y-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="bg-amber-400 text-blue-950 px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-md">
+              ✓ Verified Storefront
             </span>
             <button
               onClick={() => setCurrentPage('subscription')}
-              className="bg-emerald-500 text-white hover:bg-emerald-600 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+              className="bg-slate-800 hover:bg-slate-700 text-amber-300 font-extrabold px-3.5 py-1 rounded-full text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-amber-400/20"
             >
-              <Sparkles className="h-3 w-3" />
+              <Sparkles className="h-3.5 w-3.5" />
               <span>{activePlanName}</span>
-              <span className="bg-white/30 px-1.5 py-0.2 rounded text-[8px]">
-                {activePlanStatus}
-              </span>
             </button>
-            <span className="text-white/80 text-xs">ID: {profile.id}</span>
+            <span className="text-blue-300 text-xs font-mono font-bold">ID: #{profile.id}</span>
           </div>
 
-          <h1 className="text-xl md:text-2xl font-extrabold mt-2">
-            Welcome back, {profile.ownerName}!
-          </h1>
-
-          <p className="text-white/80 text-xs max-w-xl">
-            Business: <span className="font-semibold">{profile.businessName}</span>{" "}
-            • KYC Status:{" "}
-            <span className="font-bold underline">{profile.kycStatus}</span>
-          </p>
+          <div>
+            <h1 className="text-2xl md:text-4xl font-black font-heading text-white tracking-tight">
+              {timeGreeting} <span className="text-amber-400">{profile.ownerName}</span> 👋
+            </h1>
+            <p className="text-blue-200 text-xs md:text-sm mt-1 flex items-center gap-2 flex-wrap">
+              <span>{profile.businessName}</span>
+              <span>•</span>
+              <span className={`font-black uppercase px-3 py-0.5 rounded-full text-[10px] ${(profile.marketplaceStatus as string) === 'Live' || profile.marketplaceStatus === 'Approved'
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                {(profile.marketplaceStatus as string) === 'Live' ? '● SHOP ONLINE (Receiving Orders)' : profile.marketplaceStatus}
+              </span>
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Active Subscription Pill */}
-          <div
-            onClick={() => setCurrentPage('subscription')}
-            className="bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 cursor-pointer transition-all flex flex-col justify-center text-left"
-          >
-            <span className="text-[10px] text-white/80 uppercase font-extrabold flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-emerald-300" /> Active Subscription
+        {/* Big Rupee Wallet & Sales Cards */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="bg-slate-950/80 px-6 py-4 rounded-2xl text-left min-w-[190px] shadow-xl">
+            <span className="text-[11px] text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+              <Wallet className="h-4 w-4" /> Available Wallet
             </span>
-            <p className="text-sm font-extrabold text-white truncate max-w-[140px]">
-              {activePlanName}
-            </p>
-            <span className="text-[9px] text-emerald-200 font-bold">
-              {daysRemaining} Days Remaining
-            </span>
-          </div>
-
-          {/* Wallet Balance */}
-          <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/20 text-left">
-            <span className="text-[10px] text-white/70 uppercase font-bold">
-              Wallet Balance
-            </span>
-            <p className="text-xl font-extrabold">
+            <p className="text-2xl md:text-3xl font-black text-white mt-1 font-heading">
               {formatCurrency(stats.walletBalance)}
             </p>
+            <button
+              onClick={() => setCurrentPage('withdrawals')}
+              className="text-xs font-bold text-amber-300 hover:text-amber-200 underline mt-1.5 cursor-pointer block"
+            >
+              Withdraw to Bank ➔
+            </button>
+          </div>
+
+          <div className="bg-slate-950/80 px-6 py-4 rounded-2xl text-left min-w-[190px] shadow-xl">
+            <span className="text-[11px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+              <IndianRupee className="h-4 w-4" /> Gross Sales Today
+            </span>
+            <p className="text-2xl md:text-3xl font-black text-white mt-1 font-heading">
+              {formatCurrency(todayRevenue)}
+            </p>
+            <span className="text-xs text-emerald-300 font-semibold mt-1.5 block">
+              {todayOrdersCount} Customer Orders
+            </span>
           </div>
         </div>
       </div>
 
+      {/* 📊 4 Main Key Data Metric Cards (Directly After Greeting) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+        <div
+          onClick={() => setCurrentPage('earnings')}
+          className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex items-center justify-between transition-all hover:scale-[1.01] cursor-pointer hover:border hover:border-emerald-500/40"
+        >
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
+              <span>●</span> Total Store Earnings
+            </span>
+            <p className="text-2xl font-black text-white font-heading">
+              {formatCurrency(stats.totalRevenue)}
+            </p>
+            <span className="text-xs text-amber-300 font-bold hover:underline flex items-center gap-1">
+              Earnings &amp; Commissions ➔
+            </span>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 shadow-md font-black border border-emerald-500/30">
+            <IndianRupee size={22} />
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex items-center justify-between transition-all hover:scale-[1.01]">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider flex items-center gap-1.5">
+              <span>●</span> Total Orders
+            </span>
+            <p className="text-2xl font-black text-white font-heading">
+              {stats.totalOrders || orders.length || 0}
+            </p>
+            <span className="text-xs text-blue-300 font-semibold">{pendingOrdersCount} New Orders Pending</span>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 shadow-md font-black border border-blue-500/30">
+            <ShoppingCart size={22} />
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex items-center justify-between transition-all hover:scale-[1.01]">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+              <span>●</span> Active Products
+            </span>
+            <p className="text-2xl font-black text-white font-heading">
+              {stats.productsListed || products.length || 0}
+            </p>
+            <span className="text-xs text-blue-300 font-semibold">Live in Customer Catalog</span>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 shadow-md font-black border border-amber-400/30">
+            <Package size={22} />
+          </div>
+        </div>
+
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex items-center justify-between transition-all hover:scale-[1.01]">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5">
+              <span>●</span> Store Verification
+            </span>
+            <p className="text-2xl font-black text-white font-heading">
+              {profile.kycProgress || 100}%
+            </p>
+            <span className="text-xs font-black text-emerald-400">{profile.kycStatus || 'Fully Verified'}</span>
+          </div>
+          <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0 shadow-md font-black border border-indigo-500/30">
+            <ShieldCheck size={22} />
+          </div>
+        </div>
+      </div>
+
+      {/* Enterprise Quick Action Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <button
+          onClick={() => setCurrentPage('add-product')}
+          className="bg-slate-900/80 hover:bg-slate-900 p-5 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5 cursor-pointer group shadow-xl transition-all"
+        >
+          <div className="h-12 w-12 rounded-2xl bg-amber-400 text-blue-950 flex items-center justify-center group-hover:scale-110 transition-transform shadow-md font-black">
+            <Package className="h-6 w-6" />
+          </div>
+          <span className="text-sm font-extrabold text-white">Add New Product</span>
+          <span className="text-xs text-blue-300 font-medium">List catalog items</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage('orders')}
+          className="bg-slate-900/80 hover:bg-slate-900 p-5 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5 cursor-pointer group shadow-xl transition-all"
+        >
+          <div className="h-12 w-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center group-hover:scale-110 transition-transform relative shadow-md font-black">
+            <ShoppingCart className="h-6 w-6" />
+            {pendingOrdersCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 h-6 w-6 bg-amber-400 text-blue-950 font-black text-xs rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                {pendingOrdersCount}
+              </span>
+            )}
+          </div>
+          <span className="text-sm font-extrabold text-white">Customer Orders</span>
+          <span className="text-xs text-blue-300 font-medium">{pendingOrdersCount} new order waiting</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage('withdrawals')}
+          className="bg-slate-900/80 hover:bg-slate-900 p-5 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5 cursor-pointer group shadow-xl transition-all"
+        >
+          <div className="h-12 w-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-md font-black">
+            <IndianRupee className="h-6 w-6" />
+          </div>
+          <span className="text-sm font-extrabold text-white">Bank Payout</span>
+          <span className="text-xs text-blue-300 font-medium">Transfer funds to bank</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentPage('store-design')}
+          className="bg-slate-900/80 hover:bg-slate-900 p-5 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5 cursor-pointer group shadow-xl transition-all"
+        >
+          <div className="h-12 w-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-md font-black">
+            <Zap className="h-6 w-6" />
+          </div>
+          <span className="text-sm font-extrabold text-white">Store QR & Link</span>
+          <span className="text-xs text-blue-300 font-medium">Share storefront</span>
+        </button>
+      </div>
+
+      {/* 📞 Executive Assistance & Support Banner */}
+      <div className="p-5 rounded-2xl bg-slate-900/90 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl text-left">
+        <div className="flex items-center gap-3.5">
+          <div className="h-11 w-11 rounded-2xl bg-amber-400 text-blue-950 flex items-center justify-center shrink-0 shadow-md font-black">
+            <Zap className="h-6 w-6" />
+          </div>
+          <div>
+            <h4 className="text-sm font-extrabold text-white">Need Technical & Logistics Assistance?</h4>
+            <p className="text-xs text-blue-200">APEXBee Executive Support is ready to assist with product listing, bulk pricing, and local fulfillment.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setCurrentPage('support')}
+          className="bg-amber-400 hover:bg-amber-500 text-blue-950 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-md"
+        >
+          Contact Support 📞
+        </button>
+      </div>
+
       {/* Active Subscription Overview Card */}
-      <Card className="border border-emerald-500/30 bg-emerald-500/[0.04] shadow-sm">
-        <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-left">
-          <div className="flex items-center gap-3.5">
-            <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shrink-0">
-              <Sparkles className="h-5 w-5 animate-pulse" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold text-foreground">{activePlanName}</span>
-                <span className="text-[9px] px-2 py-0.5 rounded font-black uppercase bg-emerald-600 text-white">
-                  {activePlanStatus}
-                </span>
-              </div>
-              <span className="text-[11px] text-muted-foreground mt-0.5">
-                {activePlanStatus === 'TRIAL'
-                  ? `15-Day Free Trial Active • ${daysRemaining} days remaining in trial period`
-                  : `Commercial Subscription Active • ${daysRemaining} days remaining`}
+      <div className="rounded-2xl bg-slate-900/90 p-5 shadow-xl text-left flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="h-11 w-11 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shadow-md shrink-0 font-black">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold text-white">{activePlanName}</span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {activePlanStatus}
               </span>
             </div>
+            <span className="text-xs text-blue-200 mt-0.5">
+              {activePlanStatus === 'TRIAL'
+                ? `15-Day Free Trial Active • ${daysRemaining} days remaining in trial period`
+                : `Commercial Subscription Active • ${daysRemaining} days remaining`}
+            </span>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setCurrentPage('subscription')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Manage / Upgrade Plan</span>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setCurrentPage('subscription')}
+            className="px-5 py-2.5 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-blue-950 shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Manage / Upgrade Plan</span>
+          </button>
+        </div>
+      </div>
 
-      {/* AI CEO Dashboard Card */}
-      <Card className="border border-primary/20 bg-primary/[0.02] shadow-sm">
-        <CardContent className="p-5 flex flex-col gap-4 text-left">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-              <h2 className="text-sm font-extrabold text-foreground tracking-tight flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] uppercase font-black">AI CEO Insights</span>
-                {timeGreeting}
-              </h2>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-semibold">Active Assistant</span>
+      {/* AI CEO Analytics & Strategic Insights Card */}
+      <div className="rounded-2xl bg-slate-900/90 p-6 space-y-4 shadow-xl text-left">
+        <div className="flex items-center justify-between border-b border-blue-900/40 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <h2 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-amber-400/10 text-amber-300 text-[10px] uppercase font-black border border-amber-400/20">AI Executive Summary</span>
+              {timeGreeting}
+            </h2>
           </div>
+          <span className="text-xs text-blue-300 font-bold">Real-time Intelligence Engine</span>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Yesterday Revenue</span>
-              <span className="text-base font-extrabold text-foreground mt-1.5">{formatCurrency(yesterdayRevenue)}</span>
-            </div>
-            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Prediction Today</span>
-              <span className="text-base font-extrabold text-primary mt-1.5">{formatCurrency(predictionToday)}</span>
-            </div>
-            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Top Opportunity</span>
-              <span className="text-xs font-bold text-foreground mt-1.5 leading-snug line-clamp-2">{topOpportunity}</span>
-            </div>
-            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Active Risk</span>
-              <span className="text-xs font-bold text-rose-500 mt-1.5 leading-snug line-clamp-2">{topRisk}</span>
-            </div>
-            <div className="p-3.5 bg-background border border-border/60 rounded-xl flex flex-col">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Recommended Action</span>
-              <span className="text-xs font-bold text-indigo-500 mt-1.5 leading-snug line-clamp-2">{recommendedAction}</span>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="p-4 bg-slate-950/80 rounded-xl flex flex-col shadow-inner">
+            <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider">Yesterday Revenue</span>
+            <span className="text-lg font-black text-white mt-1 font-heading">{formatCurrency(yesterdayRevenue)}</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="p-4 bg-slate-950/80 rounded-xl flex flex-col shadow-inner">
+            <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider">Prediction Today</span>
+            <span className="text-lg font-black text-amber-300 mt-1 font-heading">{formatCurrency(predictionToday)}</span>
+          </div>
+          <div className="p-4 bg-slate-950/80 rounded-xl flex flex-col shadow-inner">
+            <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider">Top Opportunity</span>
+            <span className="text-xs font-bold text-white mt-1 leading-snug line-clamp-2">{topOpportunity}</span>
+          </div>
+          <div className="p-4 bg-slate-950/80 rounded-xl flex flex-col shadow-inner">
+            <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-wider">Active Risk Alert</span>
+            <span className="text-xs font-bold text-rose-300 mt-1 leading-snug line-clamp-2">{topRisk}</span>
+          </div>
+          <div className="p-4 bg-slate-950/80 rounded-xl flex flex-col shadow-inner">
+            <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider">Recommended Action</span>
+            <span className="text-xs font-bold text-emerald-300 mt-1 leading-snug line-clamp-2">{recommendedAction}</span>
+          </div>
+        </div>
+      </div>
 
       {/* STOCK ALERTS BANNERS */}
       {(lowStockCount > 0 || outOfStockCount > 0) && (
@@ -543,127 +682,111 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* QUICK ACTION BUTTONS */}
-      <Card className="border border-border/80">
-        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3 text-left">
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-xs font-bold text-foreground">Quick Action Controls</h3>
-            <p className="text-[10px] text-muted-foreground">Swiftly manage product listings and process delivery runs.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCurrentPage('add-product')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition shadow-sm"
-            >
-              ➕ Add Product
-            </button>
-            <button
-              onClick={() => setCurrentPage('inventory')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition shadow-sm"
-            >
-              📦 Add Stock
-            </button>
-            <button
-              onClick={() => setCurrentPage('coupons')}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition shadow-sm"
-            >
-              🏷️ New Offer
-            </button>
-            <button
-              onClick={() => setCurrentPage('orders')}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition shadow-sm"
-            >
-              📋 View Orders
-            </button>
-            <button
-              onClick={() => setCurrentPage('orders')}
-              className="bg-secondary text-foreground hover:bg-secondary/80 font-bold text-xs px-3.5 py-2 rounded-lg cursor-pointer transition border border-border"
-            >
-              🖨️ Print Invoice
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* EXECUTIVE QUICK CONTROLS BAR */}
+      <div className="rounded-2xl bg-slate-900/90 p-5 shadow-xl flex flex-wrap items-center justify-between gap-4 text-left">
+        <div>
+          <h3 className="text-sm font-extrabold text-white">Executive Control Actions</h3>
+          <p className="text-xs text-blue-300">Quickly add catalog products, issue discounts, or process store delivery runs.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setCurrentPage('add-product')}
+            className="bg-amber-400 hover:bg-amber-500 text-blue-950 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all shadow-md"
+          >
+            ➕ Add New Product
+          </button>
+          <button
+            onClick={() => setCurrentPage('inventory')}
+            className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all shadow-md"
+          >
+            📦 Replenish Stock
+          </button>
+          <button
+            onClick={() => setCurrentPage('coupons')}
+            className="bg-slate-800 hover:bg-slate-700 text-amber-300 font-extrabold text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all border border-amber-400/20 shadow-sm"
+          >
+            🏷️ Create Offer
+          </button>
+          <button
+            onClick={() => setCurrentPage('orders')}
+            className="bg-slate-800 hover:bg-slate-700 text-blue-300 font-extrabold text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all shadow-sm"
+          >
+            📋 Manage Orders
+          </button>
+        </div>
+      </div>
 
-      {/* TODAY'S SUMMARY SECTION */}
-      <div className="flex flex-col gap-2 text-left">
-        <h2 className="text-sm font-bold text-foreground uppercase tracking-wider pl-1">
-          Today's Summary
+      {/* TODAY'S PERFORMANCE MATRIX */}
+      <div className="space-y-3 text-left">
+        <h2 className="text-xs font-black uppercase tracking-widest text-amber-400 pl-1">
+          Today's Live Store Metrics
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="bg-primary/[0.03] border border-border/80 p-3 rounded-xl flex flex-col text-left">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase">Today Orders</span>
-            <span className="text-base font-extrabold text-foreground mt-1">{todayOrdersCount} orders</span>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="bg-slate-900/90 p-4 rounded-2xl flex flex-col text-left shadow-xl">
+            <span className="text-[10px] font-extrabold text-blue-300 uppercase">Today's Orders</span>
+            <span className="text-xl font-black text-white mt-1 font-heading">{todayOrdersCount} Orders</span>
           </div>
-          <div className="bg-primary/[0.03] border border-border/80 p-3 rounded-xl flex flex-col text-left">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase">Today Revenue</span>
-            <span className="text-base font-extrabold text-primary mt-1">{formatCurrency(todayRevenue)}</span>
+          <div className="bg-slate-900/90 p-4 rounded-2xl flex flex-col text-left shadow-xl">
+            <span className="text-[10px] font-extrabold text-emerald-400 uppercase">Gross Revenue</span>
+            <span className="text-xl font-black text-emerald-300 mt-1 font-heading">{formatCurrency(todayRevenue)}</span>
           </div>
-          <div className="bg-primary/[0.03] border border-border/80 p-3 rounded-xl flex flex-col text-left">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase">Today Visitors</span>
-            <span className="text-base font-extrabold text-foreground mt-1">{todayVisitors} views</span>
+          <div className="bg-slate-900/90 p-4 rounded-2xl flex flex-col text-left shadow-xl">
+            <span className="text-[10px] font-extrabold text-blue-300 uppercase">Store Visitors</span>
+            <span className="text-xl font-black text-white mt-1 font-heading">{todayVisitors} Views</span>
           </div>
-          <div className="bg-primary/[0.03] border border-border/80 p-3 rounded-xl flex flex-col text-left">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase">Cancelled Orders</span>
-            <span className="text-base font-extrabold text-destructive mt-1">{todayCancelled} orders</span>
+          <div className="bg-slate-900/90 p-4 rounded-2xl flex flex-col text-left shadow-xl">
+            <span className="text-[10px] font-extrabold text-rose-400 uppercase">Cancelled</span>
+            <span className="text-xl font-black text-rose-400 mt-1 font-heading">{todayCancelled} Orders</span>
           </div>
-          <div className="bg-primary/[0.03] border border-border/80 p-3 rounded-xl flex flex-col text-left">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase">Today's Returns</span>
-            <span className="text-base font-extrabold text-amber-500 mt-1">{todayReturns} items</span>
+          <div className="bg-slate-900/90 p-4 rounded-2xl flex flex-col text-left shadow-xl">
+            <span className="text-[10px] font-extrabold text-amber-400 uppercase">Returns / Claims</span>
+            <span className="text-xl font-black text-amber-300 mt-1 font-heading">{todayReturns} Items</span>
           </div>
         </div>
       </div>
 
-      {/* PENDING ORDERS PROGRESS */}
-      <div className="flex flex-col gap-2 text-left">
-        <h2 className="text-sm font-bold text-foreground uppercase tracking-wider pl-1">
-          Pending Orders Progress
+      {/* PENDING ORDERS FULFILLMENT MATRIX */}
+      <div className="space-y-3 text-left">
+        <h2 className="text-xs font-black uppercase tracking-widest text-amber-400 pl-1">
+          Order Pipeline & Fulfillment Velocity
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card onClick={() => setCurrentPage('orders')} className="bg-amber-500/[0.02] border border-border/80 hover:shadow-sm cursor-pointer transition">
-            <CardContent className="p-4 flex justify-between items-center">
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Pending (New)</span>
-                <span className="text-lg font-extrabold text-amber-500 mt-1">{pendingOrdersCount}</span>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center flex-shrink-0">
-                <Clock size={16} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card onClick={() => setCurrentPage('orders')} className="bg-indigo-500/[0.02] border border-border/80 hover:shadow-sm cursor-pointer transition">
-            <CardContent className="p-4 flex justify-between items-center">
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Packed & Ready</span>
-                <span className="text-lg font-extrabold text-indigo-500 mt-1">{packedOrdersCount}</span>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center flex-shrink-0">
-                <Package size={16} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card onClick={() => setCurrentPage('delivery')} className="bg-sky-500/[0.02] border border-border/80 hover:shadow-sm cursor-pointer transition">
-            <CardContent className="p-4 flex justify-between items-center">
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Out For Delivery</span>
-                <span className="text-lg font-extrabold text-sky-500 mt-1">{transitOrdersCount}</span>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center flex-shrink-0">
-                <Truck size={16} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card onClick={() => setCurrentPage('orders')} className="bg-emerald-500/[0.02] border border-border/80 hover:shadow-sm cursor-pointer transition">
-            <CardContent className="p-4 flex justify-between items-center">
-              <div className="flex flex-col text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Completed Run</span>
-                <span className="text-lg font-extrabold text-emerald-500 mt-1">{completedOrdersCount}</span>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 size={16} />
-              </div>
-            </CardContent>
-          </Card>
+          <div onClick={() => setCurrentPage('orders')} className="bg-slate-900/90 p-5 rounded-2xl shadow-xl hover:bg-slate-850 cursor-pointer transition-all flex justify-between items-center">
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-extrabold text-amber-300 uppercase">Pending (New)</span>
+              <span className="text-2xl font-black text-white mt-1 font-heading">{pendingOrdersCount}</span>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 font-black">
+              <Clock size={18} />
+            </div>
+          </div>
+          <div onClick={() => setCurrentPage('orders')} className="bg-slate-900/90 p-5 rounded-2xl shadow-xl hover:bg-slate-850 cursor-pointer transition-all flex justify-between items-center">
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-extrabold text-indigo-300 uppercase">Packed & Ready</span>
+              <span className="text-2xl font-black text-white mt-1 font-heading">{packedOrdersCount}</span>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0 font-black">
+              <Package size={18} />
+            </div>
+          </div>
+          <div onClick={() => setCurrentPage('delivery')} className="bg-slate-900/90 p-5 rounded-2xl shadow-xl hover:bg-slate-850 cursor-pointer transition-all flex justify-between items-center">
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-extrabold text-blue-300 uppercase">Out For Delivery</span>
+              <span className="text-2xl font-black text-white mt-1 font-heading">{transitOrdersCount}</span>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center shrink-0 font-black">
+              <Truck size={18} />
+            </div>
+          </div>
+          <div onClick={() => setCurrentPage('orders')} className="bg-slate-900/90 p-5 rounded-2xl shadow-xl hover:bg-slate-850 cursor-pointer transition-all flex justify-between items-center">
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-extrabold text-emerald-300 uppercase">Completed Deliveries</span>
+              <span className="text-2xl font-black text-white mt-1 font-heading">{completedOrdersCount}</span>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 font-black">
+              <CheckCircle2 size={18} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -752,12 +875,12 @@ export const Dashboard: React.FC = () => {
                       >
                         <stop
                           offset="5%"
-                          stopColor="var(--primary)"
-                          stopOpacity={0.2}
+                          stopColor="#f59e0b"
+                          stopOpacity={0.4}
                         />
                         <stop
                           offset="95%"
-                          stopColor="var(--primary)"
+                          stopColor="#f59e0b"
                           stopOpacity={0}
                         />
                       </linearGradient>

@@ -33,7 +33,7 @@ export const Drawer: React.FC<DrawerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
           />
 
           {/* Drawer Slide Panel */}
@@ -42,12 +42,12 @@ export const Drawer: React.FC<DrawerProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
-            className={`w-full ${sizeClasses[size]} h-full bg-card border-l border-border shadow-2xl relative z-10 flex flex-col`}
+            className={`w-full ${sizeClasses[size]} h-full bg-slate-900 text-slate-100 border-none shadow-2xl relative z-10 flex flex-col`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border/50">
+            <div className="flex items-center justify-between p-5 bg-slate-950/70 border-none shadow-sm">
               {title ? (
-                <h3 className="text-base md:text-lg font-bold text-foreground tracking-tight">
+                <h3 className="text-base md:text-lg font-extrabold text-white tracking-tight font-heading">
                   {title}
                 </h3>
               ) : (
@@ -55,14 +55,14 @@ export const Drawer: React.FC<DrawerProps> = ({
               )}
               <button
                 onClick={onClose}
-                className="text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg p-1.5 transition-colors cursor-pointer"
+                className="text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl p-2 transition-colors cursor-pointer"
               >
-                <X className="h-4.5 w-4.5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Content Body */}
-            <div className="p-6 overflow-y-auto flex-1 text-sm text-foreground no-scrollbar">
+            <div className="p-6 overflow-y-auto flex-1 text-sm text-slate-100 no-scrollbar">
               {children}
             </div>
           </motion.div>

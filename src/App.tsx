@@ -104,7 +104,7 @@ const MainLayout: React.FC = () => {
     }
 
     // 'wallet' is the parent nav item for Wallet & Withdrawals
-    if (['wallet', 'wallet-dashboard'].includes(currentPage)) {
+    if (['wallet', 'wallet-dashboard', 'withdrawals'].includes(currentPage)) {
       return <WalletPage />;
     }
 
@@ -121,7 +121,7 @@ const MainLayout: React.FC = () => {
       return <Reports />;
     }
 
-    if (['earnings-breakdown', 'earnings-products', 'earnings-settlements', 'earnings-upcoming', 'earnings-reports'].includes(currentPage)) {
+    if (['earnings', 'earnings-commissions', 'earnings-breakdown', 'earnings-products', 'earnings-settlements', 'earnings-upcoming', 'earnings-reports', 'settlements', 'settlement-history', 'settlements-history'].includes(currentPage)) {
       return <EarningsCommissions />;
     }
 
@@ -268,17 +268,17 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
       {/* Sidebar Navigation */}
       <Sidebar />
 
       {/* Main Panel Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div className="flex-1 flex flex-col min-w-0 h-full bg-slate-950">
         {/* Navbar */}
         <Navbar />
 
         {/* Dynamic page container */}
-        <main className="flex-1 overflow-y-auto min-w-0 no-scrollbar bg-background">
+        <main className="flex-1 overflow-y-auto min-w-0 no-scrollbar bg-gradient-to-br from-blue-950 via-slate-950 to-blue-950 text-slate-100">
           {renderActivePage()}
         </main>
       </div>

@@ -8,34 +8,18 @@ import {
   ShoppingBag,
   Truck,
   Wallet,
-  ArrowDownCircle,
   Users,
-  BarChart3,
   HelpCircle,
-  ChevronDown,
-  ChevronRight,
-  ShieldCheck,
   CreditCard,
-  FolderOpen,
   PlusCircle,
-  FileCheck,
-  Loader2,
-  XCircle,
   Sparkles,
-  Layers,
-  AlertTriangle,
   Menu,
   X,
   Coins,
   Star,
   Store,
   RotateCcw,
-  Compass,
-  FileSpreadsheet,
-  Clock,
-  QrCode,
   Calendar,
-  ArrowLeftRight,
   TrendingUp,
   Gift,
   Megaphone,
@@ -43,722 +27,214 @@ import {
   Bell,
   BookOpen,
   Lock,
-  Share2,
   Network,
-  ShoppingCart,
+  QrCode,
   MapPin,
-  CheckCircle2,
-  Award,
-  Phone
+  Search,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useSubscription } from '../features/subscription/hooks/useSubscription';
 import { Badge } from './ui/Badge';
+
+interface NavItem {
+  id: string;
+  label: string | (() => string);
+  icon: React.ReactNode;
+  badge?: string | number | null;
+  badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning';
+  roles?: ('Vendor' | 'Wholesaler' | 'Manufacturer')[];
+  isComingSoon?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
 
 export const Sidebar: React.FC = () => {
   const { currentPage, setCurrentPage, products, orders, profile } = useVendor();
   const { summary } = useSubscription();
   const activePlanName = summary?.planName || '15-Day Free Trial';
   const activePlanStatus = summary?.status || 'TRIAL';
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    business: true,
-    products: false,
-    orders: false,
-    wallet: false,
-    earnings: false,
-    reviews: false,
-    reports: false,
-    b2b: false,
-    qr: false,
-    crm: false,
-    ai: false,
-    hl: false,
-    ent: false,
-    fc: false,
-    acad: false,
-    'business-academy': false
-  });
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    '1. 📊 Dashboard': true,
-    '2. 🏪 Store Operations': false,
-    '3. 📈 Growth & Marketing': false,
-    '4. 🏭 Procurement': false,
-    '5. 👥 Customers': false,
-    '6. 💰 Finance': false,
-    '7. 🌐 Network': false,
-    '8. 🛡️ Business': false,
-    '9. Business(ApexBee) Academy': false
-  });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const toggleExpand = (menu: string) => {
-    setExpandedMenus(prev => {
-      const isCurrentlyExpanded = !!prev[menu];
-      if (isCurrentlyExpanded) {
-        return { ...prev, [menu]: false };
-      }
-      // Accordion mode: close other sub-menus, open only clicked menu
-      return { [menu]: true };
-    });
-  };
-
-  const toggleGroupExpand = (groupLabel: string) => {
-    setExpandedGroups(prev => {
-      const isCurrentlyExpanded = !!prev[groupLabel];
-      if (isCurrentlyExpanded) {
-        return { ...prev, [groupLabel]: false };
-      }
-      // Accordion mode: close other groups, open only clicked group
-      return { [groupLabel]: true };
-    });
-  };
-
-  // Auto-expand group & sub-menu for active currentPage while closing inactive ones
-  React.useEffect(() => {
-    menuGroups.forEach(group => {
-      const hasActive = group.items.some(item => {
-        if (item.id === currentPage) return true;
-        return item.subItems.some(sub => sub.id === currentPage);
-      });
-      if (hasActive) {
-        setExpandedGroups({ [group.groupLabel]: true });
-        const activeItemWithSub = group.items.find(item => item.subItems.some(sub => sub.id === currentPage));
-        if (activeItemWithSub) {
-          setExpandedMenus({ [activeItemWithSub.id]: true });
-        }
-      }
-    });
-  }, [currentPage]);
-
-  const isGroupActive = (group: MenuGroup) => {
-    return group.items.some(item => {
-      if (currentPage === item.id) return true;
-      return item.subItems.some(sub => sub.id === currentPage);
-    });
-  };
-
-  // Badge calculations
-  const draftProductsCount = products.filter(p => p.status === 'Draft').length;
-  const pendingApprovalCount = products.filter(p => p.status === 'Pending Review').length;
-  const awaitingVendorCount = products.filter(p => (p.status as string) === 'Awaiting Seller Approval' || p.status === 'Awaiting Vendor Approval').length;
-  const changeRequestsCount = products.filter(p => (p.status as string) === 'Negotiation Requested' || p.status === 'Awaiting Reapproval').length;
+  // Real-time Badge Metrics
   const approvedCount = products.filter(p => (p.status as string) === 'Live' || p.status === 'Approved').length;
-  const rejectedCount = products.filter(p => p.status === 'Rejected').length;
-
   const lowStockCount = products.filter(p => ((p.status as string) === 'Live' || p.status === 'Approved') && p.stock <= 10 && p.stock > 0).length;
-  const outOfStockCount = products.filter(p => p.stock === 0).length;
   const newOrdersCount = orders.filter(o => o.deliveryStatus === 'New').length;
   const returnRequestsCount = orders.filter(o => o.refundStatus === 'Pending').length;
-
-  interface SubMenuItem {
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-    badge?: string | null;
-    count?: number;
-  }
-
-  interface MenuItem {
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-    subItems: SubMenuItem[];
-  }
-
-  interface MenuGroup {
-    groupLabel: string;
-    items: MenuItem[];
-  }
-
-  const menuGroups: MenuGroup[] = [
-    {
-      groupLabel: '1. 📊 Dashboard',
-      items: [
-        {
-          id: 'dashboard',
-          label: 'Overview',
-          icon: <LayoutDashboard className="h-4 w-4" />,
-          subItems: []
-        },
-        {
-          id: 'reports',
-          label: 'Reports & Analytics',
-          icon: <BarChart3 className="h-4 w-4" />,
-          subItems: [
-            { id: 'reports-sales', label: 'Sales Report', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-            { id: 'reports-products', label: 'Product Report', icon: <Package className="h-3.5 w-3.5" /> },
-            { id: 'reports-earnings', label: 'Earnings Report', icon: <Wallet className="h-3.5 w-3.5" /> },
-            { id: 'reports-inventory', label: 'Inventory Report', icon: <Boxes className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'notifications-list',
-          label: 'Notifications',
-          icon: <Bell className="h-4 w-4 text-blue-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '2. 🏪 Store Operations',
-      items: [
-        {
-          id: 'products',
-          label: (() => {
-            const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
-            if (catName.includes('food') || catName.includes('restaurant')) return '🍽️ Digital Food Menu';
-            if (catName.includes('grocery') || catName.includes('daily')) return '🛒 Supermarket Catalog';
-            if (catName.includes('fashion') || catName.includes('apparel')) return '👗 Apparel & Lookbook';
-            if (catName.includes('service') || catName.includes('repair')) return '🛠️ Service Packages';
-            if (catName.includes('devotional') || catName.includes('puja')) return '🏛️ Devotional Catalog';
-            return '📦 Product Management';
-          })(),
-          icon: <Package className="h-4 w-4" />,
-          subItems: [
-            {
-              id: 'add-product',
-              label: (() => {
-                const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
-                if (catName.includes('food') || catName.includes('restaurant')) return 'Add Dish / Menu Item';
-                if (catName.includes('grocery') || catName.includes('daily')) return 'Add Supermarket Item';
-                if (catName.includes('fashion') || catName.includes('apparel')) return 'Add Fashion Item';
-                if (catName.includes('service') || catName.includes('repair')) return 'Add Service Package';
-                if (catName.includes('devotional') || catName.includes('puja')) return 'Add Sacred Item';
-                return 'Add Product';
-              })(),
-              icon: <PlusCircle className="h-3.5 w-3.5" />
-            },
-            {
-              id: 'products-all',
-              label: (() => {
-                const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
-                if (catName.includes('food') || catName.includes('restaurant')) return 'All Digital Menu Items';
-                if (catName.includes('grocery') || catName.includes('daily')) return 'All Grocery Items';
-                if (catName.includes('fashion') || catName.includes('apparel')) return 'All Fashion Items';
-                if (catName.includes('service') || catName.includes('repair')) return 'All Service Packages';
-                if (catName.includes('devotional') || catName.includes('puja')) return 'All Devotional Items';
-                return 'All Products';
-              })(),
-              icon: <Package className="h-3.5 w-3.5" />
-            },
-            { id: 'products-draft', label: 'Draft Items', icon: <FolderOpen className="h-3.5 w-3.5" />, count: draftProductsCount },
-            { id: 'products-pending', label: 'Pending Admin Review', icon: <Loader2 className="h-3.5 w-3.5" />, count: pendingApprovalCount },
-            { id: 'products-awaiting-vendor', label: 'Awaiting Vendor Approval', icon: <Clock className="h-3.5 w-3.5" />, count: awaitingVendorCount },
-            { id: 'products-approved', label: 'Approved Items', icon: <FileCheck className="h-3.5 w-3.5" />, count: approvedCount },
-            { id: 'products-rejected', label: 'Rejected Items', icon: <XCircle className="h-3.5 w-3.5" />, count: rejectedCount },
-            { id: 'products-change-requests', label: 'Product Change Requests', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />, count: changeRequestsCount }
-          ]
-        },
-        {
-          id: 'inventory',
-          label: 'Inventory Management',
-          icon: <Boxes className="h-4 w-4" />,
-          subItems: [
-            { id: 'inventory-stock', label: 'Stock Management', icon: <Boxes className="h-3.5 w-3.5" /> },
-            { id: 'inventory-low', label: 'Low Stock Products', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />, count: lowStockCount },
-            { id: 'inventory-out', label: 'Out of Stock', icon: <XCircle className="h-3.5 w-3.5 text-destructive" />, count: outOfStockCount }
-          ]
-        },
-        {
-          id: 'orders',
-          label: 'Order Management',
-          icon: <ShoppingBag className="h-4 w-4" />,
-          subItems: [
-            { id: 'orders-new', label: 'New Orders', icon: <Sparkles className="h-3.5 w-3.5 text-sky-500 animate-pulse" />, count: newOrdersCount },
-            { id: 'orders-all', label: 'Normal Orders', icon: <ShoppingBag className="h-3.5 w-3.5" /> },
-            { id: 'orders-localshop', label: 'LocalShop Orders', icon: <Store className="h-3.5 w-3.5" /> },
-            { id: 'orders-subscriptions', label: 'Subscription Orders', icon: <Calendar className="h-3.5 w-3.5" /> },
-            { id: 'orders-returns', label: 'Return Requests', icon: <XCircle className="h-3.5 w-3.5" />, count: returnRequestsCount }
-          ]
-        },
-        {
-          id: 'returns-refunds',
-          label: 'Returns & Refunds',
-          icon: <RotateCcw className="h-4 w-4 text-rose-500" />,
-          subItems: []
-        },
-        {
-          id: 'courier-pickup',
-          label: 'Courier Pickup',
-          icon: <Package className="h-4 w-4 text-amber-500" />,
-          subItems: []
-        },
-        {
-          id: 'scheduled-delivery',
-          label: 'Scheduled Deliveries',
-          icon: <Calendar className="h-4 w-4 text-emerald-500" />,
-          subItems: []
-        },
-        {
-          id: 'delivery',
-          label: 'Delivery Management',
-          icon: <Truck className="h-4 w-4" />,
-          subItems: [
-            { id: 'delivery-agents', label: 'Delivery Agents', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'delivery-assign', label: 'Assign & Tracking', icon: <Truck className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'staff-management',
-          label: 'Staff Management',
-          icon: <UserCheck className="h-4 w-4 text-teal-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '3. 📈 Growth & Marketing',
-      items: [
-        {
-          id: 'coupons',
-          label: 'Promotions Center',
-          icon: <Gift className="h-4 w-4 text-amber-500" />,
-          subItems: []
-        },
-        {
-          id: 'advertisement',
-          label: 'Promotions & Ads',
-          icon: <Megaphone className="h-4 w-4 text-orange-500" />,
-          subItems: []
-        },
-        {
-          id: 'reviews',
-          label: 'Reputation Center',
-          icon: <Star className="h-4 w-4 text-amber-500" />,
-          subItems: [
-            { id: 'reviews-products', label: 'Product Reviews', icon: <Star className="h-3.5 w-3.5" /> },
-            { id: 'reviews-store', label: 'Store Reviews', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'reviews-analytics', label: 'Review Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'market-demand',
-          label: 'Market Demand',
-          icon: <Compass className="h-4 w-4 text-cyan-500" />,
-          subItems: []
-        },
-        {
-          id: 'ai',
-          label: 'AI Business Insights',
-          icon: <Sparkles className="h-4 w-4 text-purple-500 animate-pulse" />,
-          subItems: [
-            { id: 'ai-bestsellers', label: 'Best Selling Products', icon: <Star className="h-3.5 w-3.5" /> },
-            { id: 'ai-deadinventory', label: 'Dead Inventory', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> },
-            { id: 'ai-reorders', label: 'Reorder Suggestions', icon: <PlusCircle className="h-3.5 w-3.5" /> },
-            { id: 'ai-forecast', label: 'Sales Forecast', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-            { id: 'ai-customertrends', label: 'Customer Trends', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'ai-seasonal', label: 'Seasonal Trends', icon: <Calendar className="h-3.5 w-3.5" /> },
-            { id: 'ai-predictions', label: 'Revenue Predictions', icon: <TrendingUp className="h-3.5 w-3.5" /> }
-          ]
-        }
-      ]
-    },
-    {
-      groupLabel: '4. 🏭 Procurement',
-      items: [
-        {
-          id: 'b2b',
-          label: 'B2B Marketplace',
-          icon: <Store className="h-4 w-4 text-sky-500" />,
-          subItems: [
-            { id: 'b2b-buy', label: 'Buy Products', icon: <ShoppingCart className="h-3.5 w-3.5" /> },
-            { id: 'b2b-sell', label: 'Sell Products', icon: <PlusCircle className="h-3.5 w-3.5" /> },
-            { id: 'b2b-rfq', label: 'RFQ Marketplace', icon: <FileCheck className="h-3.5 w-3.5" /> },
-            { id: 'b2b-deals', label: 'Bulk Deals', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'b2b-wholesalers', label: 'Nearby Wholesalers', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'b2b-manufacturers', label: 'Nearby Manufacturers', icon: <Network className="h-3.5 w-3.5" /> },
-            { id: 'b2b-procurements', label: 'Procurement Requests', icon: <Loader2 className="h-3.5 w-3.5" /> },
-            { id: 'b2b-quotations', label: 'Quotations', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> },
-            { id: 'b2b-pos', label: 'Purchase Orders', icon: <ShoppingCart className="h-3.5 w-3.5" /> },
-            { id: 'b2b-trading', label: 'Vendor-to-Vendor Trading', icon: <ArrowLeftRight className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'procurement-hub',
-          label: 'Procurement Hub',
-          icon: <Boxes className="h-4 w-4 text-amber-500" />,
-          subItems: []
-        },
-        {
-          id: 'supply-chain',
-          label: 'Supply Chain Hub',
-          icon: <Network className="h-4 w-4 text-blue-500" />,
-          subItems: []
-        },
-        {
-          id: 'quotation-management',
-          label: 'Quotation Management',
-          icon: <FileSpreadsheet className="h-4 w-4 text-teal-500" />,
-          subItems: []
-        },
-        {
-          id: 'supplier-network',
-          label: 'Supplier Network',
-          icon: <Users className="h-4 w-4 text-indigo-500" />,
-          subItems: []
-        },
-        {
-          id: 'manufacturer-connect',
-          label: 'Manufacturer Connect',
-          icon: <Building2 className="h-4 w-4 text-violet-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '5. 👥 Customers',
-      items: [
-        {
-          id: 'customer-management',
-          label: 'Customer Management',
-          icon: <Users className="h-4 w-4 text-sky-500" />,
-          subItems: []
-        },
-        {
-          id: 'crm',
-          label: 'CRM & Leads',
-          icon: <Users className="h-4 w-4 text-emerald-500" />,
-          subItems: [
-            { id: 'crm-vendor', label: 'Vendor Leads', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'crm-wholesaler', label: 'Wholesaler Leads', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'crm-manufacturer', label: 'Manufacturer Leads', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'crm-service', label: 'Service Leads', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'crm-franchise', label: 'Franchise Leads', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'crm-followups', label: 'Follow Ups', icon: <Clock className="h-3.5 w-3.5" /> },
-            { id: 'crm-tasks', label: 'Tasks', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-            { id: 'crm-conversions', label: 'Conversions', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-            { id: 'crm-sources', label: 'Lead Sources', icon: <Compass className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'qr',
-          label: 'QR Merchant Center',
-          icon: <QrCode className="h-4 w-4 text-primary" />,
-          subItems: [
-            { id: 'qr-my', label: 'My QR', icon: <QrCode className="h-3.5 w-3.5" /> },
-            { id: 'qr-txns', label: 'QR Transactions', icon: <Clock className="h-3.5 w-3.5" /> },
-            { id: 'qr-analytics', label: 'QR Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-            { id: 'qr-settlements', label: 'QR Settlements', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'qr-customers', label: 'QR Customers', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'qr-cashback', label: 'QR Cashback', icon: <Gift className="h-3.5 w-3.5" /> },
-            { id: 'qr-referrals', label: 'QR Referral Earnings', icon: <Share2 className="h-3.5 w-3.5" /> },
-            { id: 'qr-growth', label: 'QR Merchant Growth', icon: <TrendingUp className="h-3.5 w-3.5" /> }
-          ]
-        }
-      ]
-    },
-    {
-      groupLabel: '6. 💰 Finance',
-      items: [
-        {
-          id: 'subscriptions',
-          label: 'My Subscription',
-          icon: <CreditCard className="h-4 w-4 text-indigo-500" />,
-          subItems: [
-            { id: 'subscription-dashboard', label: 'Overview', icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
-            { id: 'subscription-plans', label: 'Available Plans', icon: <Sparkles className="h-3.5 w-3.5" /> },
-            { id: 'subscription-addons', label: 'Add-on Services', icon: <Layers className="h-3.5 w-3.5" /> },
-            { id: 'subscription-history', label: 'Payment History', icon: <CreditCard className="h-3.5 w-3.5" /> },
-            { id: 'subscription-renewals', label: 'Renewal History', icon: <RotateCcw className="h-3.5 w-3.5" /> },
-            { id: 'subscription-invoices', label: 'Billing & Invoices', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'wallet',
-          label: 'Wallet & Withdrawals',
-          icon: <Wallet className="h-4 w-4 text-primary" />,
-          subItems: [
-            { id: 'wallet-dashboard', label: 'Wallet Ledger', icon: <Wallet className="h-3.5 w-3.5" /> },
-            { id: 'withdrawals-request', label: 'Withdrawal Requests', icon: <ArrowDownCircle className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'settlements',
-          label: 'Settlements',
-          icon: <Coins className="h-4 w-4 text-emerald-500" />,
-          subItems: []
-        },
-        {
-          id: 'earnings',
-          label: 'Earnings & Commissions',
-          icon: <Coins className="h-4 w-4 text-amber-500" />,
-          subItems: [
-            { id: 'earnings-breakdown', label: 'Earnings Breakdown', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'earnings-products', label: 'Product Earnings', icon: <Package className="h-3.5 w-3.5" /> },
-            { id: 'earnings-settlements', label: 'Settlement History', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'credit-management',
-          label: 'Credit Management',
-          icon: <CreditCard className="h-4 w-4 text-rose-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '7. 🌐 Network',
-      items: [
-        {
-          id: 'my-network',
-          label: 'My Network',
-          icon: <Network className="h-4 w-4 text-sky-500" />,
-          subItems: []
-        },
-        {
-          id: 'hl',
-          label: 'Hyperlocal Growth',
-          icon: <MapPin className="h-4 w-4 text-red-500" />,
-          subItems: [
-            { id: 'hl-coverage', label: 'Territory Coverage', icon: <MapPin className="h-3.5 w-3.5" /> },
-            { id: 'hl-district', label: 'District Performance', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-            { id: 'hl-mandal', label: 'Mandal Performance', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-            { id: 'hl-penetration', label: 'Market Penetration', icon: <Compass className="h-3.5 w-3.5" /> },
-            { id: 'hl-competitors', label: 'Competitor Tracking', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'hl-expansion', label: 'Expansion Requests', icon: <PlusCircle className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'ent',
-          label: 'Entrepreneur Network',
-          icon: <Users className="h-4 w-4 text-teal-500" />,
-          subItems: [
-            { id: 'ent-associated', label: 'Associated Entrepreneurs', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'ent-acquisition', label: 'Vendor Acquisition', icon: <PlusCircle className="h-3.5 w-3.5" /> },
-            { id: 'ent-sales', label: 'Sales Generated', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'ent-incentives', label: 'Incentives', icon: <Gift className="h-3.5 w-3.5" /> },
-            { id: 'ent-performance', label: 'Performance', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-            { id: 'ent-leaderboard', label: 'Leaderboard', icon: <Award className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'fc',
-          label: 'Franchise Connect',
-          icon: <Building2 className="h-4 w-4 text-amber-500" />,
-          subItems: [
-            { id: 'fc-state', label: 'State Franchise', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'fc-district', label: 'District Franchise', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'fc-mandal', label: 'Mandal Franchise', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'fc-support', label: 'Support Requests', icon: <HelpCircle className="h-3.5 w-3.5" /> },
-            { id: 'fc-marketing', label: 'Marketing Requests', icon: <Megaphone className="h-3.5 w-3.5" /> },
-            { id: 'fc-expansion', label: 'Expansion Requests', icon: <PlusCircle className="h-3.5 w-3.5" /> },
-            { id: 'fc-contacts', label: 'Territory Contacts', icon: <Phone className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'franchise',
-          label: 'Franchise Relationship',
-          icon: <Building2 className="h-4 w-4 text-blue-500" />,
-          subItems: []
-        },
-        {
-          id: 'territory-coverage',
-          label: 'Territory Coverage',
-          icon: <MapPin className="h-4 w-4 text-emerald-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '8. 🛡️ Business',
-      items: [
-        {
-          id: 'business',
-          label: 'My Business',
-          icon: <Building2 className="h-4 w-4" />,
-          subItems: [
-            { id: 'profile', label: 'Business Profile', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'kyc', label: 'KYC Verification', icon: <ShieldCheck className="h-3.5 w-3.5" />, badge: profile.kycStatus === 'Verified' ? null : 'Pending' },
-            { id: 'bank', label: 'Bank Accounts', icon: <CreditCard className="h-3.5 w-3.5" /> },
-            { id: 'documents', label: 'Business Documents', icon: <FolderOpen className="h-3.5 w-3.5" /> },
-            { id: 'store-design', label: 'My Store', icon: <Store className="h-3.5 w-3.5" /> }
-          ]
-        },
-        {
-          id: 'security',
-          label: 'Security Settings',
-          icon: <Lock className="h-4 w-4 text-rose-500" />,
-          subItems: []
-        },
-        {
-          id: 'support',
-          label: 'Support Center',
-          icon: <HelpCircle className="h-4 w-4 text-zinc-500" />,
-          subItems: []
-        }
-      ]
-    },
-    {
-      groupLabel: '9. Business(ApexBee) Academy',
-      items: [
-        {
-          id: 'business-academy',
-          label: 'Business Academy',
-          icon: <BookOpen className="h-4 w-4 text-violet-500" />,
-          subItems: [
-            { id: 'acad-photography', label: 'Product Photography', icon: <Sparkles className="h-3.5 w-3.5" /> },
-            { id: 'acad-inventory', label: 'Inventory Management', icon: <Boxes className="h-3.5 w-3.5" /> },
-            { id: 'acad-sales', label: 'Sales Training', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-            { id: 'acad-marketing', label: 'Digital Marketing', icon: <Megaphone className="h-3.5 w-3.5" /> },
-            { id: 'acad-customer', label: 'Customer Service', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'acad-gst', label: 'GST Basics', icon: <Coins className="h-3.5 w-3.5" /> },
-            { id: 'acad-franchise', label: 'Franchise Growth', icon: <Building2 className="h-3.5 w-3.5" /> },
-            { id: 'acad-entrepreneurship', label: 'Entrepreneurship', icon: <Users className="h-3.5 w-3.5" /> },
-            { id: 'acad-certs', label: 'Certifications', icon: <Award className="h-3.5 w-3.5" /> }
-          ]
-        }
-      ]
-    }
-  ];
 
   const handlePageClick = (pageId: string) => {
     setCurrentPage(pageId);
     setMobileOpen(false);
   };
 
-  const renderNav = () => {
-    const role = profile.businessType || 'Vendor';
-    const isVendor = role === 'Vendor' || role === 'Vendor / Retailer';
-    const isWholesaler = role === 'Wholesaler';
-    const isManufacturer = role === 'Manufacturer';
+  const getProductLabel = () => {
+    const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
+    if (catName.includes('food') || catName.includes('restaurant')) return 'Digital Food Menu';
+    if (catName.includes('grocery') || catName.includes('daily')) return 'Supermarket Catalog';
+    if (catName.includes('fashion') || catName.includes('apparel')) return 'Apparel & Lookbook';
+    if (catName.includes('service') || catName.includes('repair')) return 'Service Packages';
+    if (catName.includes('devotional') || catName.includes('puja')) return 'Devotional Catalog';
+    return 'Product Catalog';
+  };
 
+  const getAddProductLabel = () => {
+    const catName = (profile.primaryCategory || profile.category || '').toLowerCase();
+    if (catName.includes('food') || catName.includes('restaurant')) return 'Add Dish / Menu Item';
+    if (catName.includes('grocery') || catName.includes('daily')) return 'Add Supermarket Item';
+    if (catName.includes('fashion') || catName.includes('apparel')) return 'Add Fashion Item';
+    if (catName.includes('service') || catName.includes('repair')) return 'Add Service Package';
+    if (catName.includes('devotional') || catName.includes('puja')) return 'Add Sacred Item';
+    return 'Add New Product';
+  };
+
+  const userRole = profile.businessType || 'Vendor';
+  const isWholesalerOrManufacturer = userRole === 'Wholesaler' || userRole === 'Manufacturer';
+
+  const navSections: NavSection[] = [
+    {
+      title: 'OPERATIONS',
+      items: [
+        { id: 'dashboard', label: 'Dashboard Overview', icon: <LayoutDashboard className="h-4 w-4 text-sky-400" /> },
+        { id: 'notifications-list', label: 'Notifications', icon: <Bell className="h-4 w-4 text-blue-400" /> },
+        { id: 'products-all', label: getProductLabel, icon: <Package className="h-4 w-4 text-emerald-400" />, badge: approvedCount > 0 ? `${approvedCount} Live` : null, badgeVariant: 'default' },
+        { id: 'add-product', label: getAddProductLabel, icon: <PlusCircle className="h-4 w-4 text-amber-400" /> },
+        { id: 'inventory-stock', label: 'Inventory & Stock', icon: <Boxes className="h-4 w-4 text-purple-400" />, badge: lowStockCount > 0 ? `${lowStockCount} Low` : null, badgeVariant: 'destructive' },
+        { id: 'orders-all', label: 'Order Command Center', icon: <ShoppingBag className="h-4 w-4 text-cyan-400" />, badge: newOrdersCount > 0 ? `${newOrdersCount} New` : null, badgeVariant: 'default' },
+        { id: 'returns-refunds', label: 'Returns & Refunds', icon: <RotateCcw className="h-4 w-4 text-rose-400" />, badge: returnRequestsCount > 0 ? `${returnRequestsCount} Pending` : null, badgeVariant: 'destructive' },
+      ]
+    },
+    {
+      title: 'DELIVERY & FULFILLMENT',
+      items: [
+        { id: 'delivery', label: 'Delivery & Logistics', icon: <Truck className="h-4 w-4 text-teal-400" /> },
+        { id: 'courier-pickup', label: 'Courier Pickup Scheduling', icon: <Package className="h-4 w-4 text-amber-400" /> },
+        { id: 'scheduled-delivery', label: 'Scheduled Deliveries', icon: <Calendar className="h-4 w-4 text-emerald-400" /> },
+      ]
+    },
+    {
+      title: 'FINANCE & WALLET',
+      items: [
+        { id: 'subscriptions', label: 'Subscription Plan', icon: <CreditCard className="h-4 w-4 text-indigo-400" /> },
+        { id: 'wallet', label: 'Wallet & Payout Requests', icon: <Wallet className="h-4 w-4 text-amber-400" /> },
+        { id: 'settlements', label: 'Settlement History', icon: <Coins className="h-4 w-4 text-emerald-400" /> },
+        { id: 'earnings', label: 'Earnings & Commissions', icon: <TrendingUp className="h-4 w-4 text-blue-400" /> },
+      ]
+    },
+    {
+      title: 'GROWTH & CUSTOMERS',
+      items: [
+        { id: 'coupons', label: 'Promotions & Offers', icon: <Gift className="h-4 w-4 text-amber-400" /> },
+        { id: 'advertisement', label: 'Promotions & Ads', icon: <Megaphone className="h-4 w-4 text-orange-400" />, isComingSoon: true },
+        { id: 'reviews', label: 'Reviews & Ratings', icon: <Star className="h-4 w-4 text-yellow-400" /> },
+        { id: 'customer-management', label: 'Customer Management', icon: <Users className="h-4 w-4 text-sky-400" /> },
+        { id: 'qr', label: 'QR Merchant Center', icon: <QrCode className="h-4 w-4 text-emerald-400" />, roles: ['Vendor'] },
+      ]
+    },
+    {
+      title: 'B2B & WHOLESALE',
+      items: [
+        { id: 'b2b', label: 'B2B Wholesale Marketplace', icon: <Store className="h-4 w-4 text-sky-400" />, roles: ['Wholesaler', 'Manufacturer'] },
+        { id: 'quotation-management', label: 'RFQ & Quotation Hub', icon: <FileSpreadsheet className="h-4 w-4 text-teal-400" />, roles: ['Wholesaler', 'Manufacturer'] },
+        { id: 'supplier-network', label: 'Supplier & Factory Network', icon: <Network className="h-4 w-4 text-indigo-400" />, roles: ['Wholesaler', 'Manufacturer'] },
+      ]
+    },
+    {
+      title: 'NETWORK & REGIONAL',
+      items: [
+        { id: 'my-network', label: 'My Growth Network', icon: <Network className="h-4 w-4 text-sky-400" /> },
+        { id: 'hl', label: 'Hyperlocal Coverage', icon: <MapPin className="h-4 w-4 text-red-400" /> },
+        { id: 'fc', label: 'Franchise Connect', icon: <Building2 className="h-4 w-4 text-amber-400" /> },
+      ]
+    },
+    {
+      title: 'STORE & SETTINGS',
+      items: [
+        { id: 'profile', label: 'Business Profile & KYC', icon: <Building2 className="h-4 w-4 text-slate-300" />, badge: profile.kycStatus === 'Verified' ? null : 'KYC Pending', badgeVariant: 'warning' },
+        { id: 'store-design', label: 'Store Customization', icon: <Store className="h-4 w-4 text-amber-400" /> },
+        { id: 'staff-management', label: 'Staff Management', icon: <UserCheck className="h-4 w-4 text-teal-400" /> },
+        { id: 'security', label: 'Security & Password', icon: <Lock className="h-4 w-4 text-rose-400" /> },
+        { id: 'support', label: 'Support Center', icon: <HelpCircle className="h-4 w-4 text-zinc-400" /> },
+        { id: 'business-academy', label: 'Business Academy', icon: <BookOpen className="h-4 w-4 text-violet-400" /> },
+      ]
+    }
+  ];
+
+  const renderNavItems = () => {
     return (
-      <nav className="flex-1 flex flex-col gap-4 px-4 py-4 overflow-y-auto no-scrollbar">
-        {menuGroups.map(group => {
-          // Filter items inside the group first based on roles
-          const filteredItems = group.items.filter(item => {
-            switch (item.id) {
-              // Vendor Exclusive
-              case 'qr':
-              case 'market-demand':
-              case 'procurement-hub':
-              case 'referrals':
-                return isVendor;
+      <nav className="flex-1 flex flex-col gap-5 px-3 py-3 overflow-y-auto no-scrollbar">
+        {/* Search Bar */}
+        <div className="relative sticky top-0 z-10 bg-blue-950 pb-2">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search menu..."
+            className="w-full pl-8 pr-3 py-1.5 bg-blue-900/60 border border-blue-800/60 rounded-lg text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400/50"
+          />
+        </div>
 
-              // Wholesaler & Manufacturer Exclusive
-              case 'crm':
-              case 'hl':
-              case 'fc':
-              case 'supply-chain':
-              case 'quotation-management':
-              case 'supplier-network':
-              case 'manufacturer-connect':
-              case 'demand-forecasting':
-              case 'credit-management':
-              case 'staff-management':
-                return isWholesaler || isManufacturer;
-
-              default:
-                return true;
+        {navSections.map(section => {
+          // Filter section items based on role & search query
+          const visibleItems = section.items.filter(item => {
+            // Role filtering
+            if (item.roles && !item.roles.includes(userRole as any)) {
+              if (item.roles.includes('Wholesaler') && !isWholesalerOrManufacturer) return false;
             }
+            // Search query filtering
+            const itemText = (typeof item.label === 'function' ? item.label() : item.label).toLowerCase();
+            if (searchQuery.trim() && !itemText.includes(searchQuery.toLowerCase())) {
+              return false;
+            }
+            return true;
           });
 
-          if (filteredItems.length === 0) return null;
-
-          const isGroupSelected = isGroupActive(group);
-          const isGroupExpanded = expandedGroups[group.groupLabel];
+          if (visibleItems.length === 0) return null;
 
           return (
-            <div key={group.groupLabel} className="flex flex-col gap-1">
-              <button
-                onClick={() => toggleGroupExpand(group.groupLabel)}
-                className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors duration-200 cursor-pointer ${
-                  isGroupSelected
-                    ? 'bg-primary/5 text-primary'
-                    : 'text-foreground/90 hover:bg-secondary hover:text-foreground'
-                }`}
-              >
-                <span className="flex items-center gap-2.5 normal-case">
-                  {group.groupLabel}
-                </span>
-                {isGroupExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground/80" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/80" />
-                )}
-              </button>
+            <div key={section.title} className="flex flex-col gap-1">
+              <span className="px-3 text-[10px] font-black uppercase tracking-wider text-amber-400/80">
+                {section.title}
+              </span>
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                {visibleItems.map(item => {
+                  const itemLabel = typeof item.label === 'function' ? item.label() : item.label;
+                  const isSelected = currentPage === item.id;
 
-              {isGroupExpanded && (
-                <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-border/40 ml-4">
-                  {filteredItems.map(item => {
-                    const hasSubItems = item.subItems.length > 0;
-                    const isSelected = currentPage === item.id || item.subItems.some(s => s.id === currentPage);
-                    const isExpanded = expandedMenus[item.id];
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handlePageClick(item.id)}
+                      className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-all duration-150 cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-400 text-blue-950 font-bold shadow-md shadow-amber-400/20'
+                          : 'text-slate-300 hover:bg-blue-900/60 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span className={isSelected ? 'text-blue-950' : ''}>{item.icon}</span>
+                        <span className="truncate">{itemLabel}</span>
+                      </div>
 
-                    return (
-                      <div key={item.id} className="flex flex-col">
-                        {hasSubItems ? (
-                          <>
-                            <button
-                              onClick={() => toggleExpand(item.id)}
-                              className={`flex items-center justify-between w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors duration-200 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-primary/5 text-primary font-semibold'
-                                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                {item.icon}
-                                <span>{item.label}</span>
-                              </div>
-                              {isExpanded ? (
-                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              )}
-                            </button>
-
-                            {isExpanded && (
-                              <div className="flex flex-col gap-0.5 pl-6 mt-1 border-l border-border/60 ml-5">
-                                {item.subItems.map(sub => {
-                                  const isSubSelected = currentPage === sub.id;
-                                  return (
-                                    <button
-                                      key={sub.id}
-                                      onClick={() => handlePageClick(sub.id)}
-                                      className={`flex items-center justify-between w-full px-3 py-1.5 text-xs rounded-lg transition-all duration-150 cursor-pointer ${
-                                        isSubSelected
-                                          ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {sub.icon}
-                                        <span>{sub.label}</span>
-                                      </div>
-                                      {sub.count !== undefined && sub.count > 0 && (
-                                        <Badge variant={sub.id.includes('low') || sub.id.includes('out') ? 'destructive' : 'default'} className="px-1.5 py-0">
-                                          {sub.count}
-                                        </Badge>
-                                      )}
-                                      {sub.badge && (
-                                        <Badge variant="warning" className="px-1.5 py-0 text-[9px]">
-                                          {sub.badge}
-                                        </Badge>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handlePageClick(item.id)}
-                            className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs md:text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer ${
-                              currentPage === item.id
-                                ? 'bg-primary text-primary-foreground font-bold shadow-sm'
-                                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                            }`}
-                          >
-                            {item.icon}
-                            <span className="flex-1 text-left">{item.label}</span>
-                          </button>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {item.isComingSoon && (
+                          <span className="text-[8px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded">
+                            Soon
+                          </span>
+                        )}
+                        {item.badge !== null && item.badge !== undefined && (
+                          <Badge variant={item.badgeVariant || 'default'} className="px-1.5 py-0 text-[10px] font-bold">
+                            {item.badge}
+                          </Badge>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
@@ -772,85 +248,90 @@ export const Sidebar: React.FC = () => {
       <div className="lg:hidden fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+          className="h-12 w-12 rounded-full bg-amber-400 text-blue-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 duration-200 cursor-pointer"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card text-foreground h-screen sticky top-0">
-        <div className="h-16 flex items-center px-6 border-b border-border gap-2.5 bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/25">
-            <span className="text-white font-extrabold text-lg">A</span>
+      <aside className="hidden lg:flex flex-col w-64 bg-blue-950 border-r border-blue-900/50 text-slate-100 h-screen sticky top-0 shadow-2xl">
+        {/* Branding Header */}
+        <div className="h-16 flex items-center px-5 gap-2.5 bg-gradient-to-r from-blue-900/60 to-transparent border-b border-blue-900/40">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-blue-950 flex items-center justify-center font-black text-xl font-heading shadow-md ring-2 ring-amber-400/30 shrink-0">
+            🐝
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-extrabold tracking-tight text-foreground leading-none">Apex Market</span>
-            <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">Vendor Hub</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-extrabold font-heading tracking-tight text-white leading-none truncate">
+              APEXBee Market
+            </span>
+            <span className="text-[10px] text-amber-400 font-black tracking-wider uppercase mt-0.5 truncate">
+              Vendor Portal
+            </span>
           </div>
         </div>
 
-        {/* Prominent Active Plan Card */}
+        {/* Active Plan Card */}
         <div
-          onClick={() => handlePageClick('subscription')}
-          className="mx-3 my-2.5 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer transition-all flex items-center justify-between group shadow-xs"
+          onClick={() => handlePageClick('subscriptions')}
+          className="mx-3 my-2 p-2.5 rounded-xl bg-blue-900/50 border border-blue-800/40 hover:bg-blue-900/80 cursor-pointer transition-all flex items-center justify-between group shadow-sm shrink-0"
           title="Click to manage active subscription plan"
         >
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="h-7 w-7 rounded-lg bg-amber-400 text-blue-950 flex items-center justify-center shrink-0 font-black shadow-xs">
               <Sparkles className="h-4 w-4" />
             </div>
             <div className="flex flex-col truncate">
-              <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
+              <span className="text-[9px] uppercase tracking-wider font-black text-amber-300">
                 Active Plan
               </span>
-              <span className="text-xs font-bold text-foreground group-hover:text-emerald-600 transition-colors truncate">
+              <span className="text-xs font-extrabold text-white group-hover:text-amber-300 transition-colors truncate">
                 {activePlanName}
               </span>
             </div>
           </div>
-          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-600 text-white shrink-0 ml-1">
+          <span className="text-[9px] px-1.5 py-0.5 rounded font-black uppercase bg-amber-400 text-blue-950 shrink-0 ml-1">
             {activePlanStatus}
           </span>
         </div>
 
-        {renderNav()}
+        {renderNavItems()}
       </aside>
 
       {/* Mobile Drawer Sidebar */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           {/* Backdrop */}
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setMobileOpen(false)} />
-          {/* Menu Drawer */}
-          <aside className="w-64 bg-card border-r border-border h-full relative z-10 flex flex-col shadow-2xl">
-            <div className="h-16 flex items-center px-6 border-b border-border gap-2.5 bg-primary/5">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">
-                A
+          <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          {/* Drawer Menu */}
+          <aside className="w-64 bg-blue-950 h-full relative z-10 flex flex-col shadow-2xl border-r border-blue-900/60">
+            <div className="h-16 flex items-center px-5 gap-2.5 bg-blue-900/60 border-b border-blue-900/40">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-blue-950 flex items-center justify-center font-black shrink-0">
+                🐝
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-foreground">Apex Market</span>
-                <span className="text-[9px] text-muted-foreground font-bold uppercase">Vendor Hub</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-extrabold text-white truncate">APEXBee Market</span>
+                <span className="text-[10px] text-amber-400 font-black uppercase truncate">Vendor Portal</span>
               </div>
             </div>
 
             <div
-              onClick={() => handlePageClick('subscription')}
-              className="mx-3 my-2.5 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 cursor-pointer flex items-center justify-between"
+              onClick={() => handlePageClick('subscriptions')}
+              className="mx-3 my-2 p-2.5 rounded-xl bg-blue-900/60 border border-blue-800/40 cursor-pointer flex items-center justify-between shadow-sm"
             >
               <div className="flex items-center gap-2 overflow-hidden">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
                 <div className="flex flex-col truncate">
-                  <span className="text-[9px] font-extrabold text-emerald-600 uppercase">Active Plan</span>
-                  <span className="text-xs font-bold truncate">{activePlanName}</span>
+                  <span className="text-[9px] font-black text-amber-300 uppercase">Active Plan</span>
+                  <span className="text-xs font-bold text-white truncate">{activePlanName}</span>
                 </div>
               </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-600 text-white">
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-black uppercase bg-amber-400 text-blue-950">
                 {activePlanStatus}
               </span>
             </div>
 
-            {renderNav()}
+            {renderNavItems()}
           </aside>
         </div>
       )}

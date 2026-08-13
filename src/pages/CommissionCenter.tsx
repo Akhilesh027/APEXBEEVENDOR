@@ -151,57 +151,70 @@ export const CommissionCenter: React.FC = () => {
     setComment('');
   };
 
+  const [currentPageNum, setCurrentPageNum] = useState(1);
+  const itemsPerPage = 8;
+
   const filteredItems = commissions.filter(c => {
     if (activeTab === 'all') return true;
     if (activeTab === 'QR') return c.source === 'QR Payment';
     return c.source === activeTab;
   });
 
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
+  const paginatedItems = React.useMemo(() => {
+    const start = (currentPageNum - 1) * itemsPerPage;
+    return filteredItems.slice(start, start + itemsPerPage);
+  }, [filteredItems, currentPageNum, itemsPerPage]);
+
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-slate-100 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Commission & Payout Center</h1>
-          <p className="text-xs text-muted-foreground">Audit platform commission splits, review passive network overrides, and negotiate contract terms.</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
+            Commission & Payout Center
+          </h1>
+          <p className="text-xs text-blue-300">
+            Audit platform commission splits, review passive network overrides, and negotiate contract terms.
+          </p>
         </div>
       </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="hover:shadow-md transition-all">
-          <CardContent className="p-4 flex flex-col gap-1.5 text-left">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">💰 Available (Released) Balance</span>
-            <span className="text-xl font-extrabold text-foreground">₹{(stats.released || 0).toLocaleString('en-IN')}</span>
-            <span className="text-[9px] text-emerald-500 font-bold">Ready for withdrawal</span>
-          </CardContent>
-        </Card>
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex flex-col gap-1.5 text-left border-none">
+          <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5 font-heading">
+            💰 Available (Released) Balance
+          </span>
+          <span className="text-2xl font-black text-white font-heading">₹{(stats.released || 0).toLocaleString('en-IN')}</span>
+          <span className="text-xs text-emerald-300 font-extrabold">Ready for withdrawal</span>
+        </div>
 
-        <Card className="hover:shadow-md transition-all">
-          <CardContent className="p-4 flex flex-col gap-1.5 text-left">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">⏳ Pending Settlements</span>
-            <span className="text-xl font-extrabold text-foreground">₹{(stats.pending || 0).toLocaleString('en-IN')}</span>
-            <span className="text-[9px] text-amber-500 font-bold">Escrow / processing</span>
-          </CardContent>
-        </Card>
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex flex-col gap-1.5 text-left border-none">
+          <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5 font-heading">
+            ⏳ Pending Settlements
+          </span>
+          <span className="text-2xl font-black text-white font-heading">₹{(stats.pending || 0).toLocaleString('en-IN')}</span>
+          <span className="text-xs text-amber-300 font-extrabold">Escrow / processing</span>
+        </div>
 
-        <Card className="hover:shadow-md transition-all">
-          <CardContent className="p-4 flex flex-col gap-1.5 text-left">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">💸 Total Lifetime Settlements</span>
-            <span className="text-xl font-extrabold text-foreground">₹{(stats.settlements || 0).toLocaleString('en-IN')}</span>
-            <span className="text-[9px] text-indigo-500 font-bold">Total earnings processed</span>
-          </CardContent>
-        </Card>
+        <div className="bg-slate-900/90 p-5 rounded-2xl shadow-xl flex flex-col gap-1.5 text-left border-none">
+          <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 font-heading">
+            💸 Total Lifetime Settlements
+          </span>
+          <span className="text-2xl font-black text-white font-heading">₹{(stats.settlements || 0).toLocaleString('en-IN')}</span>
+          <span className="text-xs text-blue-300 font-extrabold">Total earnings processed</span>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      {/* High-Contrast Colored Tabs Container */}
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
         {[
-          { id: 'all', label: 'All Commissions', icon: <Coins className="h-3.5 w-3.5" /> },
-          { id: 'Product', label: 'Products Payouts', icon: <Percent className="h-3.5 w-3.5" /> },
-          { id: 'Referral', label: 'Referrals Overrides', icon: <Award className="h-3.5 w-3.5" /> },
-          { id: 'QR', label: 'QR Sales Flat Rate', icon: <QrCode className="h-3.5 w-3.5" /> },
-          { id: 'Settlement', label: 'Settlement Fees', icon: <ArrowUpRight className="h-3.5 w-3.5" /> }
+          { id: 'all', label: 'All Commissions', icon: <Coins className="h-4 w-4" /> },
+          { id: 'Product', label: 'Products Payouts', icon: <Percent className="h-4 w-4" /> },
+          { id: 'Referral', label: 'Referrals Overrides', icon: <Award className="h-4 w-4" /> },
+          { id: 'QR', label: 'QR Sales Flat Rate', icon: <QrCode className="h-4 w-4" /> },
+          { id: 'Settlement', label: 'Settlement Fees', icon: <ArrowUpRight className="h-4 w-4" /> }
         ].map(tab => (
           <button
             key={tab.id}
@@ -210,9 +223,9 @@ export const CommissionCenter: React.FC = () => {
               setNegotiatingId(null);
               setClarifyingId(null);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === tab.id
-              ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-              : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${activeTab === tab.id
+              ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+              : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
               }`}
           >
             {tab.icon}
@@ -221,85 +234,90 @@ export const CommissionCenter: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main List */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          <Card className="glass">
-            <CardHeader className="pb-3 border-b border-border/40">
-              <CardTitle className="text-sm font-bold">Commission Matrix Ledger</CardTitle>
-              <CardDescription>Clear visibility of platform rates, flat fees, and net payouts</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
+      {/* Full Width Commission Matrix Ledger */}
+      <div className="w-full space-y-6">
+        <div className="rounded-2xl bg-slate-900/90 p-6 shadow-xl space-y-4 text-left border-none">
+          <div className="space-y-1 border-b border-blue-900/40 pb-3">
+            <h3 className="text-lg font-extrabold text-white font-heading flex items-center gap-2">
+              <Coins className="h-5 w-5 text-amber-400" /> Commission Matrix Ledger
+            </h3>
+            <p className="text-xs text-blue-300">Clear visibility of platform rates, flat fees, and net payouts</p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <Table className="w-full">
+              <TableHeader>
+                <TableRow className="border-b border-blue-900/40 text-blue-300">
+                  <TableHead className="text-blue-300 font-extrabold">Reference Category</TableHead>
+                  <TableHead className="text-blue-300 font-extrabold">Description Details</TableHead>
+                  <TableHead className="text-right text-blue-300 font-extrabold">Transaction (₹)</TableHead>
+                  <TableHead className="text-right text-blue-300 font-extrabold">Platform Rate</TableHead>
+                  <TableHead className="text-right text-blue-300 font-extrabold">Charged (₹)</TableHead>
+                  <TableHead className="text-right font-black text-amber-400">Vendor Net (₹)</TableHead>
+                  <TableHead className="text-blue-300 font-extrabold">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableHead>Reference Category</TableHead>
-                    <TableHead>Description Details</TableHead>
-                    <TableHead className="text-right">Transaction (₹)</TableHead>
-                    <TableHead className="text-right">Platform Rate</TableHead>
-                    <TableHead className="text-right">Charged (₹)</TableHead>
-                    <TableHead className="text-right font-bold text-primary">Vendor Net (₹)</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableCell colSpan={7} className="text-center py-8 text-xs text-blue-300">
+                      No commission records found.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map(item => (
+                ) : (
+                  paginatedItems.map(item => (
                     <React.Fragment key={item.id}>
-                      <TableRow className="align-middle">
+                      <TableRow className="align-middle border-b border-slate-850 hover:bg-slate-850/50">
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px]">
+                          <span className="px-2.5 py-1 rounded-full bg-slate-950 text-amber-300 font-black text-[10px]">
                             {item.source}
-                          </Badge>
+                          </span>
                         </TableCell>
-                        <TableCell className="font-bold text-foreground">
+                        <TableCell className="font-extrabold text-white">
                           <div>{item.details}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono">ID: {item.id}</div>
+                          <div className="text-[10px] text-blue-300 font-mono">ID: {item.id}</div>
                           {item.notes && (
-                            <div className="text-[9px] text-amber-500 font-semibold mt-0.5 flex items-center gap-0.5">
+                            <div className="text-[10px] text-amber-400 font-bold mt-0.5 flex items-center gap-1">
                               <AlertCircle className="h-3 w-3 shrink-0" /> {item.notes}
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-semibold">
+                        <TableCell className="text-right font-black text-white">
                           ₹{item.amount.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-right text-amber-500 font-bold">
+                        <TableCell className="text-right text-amber-400 font-black">
                           {item.rate}%
                         </TableCell>
-                        <TableCell className="text-right text-destructive font-semibold">
+                        <TableCell className="text-right text-rose-400 font-black">
                           -₹{item.commissionCharged.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">
+                        <TableCell className="text-right font-black text-emerald-400 font-heading text-base">
                           ₹{item.netEarnings.toLocaleString()}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              item.status === 'Approved' ? 'success' :
-                                item.status === 'Rejected' ? 'destructive' : 'warning'
-                            }
-                            className="text-[10px]"
-                          >
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.status === 'Approved' ? 'bg-emerald-500/20 text-emerald-300' :
+                            item.status === 'Rejected' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+                            }`}>
                             {item.status === 'Awaiting Vendor Approval' ? 'Awaiting Payout Sign' : item.status}
-                          </Badge>
+                          </span>
                         </TableCell>
                       </TableRow>
 
                       {/* Action buttons if awaiting vendor sign */}
                       {item.status === 'Awaiting Vendor Approval' && (
-                        <TableRow className="bg-primary/5 border-b border-border/40">
+                        <TableRow className="bg-slate-950/80 border-b border-blue-900/40">
                           <TableCell colSpan={7}>
-                            <div className="flex items-center justify-between p-1.5 pl-6 gap-4">
-                              <span className="text-[11px] text-muted-foreground font-semibold">
+                            <div className="flex items-center justify-between p-2 pl-6 gap-4">
+                              <span className="text-xs text-blue-300 font-semibold">
                                 Please review and approve these commission terms.
                               </span>
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   onClick={() => handleAction(item.id, 'Accept')}
-                                  className="h-7 px-3 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1"
+                                  className="h-8 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black cursor-pointer flex items-center gap-1 shadow-md rounded-xl"
                                 >
-                                  <Check className="h-3 w-3" /> Approve Terms
+                                  <Check className="h-3.5 w-3.5" /> Approve Terms
                                 </Button>
                                 <Button
                                   size="sm"
@@ -308,7 +326,7 @@ export const CommissionCenter: React.FC = () => {
                                     setNegotiatingId(item.id);
                                     setClarifyingId(null);
                                   }}
-                                  className="h-7 px-3 text-xs border-border font-semibold cursor-pointer"
+                                  className="h-8 px-4 text-xs font-black cursor-pointer bg-amber-400 text-blue-950 hover:bg-amber-500 rounded-xl shadow-md"
                                 >
                                   Negotiate
                                 </Button>
@@ -319,7 +337,7 @@ export const CommissionCenter: React.FC = () => {
                                     setClarifyingId(item.id);
                                     setNegotiatingId(null);
                                   }}
-                                  className="h-7 px-3 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                                  className="h-8 px-4 text-xs text-blue-300 hover:text-white cursor-pointer"
                                 >
                                   Ask Clarification
                                 </Button>
@@ -329,123 +347,146 @@ export const CommissionCenter: React.FC = () => {
                         </TableRow>
                       )}
                     </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          {filteredItems.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-blue-900/40 text-xs">
+              <div className="text-blue-300 font-semibold">
+                Showing <b className="text-white font-mono">{Math.min((currentPageNum - 1) * itemsPerPage + 1, filteredItems.length)}</b> to <b className="text-white font-mono">{Math.min(currentPageNum * itemsPerPage, filteredItems.length)}</b> of <b className="text-amber-400 font-mono">{filteredItems.length}</b> records
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  disabled={currentPageNum === 1}
+                  onClick={() => setCurrentPageNum(prev => Math.max(1, prev - 1))}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-950 text-white font-black hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md transition-all"
+                >
+                  ← Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPageNum(page)}
+                    className={`h-8 w-8 rounded-xl font-black transition-all cursor-pointer ${currentPageNum === page
+                      ? 'bg-amber-400 text-blue-950 shadow-md scale-105'
+                      : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  disabled={currentPageNum === totalPages}
+                  onClick={() => setCurrentPageNum(prev => Math.min(totalPages, prev + 1))}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-950 text-white font-black hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md transition-all"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Action Widgets (Forms) */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {negotiatingId && (
-            <Card className="glass border-primary/20 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-1">
-                  <RefreshCw className="h-4.5 w-4.5 text-primary animate-spin" /> Negotiate Commission
-                </CardTitle>
-                <CardDescription>
-                  For: {commissions.find(c => c.id === negotiatingId)?.details}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={(e) => handleNegotiateSubmit(e, negotiatingId)} className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Proposed Commission Rate (%) *</label>
-                    <input
-                      required
-                      type="number"
-                      step="0.1"
-                      min="1"
-                      max="30"
-                      placeholder="e.g. 9.5"
-                      value={counterRate}
-                      onChange={(e) => setCounterRate(e.target.value)}
-                      className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">Message / Rationale to Admin *</label>
-                    <textarea
-                      required
-                      rows={3}
-                      placeholder="Explain why this product warrants a lower commission (e.g. high volume, low margins)..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none resize-none"
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    <Button type="submit" className="flex-1 bg-primary text-white font-bold h-9 text-xs cursor-pointer">
-                      Submit Counter
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setNegotiatingId(null)}
-                      className="h-9 px-3 text-xs border-border font-semibold cursor-pointer"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {clarifyingId && (
-            <Card className="glass border-indigo-500/20 bg-indigo-500/5">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-1">
-                  <MessageSquare className="h-4.5 w-4.5 text-indigo-500" /> Request Clarification
-                </CardTitle>
-                <CardDescription>
-                  For: {commissions.find(c => c.id === clarifyingId)?.details}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={(e) => handleClarifySubmit(e, clarifyingId)} className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-muted-foreground">What details do you need clarified? *</label>
-                    <textarea
-                      required
-                      rows={4}
-                      placeholder="Type your question for the ApexBee admin panel..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none resize-none"
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    <Button type="submit" className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold h-9 text-xs cursor-pointer">
-                      Send Inquiry
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setClarifyingId(null)}
-                      className="h-9 px-3 text-xs border-border font-semibold cursor-pointer"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-bold">ApexBee Commission Rules</CardTitle>
-            </CardHeader>
-            <CardContent className="text-[11px] text-muted-foreground leading-relaxed flex flex-col gap-2">
-              <p>
-                Platform fee covers logistics tracking, unified payment gateways, cloud hosting, and referral campaign operations.
+        {/* Negotiate / Clarify Modals */}
+        {negotiatingId && (
+          <div className="rounded-2xl bg-slate-900/90 p-6 shadow-xl text-left space-y-4">
+            <div className="space-y-1 border-b border-blue-900/40 pb-3">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2 font-heading">
+                <RefreshCw className="h-4.5 w-4.5 text-amber-400 animate-spin" /> Negotiate Commission
+              </h3>
+              <p className="text-xs text-blue-300">
+                For: {commissions.find(c => c.id === negotiatingId)?.details}
               </p>
-              <p>
-                Bidding items are subject to mutual agreements and review checks by the Category Leads.
+            </div>
+            <form onSubmit={(e) => handleNegotiateSubmit(e, negotiatingId)} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-white">Proposed Commission Rate (%) *</label>
+                <input
+                  required
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  max="30"
+                  placeholder="e.g. 9.5"
+                  value={counterRate}
+                  onChange={(e) => setCounterRate(e.target.value)}
+                  className="rounded-xl px-4 py-2.5 text-xs bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none font-bold"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-white">Message / Rationale to Admin *</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Explain why this product warrants a lower commission..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="rounded-xl p-3 text-xs bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none resize-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-blue-950 font-black text-xs rounded-xl cursor-pointer shadow-md">
+                  Submit Counter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNegotiatingId(null)}
+                  className="px-4 py-2.5 text-xs text-slate-300 hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {clarifyingId && (
+          <div className="rounded-2xl bg-slate-900/90 p-6 shadow-xl text-left space-y-4">
+            <div className="space-y-1 border-b border-blue-900/40 pb-3">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2 font-heading">
+                <MessageSquare className="h-4.5 w-4.5 text-blue-400" /> Request Clarification
+              </h3>
+              <p className="text-xs text-blue-300">
+                For: {commissions.find(c => c.id === clarifyingId)?.details}
               </p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <form onSubmit={(e) => handleClarifySubmit(e, clarifyingId)} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-white">What details do you need clarified? *</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Type your question for the ApexBee admin panel..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="rounded-xl p-3 text-xs bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none resize-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black text-xs rounded-xl cursor-pointer shadow-md">
+                  Send Inquiry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClarifyingId(null)}
+                  className="px-4 py-2.5 text-xs text-slate-300 hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

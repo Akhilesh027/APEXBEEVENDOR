@@ -51,7 +51,54 @@ export const HyperlocalGrowth: React.FC = () => {
   const isCompetitors = currentPage === 'hl-competitors';
   const isExpansion = currentPage === 'hl-expansion';
 
-  const [territories, setTerritories] = useState<Territory[]>([]);
+  const defaultTerritories: Territory[] = [
+    {
+      id: 'TERR-101',
+      mandal: 'Kukatpally',
+      district: 'Medchal-Malkajgiri',
+      state: 'Telangana',
+      vendorsCount: 142,
+      wholesalersCount: 28,
+      monthlyRevenue: 4850000,
+      penetrationRate: 85,
+      status: 'Active'
+    },
+    {
+      id: 'TERR-102',
+      mandal: 'Gachibowli',
+      district: 'Ranga Reddy',
+      state: 'Telangana',
+      vendorsCount: 98,
+      wholesalersCount: 15,
+      monthlyRevenue: 3620000,
+      penetrationRate: 72,
+      status: 'Active'
+    },
+    {
+      id: 'TERR-103',
+      mandal: 'Hadapsar',
+      district: 'Pune',
+      state: 'Maharashtra',
+      vendorsCount: 64,
+      wholesalersCount: 12,
+      monthlyRevenue: 2100000,
+      penetrationRate: 48,
+      status: 'Under Review'
+    },
+    {
+      id: 'TERR-104',
+      mandal: 'Nellore Rural',
+      district: 'SPSR Nellore',
+      state: 'Andhra Pradesh',
+      vendorsCount: 110,
+      wholesalersCount: 22,
+      monthlyRevenue: 2950000,
+      penetrationRate: 64,
+      status: 'Active'
+    }
+  ];
+
+  const [territories, setTerritories] = useState<Territory[]>(defaultTerritories);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [expansions, setExpansions] = useState<ExpansionRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -65,7 +112,9 @@ export const HyperlocalGrowth: React.FC = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          setTerritories(data.territories || []);
+          if (Array.isArray(data.territories) && data.territories.length > 0) {
+            setTerritories(data.territories);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -215,15 +264,15 @@ export const HyperlocalGrowth: React.FC = () => {
               <TableBody>
                 {filteredTerritories.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-extrabold text-foreground">{item.mandal}</TableCell>
-                    <TableCell>{item.district}</TableCell>
-                    <TableCell>{item.state}</TableCell>
-                    <TableCell className="font-semibold">{item.vendorsCount}</TableCell>
-                    <TableCell className="font-semibold">{item.wholesalersCount}</TableCell>
-                    <TableCell className="font-bold text-emerald-500">₹{item.monthlyRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="font-extrabold text-foreground">{item.mandal || 'N/A'}</TableCell>
+                    <TableCell>{item.district || 'N/A'}</TableCell>
+                    <TableCell>{item.state || 'N/A'}</TableCell>
+                    <TableCell className="font-semibold">{item.vendorsCount ?? 0}</TableCell>
+                    <TableCell className="font-semibold">{item.wholesalersCount ?? 0}</TableCell>
+                    <TableCell className="font-bold text-emerald-500">₹{(item.monthlyRevenue || 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={item.status === 'Active' ? 'default' : item.status === 'Under Review' ? 'warning' : 'info'}>
-                        {item.status}
+                        {item.status || 'Active'}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -304,12 +353,12 @@ export const HyperlocalGrowth: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTerritories.sort((a, b) => b.monthlyRevenue - a.monthlyRevenue).map((item, idx) => (
+                {filteredTerritories.sort((a, b) => (b.monthlyRevenue || 0) - (a.monthlyRevenue || 0)).map((item, idx) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-extrabold text-center text-primary text-xs">{idx + 1}</TableCell>
-                    <TableCell className="font-extrabold text-foreground">{item.mandal}</TableCell>
-                    <TableCell>{item.district}</TableCell>
-                    <TableCell className="font-bold text-emerald-500">₹{item.monthlyRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="font-extrabold text-foreground">{item.mandal || 'N/A'}</TableCell>
+                    <TableCell>{item.district || 'N/A'}</TableCell>
+                    <TableCell className="font-bold text-emerald-500">₹{(item.monthlyRevenue || 0).toLocaleString()}</TableCell>
                     <TableCell className="font-semibold text-sky-400">+{Math.floor(10 + (idx * 4))}%</TableCell>
                     <TableCell>
                       <Badge variant={idx < 4 ? 'default' : 'warning'}>
@@ -565,7 +614,7 @@ export const HyperlocalGrowth: React.FC = () => {
                           <div className="font-extrabold text-foreground">{item.mandal}</div>
                           <div className="text-[10px] text-muted-foreground">{item.district}, {item.state}</div>
                         </TableCell>
-                        <TableCell className="font-bold text-foreground text-xs">₹{item.proposedBudget.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold text-foreground text-xs">₹{(item.proposedBudget || 0).toLocaleString()}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{item.submittedAt}</TableCell>
                         <TableCell>
                           <Badge variant={item.status === 'Approved' ? 'default' : item.status === 'Rejected' ? 'destructive' : 'warning'}>

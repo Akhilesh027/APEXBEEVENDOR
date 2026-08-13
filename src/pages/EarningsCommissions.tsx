@@ -1,3 +1,7 @@
+/**
+ * EarningsCommissions Page Component
+ * Handles vendor platform fees, commission breakdowns, settlements, and payout reports.
+ */
 import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -8,8 +12,22 @@ import { Coins, BarChart3, Clock, CheckCircle, Download, FileSpreadsheet, Trendi
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area } from 'recharts';
 
 export const EarningsCommissions: React.FC = () => {
-  const { products, orders, withdrawals, profile, stats } = useVendor();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'products' | 'settlements' | 'upcoming' | 'reports'>('breakdown');
+  const { products, orders, withdrawals, profile, stats, currentPage } = useVendor();
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'products' | 'settlements' | 'upcoming' | 'reports'>(() => {
+    if (currentPage === 'settlements' || currentPage === 'earnings-settlements') return 'settlements';
+    if (currentPage === 'earnings-products') return 'products';
+    if (currentPage === 'earnings-upcoming') return 'upcoming';
+    if (currentPage === 'earnings-reports') return 'reports';
+    return 'breakdown';
+  });
+
+  React.useEffect(() => {
+    if (currentPage === 'settlements' || currentPage === 'earnings-settlements') setActiveTab('settlements');
+    else if (currentPage === 'earnings-products') setActiveTab('products');
+    else if (currentPage === 'earnings-upcoming') setActiveTab('upcoming');
+    else if (currentPage === 'earnings-reports') setActiveTab('reports');
+    else if (currentPage === 'earnings' || currentPage === 'earnings-breakdown') setActiveTab('breakdown');
+  }, [currentPage]);
   
   const totalLifetimeEarnings = React.useMemo(() => {
     const fromOrders = orders
@@ -22,15 +40,17 @@ export const EarningsCommissions: React.FC = () => {
   }, [orders, withdrawals, stats]);
 
   const avgPlatformFee = React.useMemo(() => {
-    if (products.length === 0) return '10.0%';
-    const avg = products.reduce((acc, p) => acc + (p.commissionRate || 10), 0) / products.length;
-    return `${avg.toFixed(1)}%`;
+    if (products.length === 0) return '0.0% (Platform Model)';
+    const totalRates = products.reduce((acc, p) => acc + (p.commissionRate || 0), 0);
+    const avg = totalRates / products.length;
+    return avg === 0 ? '0.0% (Platform Model)' : `${avg.toFixed(1)}%`;
   }, [products]);
 
   const monthlyData = React.useMemo(() => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     const result = [];
+    const isZeroComm = products.every(p => !p.commissionRate || p.commissionRate === 0);
 
     for (let i = 5; i >= 0; i--) {
       const idx = (currentMonth - i + 12) % 12;
@@ -41,22 +61,24 @@ export const EarningsCommissions: React.FC = () => {
         return d.getMonth() === idx;
       });
       const gross = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-      const commission = Math.round(gross * 0.1);
+      const commission = isZeroComm ? 0 : Math.round(gross * 0.1);
       result.push({ name, earnings: Math.max(0, gross - commission), commission });
     }
     return result;
-  }, [orders]);
+  }, [orders, products]);
 
   // Helper: calculate payout splits
-  const getProductSplits = (price: number, commRate: number, shipping: number, packing: number) => {
-    const commission = Math.round(price * (commRate / 100));
+  const getProductSplits = (price: number, commRate: number | undefined, shipping: number, packing: number) => {
+    const rate = typeof commRate === 'number' ? commRate : 0;
+    const commission = Math.round(price * (rate / 100));
     const vendorReceives = price - commission;
     return {
       price,
       commission,
       shipping,
       packing,
-      vendorReceives
+      vendorReceives,
+      rate
     };
   };
 
@@ -85,31 +107,41 @@ export const EarningsCommissions: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-slate-100 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Earnings & Commissions</h1>
-          <p className="text-xs text-muted-foreground">Monitor platform commissions, analyze itemized payout breakdowns, and track settlements.</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">Earnings & Commissions</h1>
+          <p className="text-xs text-blue-300">Monitor platform commissions, analyze itemized payout breakdowns, and track settlements.</p>
         </div>
       </div>
+      {/* 0% Platform Model Active Banner */}
+      {avgPlatformFee.includes('0.0%') && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-400 font-bold">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎉</span>
+            <span>Platform Model Active: 0% Platform Commission — Vendors Receive 100% Net Sales Payouts!</span>
+          </div>
+          <Badge variant="success" className="px-2.5 py-0.5 text-[10px]">0% Commission</Badge>
+        </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      {/* High-Contrast Colored Tabs Container */}
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
         {[
-          { id: 'breakdown', label: 'Commission Breakdown', icon: <Coins className="h-3.5 w-3.5" /> },
-          { id: 'products', label: 'Product Earnings', icon: <BarChart3 className="h-3.5 w-3.5" /> },
-          { id: 'settlements', label: 'Settlement History', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-          { id: 'upcoming', label: 'Upcoming Settlements', icon: <Clock className="h-3.5 w-3.5 animate-pulse" /> },
-          { id: 'reports', label: 'Commission Reports', icon: <FileSpreadsheet className="h-3.5 w-3.5" /> }
+          { id: 'breakdown', label: 'Commission Breakdown', icon: <Coins className="h-4 w-4" /> },
+          { id: 'products', label: 'Product Earnings', icon: <BarChart3 className="h-4 w-4" /> },
+          { id: 'settlements', label: 'Settlement History', icon: <CheckCircle className="h-4 w-4" /> },
+          { id: 'upcoming', label: 'Upcoming Settlements', icon: <Clock className="h-4 w-4 animate-pulse" /> },
+          { id: 'reports', label: 'Commission Reports', icon: <FileSpreadsheet className="h-4 w-4" /> }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             {tab.icon}
@@ -338,23 +370,30 @@ export const EarningsCommissions: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').map(o => (
-                    <TableRow key={o._id || o.id}>
-                      <TableCell className="font-mono text-xs font-bold text-foreground">{o.orderNumber || o.id}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('en-IN') : (o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN') : 'Today')}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">₹{(o.totalAmount || 0).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right text-destructive font-medium">-₹{Math.round((o.totalAmount || 0) * 0.1).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{Math.round((o.totalAmount || 0) * 0.9).toLocaleString('en-IN')}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
-                          <Clock className="h-3.5 w-3.5 animate-spin" />
-                          <span>Clearing (T+1 days)</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').map(o => {
+                    const isPlatformOrder = (o as any).distributionType === 'platform' || (o as any).distributedFrom === 'platform_fee' || products.every(p => !p.commissionRate || p.commissionRate === 0);
+                    const commDeduct = isPlatformOrder ? 0 : Math.round((o.totalAmount || 0) * 0.1);
+                    const netPayout = (o.totalAmount || 0) - commDeduct;
+                    return (
+                      <TableRow key={o._id || o.id}>
+                        <TableCell className="font-mono text-xs font-bold text-foreground">{o.orderNumber || o.id}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('en-IN') : (o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN') : 'Today')}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">₹{(o.totalAmount || 0).toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="text-right font-medium text-emerald-400">
+                          {commDeduct > 0 ? `-₹${commDeduct.toLocaleString('en-IN')}` : '₹0 (0% Comm)'}
+                        </TableCell>
+                        <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{netPayout.toLocaleString('en-IN')}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
+                            <Clock className="h-3.5 w-3.5 animate-spin" />
+                            <span>Clearing (T+1 days)</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">

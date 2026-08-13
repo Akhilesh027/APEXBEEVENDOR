@@ -83,44 +83,41 @@ export const BusinessAcademy: React.FC = () => {
   const isCertsView = currentPage === 'acad-certs';
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-slate-100 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Business Academy</h1>
-          <p className="text-xs text-muted-foreground">Accelerate your growth. Learn professional photography, GST regulations, warehousing inventory controls, and earn badges certifications.</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">Business Academy</h1>
+          <p className="text-xs text-blue-300">Accelerate your growth. Learn professional photography, GST regulations, warehousing inventory controls, and earn badges certifications.</p>
         </div>
       </div>
 
       {/* Quick Category Tabs navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
-        <Button size="sm" variant={currentPage === 'acad-photography' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-photography'}>
-          Photography
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-inventory' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-inventory'}>
-          Inventory
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-sales' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-sales'}>
-          Sales Training
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-marketing' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-marketing'}>
-          Marketing
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-customer' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-customer'}>
-          Customer Service
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-gst' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-gst'}>
-          GST Basics
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-franchise' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-franchise'}>
-          Franchise Growth
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-entrepreneurship' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-entrepreneurship'}>
-          Entrepreneurship
-        </Button>
-        <Button size="sm" variant={currentPage === 'acad-certs' ? 'primary' : 'outline'} className="text-xs" onClick={() => window.location.hash = '#acad-certs'}>
-          <Award className="h-3.5 w-3.5 mr-1" /> Certifications
-        </Button>
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
+        {[
+          { id: 'acad-photography', label: 'Photography' },
+          { id: 'acad-inventory', label: 'Inventory' },
+          { id: 'acad-sales', label: 'Sales Training' },
+          { id: 'acad-marketing', label: 'Marketing' },
+          { id: 'acad-customer', label: 'Customer Service' },
+          { id: 'acad-gst', label: 'GST Basics' },
+          { id: 'acad-franchise', label: 'Franchise Growth' },
+          { id: 'acad-entrepreneurship', label: 'Entrepreneurship' },
+          { id: 'acad-certs', label: 'Certifications', icon: <Award className="h-3.5 w-3.5" /> }
+        ].map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => window.location.hash = `#${cat.id}`}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              currentPage === cat.id
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
+            }`}
+          >
+            {cat.icon}
+            <span>{cat.label}</span>
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

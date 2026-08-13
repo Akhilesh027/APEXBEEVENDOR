@@ -261,8 +261,8 @@ export const NotificationsList: React.FC = () => {
         </Card>
       </div>
 
-      {/* Tabs list */}
-      <div className="flex flex-wrap border-b border-border/60 gap-1 pb-1 text-xs font-bold">
+      {/* High-Contrast Colored Tabs Container */}
+      <div className="p-2 bg-slate-900/90 rounded-2xl shadow-xl flex flex-wrap gap-2 text-left">
         {[
           { id: 'all', label: 'All Alerts' },
           { id: 'critical', label: '🔴 Critical Alerts' },
@@ -277,10 +277,10 @@ export const NotificationsList: React.FC = () => {
               setActiveTab(tab.id);
               setSelectedIds([]);
             }}
-            className={`px-3 py-2 rounded-t-lg transition border-b-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border-none ${
               activeTab === tab.id
-                ? 'border-primary text-primary bg-primary/[0.02]'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
             }`}
           >
             {tab.label}

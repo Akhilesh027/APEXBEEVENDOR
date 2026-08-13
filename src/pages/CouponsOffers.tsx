@@ -2,24 +2,30 @@ import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { 
-  Gift, 
-  Plus, 
-  Calendar, 
-  Tag, 
-  Trash2, 
-  XCircle, 
-  ChevronDown, 
-  ChevronUp, 
-  Copy, 
-  Smartphone, 
-  Sparkles
-} from 'lucide-react';
+import { Badge } from '../components/ui/Badge';
+import { Gift, Plus, Trash2, Tag, Percent, Calendar, Sparkles, Filter, CheckCircle2, Clock, X, ChevronDown, ChevronUp, XCircle, Smartphone, Copy } from 'lucide-react';
+import { UpdatingForBetter } from '../components/UpdatingForBetter';
 import type { CouponItem } from '../types';
 
 export const CouponsOffers: React.FC = () => {
+  return (
+    <UpdatingForBetter
+      moduleName="Coupons & Offers"
+      sectionName="📈 Growth & Marketing"
+      icon="ticket"
+      description="We are upgrading Coupons & Offers with smart dynamic discount rules, flash sale scheduler, and targeted customer segment promos."
+      keyFeatures={[
+        'Smart automated cart-threshold discounts',
+        'Customer segment targeting (First-time / VIP)',
+        'Flash-sale timer & countdown banners',
+        'Coupon conversion & ROI tracking dashboard'
+      ]}
+    />
+  );
+};
+
+export const LegacyCouponsOffers: React.FC = () => {
   const { coupons: contextCoupons, addCoupon, deleteCoupon } = useVendor();
   const [showForm, setShowForm] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);

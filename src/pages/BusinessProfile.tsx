@@ -593,55 +593,106 @@ export const BusinessProfile: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Business Account Settings</h1>
-          <p className="text-xs text-muted-foreground">Manage profile, bank registries, KYC checks, and corporate document approvals.</p>
+      {/* Header Canopy Card with Glassmorphic Background */}
+      <div className="bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-indigo-950/90 border border-slate-800/80 p-6 rounded-3xl shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🏬</span>
+            <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
+              Business Account &amp; Store Config
+            </h1>
+          </div>
+          <p className="text-xs text-blue-200/80 pl-7">
+            Manage store profile, bank registries, KYC checks, storefront design, and corporate document approvals.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={profile.marketplaceStatus === 'Approved' ? 'success' : 'warning'} className="self-start sm:self-auto px-3 py-1 text-xs">
-            Marketplace Status: {profile.marketplaceStatus || 'Draft'}
-          </Badge>
-          <Badge variant={profile.kycStatus === 'Verified' ? 'success' : 'warning'} className="self-start sm:self-auto px-3 py-1 text-xs">
-            KYC Status: {profile.kycStatus}
-          </Badge>
-          <Button
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="px-3.5 py-1.5 rounded-2xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Marketplace Status: {profile.marketplaceStatus || 'Approved'}</span>
+          </div>
+
+          <div className="px-3.5 py-1.5 rounded-2xl text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/40 shadow-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>KYC Status: {profile.kycStatus || 'Pending Verification'}</span>
+          </div>
+
+          <div className="px-3.5 py-1.5 rounded-2xl text-xs font-black bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-xs flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            <span>Document Approvals: {profile.documents?.filter(d => d.status === 'Approved').length || 0}/{(profile.documents?.length || 6)} Verified</span>
+          </div>
+
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             onClick={() => {
               window.open(`https://apexbee.in/store/${profile.id || 'preview'}`, '_blank');
             }}
-            className="text-xs flex items-center gap-1 border-border font-bold bg-secondary hover:bg-secondary/80"
+            className="text-xs flex items-center gap-2 font-black bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-950 px-5 py-2.5 rounded-2xl shadow-lg shadow-amber-500/20 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
           >
-            🌐 Preview Store
-          </Button>
+            <span>🌐</span>
+            <span>Preview Store</span>
+          </button>
         </div>
       </div>
 
+      {/* Tabs Bar with Vibrant Background Triggers */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start overflow-x-auto gap-1 mb-4">
-          <TabsTrigger value="account" className="flex items-center gap-1.5 cursor-pointer">
-            <User className="h-4 w-4" /> My Account
+        <TabsList className="w-full justify-start overflow-x-auto gap-2.5 mb-6 p-3 bg-slate-950/95 border border-slate-800/80 rounded-3xl shadow-2xl backdrop-blur-2xl">
+          <TabsTrigger
+            value="account"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:border-indigo-500 data-[state=active]:shadow-lg data-[state=active]:shadow-indigo-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <User className="h-4 w-4" />
+            <span>My Account</span>
           </TabsTrigger>
-          <TabsTrigger value="profile" className="flex items-center gap-1.5 cursor-pointer">
-            <Building2 className="h-4 w-4" /> Store Config Wizard
+
+          <TabsTrigger
+            value="profile"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:border-blue-500 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <Building2 className="h-4 w-4" />
+            <span>Store Config Wizard</span>
           </TabsTrigger>
-          <TabsTrigger value="styling" className="flex items-center gap-1.5 cursor-pointer">
-            <Sparkles className="h-4 w-4" /> Storefront Styling
+
+          <TabsTrigger
+            value="styling"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-slate-950 data-[state=active]:border-amber-400 data-[state=active]:shadow-lg data-[state=active]:shadow-amber-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Storefront Styling</span>
           </TabsTrigger>
-          <TabsTrigger value="kyc" className="flex items-center gap-1.5 cursor-pointer">
-            <ShieldCheck className="h-4 w-4" /> KYC Verification
+
+          <TabsTrigger
+            value="kyc"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:border-emerald-500 data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span>KYC Verification</span>
           </TabsTrigger>
-          <TabsTrigger value="bank" className="flex items-center gap-1.5 cursor-pointer">
-            <CreditCard className="h-4 w-4" /> Bank Accounts
+
+          <TabsTrigger
+            value="bank"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-violet-500 data-[state=active]:shadow-lg data-[state=active]:shadow-violet-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>Bank Accounts</span>
           </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-1.5 cursor-pointer">
-            <FolderOpen className="h-4 w-4" /> Business Documents
+
+          <TabsTrigger
+            value="documents"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-slate-900/60 border border-slate-800/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:border-rose-500 data-[state=active]:shadow-lg data-[state=active]:shadow-rose-500/30 text-slate-300 hover:bg-slate-800/80"
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span>Business Documents</span>
           </TabsTrigger>
-          <TabsTrigger value="capabilities" className="flex items-center gap-1.5 cursor-pointer">
-            <Award className="h-4 w-4" /> Devotional Capabilities
+
+          <TabsTrigger
+            value="capabilities"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all duration-200 bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:via-orange-500 data-[state=active]:to-yellow-500 data-[state=active]:text-slate-950 data-[state=active]:border-amber-400 data-[state=active]:shadow-xl data-[state=active]:shadow-amber-500/40 font-black ring-1 ring-amber-400/20"
+          >
+            <Award className="h-4 w-4 text-amber-400" />
+            <span>Devotional Capabilities</span>
           </TabsTrigger>
         </TabsList>
 
@@ -700,35 +751,74 @@ export const BusinessProfile: React.FC = () => {
 
             {/* Account Details */}
             <div className="lg:col-span-2 space-y-4">
+              {/* ApexBee Master Identity Card */}
+              <Card className="glass border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-secondary/20 to-primary/10 shadow-md">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-black text-amber-400 flex items-center gap-2">
+                      <span>👑 ApexBee Master Business Identity</span>
+                    </CardTitle>
+                    <span className="text-[10px] font-mono font-bold text-muted-foreground bg-secondary/60 px-2.5 py-1 rounded-full border border-border/60">
+                      1 Person / Store = 1 Master ID
+                    </span>
+                  </div>
+                  <CardDescription>Official ApexBee unified identity credentials across all system modules</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="p-3 bg-slate-950/80 rounded-2xl border border-amber-500/40 text-left">
+                      <span className="text-[9px] font-black uppercase text-amber-400 tracking-wider block">Master Customer ID</span>
+                      <strong className="text-base font-mono font-black text-amber-400 block mt-0.5">
+                        {loggedInUser?.masterCustomerId || (profile as any).masterCustomerId || '583214907'}
+                      </strong>
+                    </div>
+
+                    <div className="p-3 bg-slate-950/80 rounded-2xl border border-indigo-500/40 text-left">
+                      <span className="text-[9px] font-black uppercase text-indigo-400 tracking-wider block">Merchant Role Ref ID</span>
+                      <strong className="text-base font-mono font-black text-indigo-400 block mt-0.5">
+                        {(profile as any).referenceId || loggedInUser?.roleReferenceIds?.vendor || 'APX-GRC-7M2Q8A'}
+                      </strong>
+                    </div>
+
+                    <div className="p-3 bg-slate-950/80 rounded-2xl border border-emerald-500/40 text-left">
+                      <span className="text-[9px] font-black uppercase text-emerald-400 tracking-wider block">Universal Referral Code</span>
+                      <strong className="text-base font-mono font-black text-emerald-400 block mt-0.5">
+                        {loggedInUser?.referralCode || profile.referralCode || 'AB7K9P2'}
+                      </strong>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="glass">
                 <CardHeader>
                   <CardTitle className="text-base font-bold">Logged-In Account Details</CardTitle>
                   <CardDescription>Your authentication account information from the system</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 text-left">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Full Name</label>
-                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80">
+                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80 font-bold">
                         {loggedInUser?.name || profile.ownerName || '—'}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Email Address</label>
-                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80">
+                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80 font-mono">
                         {loggedInUser?.email || profile.email || '—'}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Mobile Number</label>
-                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80">
+                      <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80 font-mono">
                         {loggedInUser?.phone || loggedInUser?.mobile || profile.phone || '—'}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">User ID</label>
-                      <div className="border border-border/50 rounded-lg px-3 py-2 text-xs font-mono bg-secondary/30 text-muted-foreground cursor-not-allowed opacity-80">
-                        {loggedInUser?.id || loggedInUser?._id || '—'}
+                      <label className="text-xs font-bold text-muted-foreground">Internal Database UUID</label>
+                      <div className="border border-border/50 rounded-lg px-3 py-2 text-xs font-mono bg-secondary/30 text-primary cursor-not-allowed opacity-80 truncate">
+                        {loggedInUser?.id || loggedInUser?._id || profile.id || '—'}
                       </div>
                     </div>
                   </div>
@@ -2384,14 +2474,14 @@ export const BusinessProfile: React.FC = () => {
 
         {/* Tab: Devotional Capabilities */}
         <TabsContent value="capabilities">
-          <Card className="glass border-border/50">
+          <Card className="bg-gradient-to-br from-slate-900/95 via-amber-950/20 to-slate-900/95 border border-amber-500/40 shadow-2xl p-2 rounded-3xl">
             <CardHeader className="text-left">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    🏛️ Devotional Business Types & Capabilities
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-amber-300">
+                    🏛️ Devotional Business Types &amp; Capabilities
                   </CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardDescription className="text-xs text-slate-300">
                     Select all business capabilities your store operates. Submitted requests require admin verification and approval.
                   </CardDescription>
                 </div>

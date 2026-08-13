@@ -112,46 +112,44 @@ export const Withdrawals: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left">
+    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-slate-100 text-left">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <ArrowDownCircle className="h-6 w-6 text-primary" /> Payout Payout Request Center
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white flex items-center gap-2.5">
+            <ArrowDownCircle className="h-7 w-7 text-amber-400" /> Payout & Settlement Request Center
           </h1>
-          <p className="text-xs text-muted-foreground">Request settlements directly to your bank account or UPI ID instantly.</p>
+          <p className="text-xs text-blue-300">Request settlements directly to your bank account or UPI ID instantly.</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground font-semibold">
-          <span>Last Updated: <strong>{lastUpdated}</strong></span>
-          <button onClick={handleRefreshWallet} className="p-1.5 hover:bg-secondary/80 rounded-lg border border-border cursor-pointer flex items-center gap-1">
+        <div className="flex items-center gap-3 text-xs text-blue-300 font-semibold">
+          <span>Last Updated: <strong className="text-white font-mono">{lastUpdated}</strong></span>
+          <button onClick={handleRefreshWallet} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 rounded-xl text-amber-300 font-bold border-none cursor-pointer flex items-center gap-1.5 shadow-md">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh Wallet
           </button>
         </div>
       </div>
 
-      {/* AI Smart Settlement Advice Box (PDF Page 4) */}
-      <Card className="bg-gradient-to-r from-primary/10 to-indigo-500/10 border-primary/20 shadow-sm">
-        <CardContent className="p-4 flex items-start gap-3">
-          <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5 animate-pulse" />
-          <div className="flex flex-col gap-1 text-xs">
-            <span className="font-extrabold text-foreground">AI Settlement Suggestion</span>
-            <p className="text-muted-foreground leading-relaxed">
-              "Withdraw after tomorrow to maximize payout volumes. You will receive <strong>₹12,800</strong> instead of ₹8,400. Accumulating settlements weekly reduces direct gateway transaction fees."
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* AI Smart Settlement Advice Box */}
+      <div className="rounded-2xl bg-slate-900/90 p-5 shadow-xl flex items-start gap-3.5 text-left">
+        <Sparkles className="h-5 w-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+        <div className="flex flex-col gap-1 text-xs">
+          <span className="font-extrabold text-amber-400 uppercase tracking-wider font-heading">AI Executive Settlement Recommendation</span>
+          <p className="text-blue-200 leading-relaxed">
+            "Withdraw after tomorrow to maximize payout volumes. You will receive <strong className="text-white">₹12,800</strong> instead of ₹8,400. Accumulating settlements weekly reduces direct gateway transaction fees."
+          </p>
+        </div>
+      </div>
 
-      {/* Success Animation Notification Area (PDF Page 5) */}
+      {/* Success Animation Notification Area */}
       {showAnimation && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-bold flex items-center gap-3 animate-bounce">
-          <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center animate-ping">
-            <CheckCircle className="h-5 w-5 text-emerald-500" />
+        <div className="p-5 rounded-2xl bg-emerald-500/15 text-emerald-300 text-xs font-bold flex items-center gap-3.5 shadow-xl animate-bounce">
+          <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center animate-ping shrink-0">
+            <CheckCircle className="h-5 w-5 text-emerald-400" />
           </div>
           <div className="flex flex-col gap-0.5">
-            <span>Settlement Disbursal Initiated!</span>
-            <span className="text-[10px] text-muted-foreground font-semibold">Verification check complete. Net funds are routed to your primary account.</span>
+            <span className="text-sm font-black text-white font-heading">Settlement Disbursal Initiated!</span>
+            <span className="text-xs text-blue-200 font-medium">Verification check complete. Net funds are routed to your primary account.</span>
           </div>
         </div>
       )}
@@ -159,147 +157,146 @@ export const Withdrawals: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Request Form */}
-        <Card className="glass lg:col-span-4 h-fit">
-          <CardHeader>
-            <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-              <ArrowDownCircle className="h-4.5 w-4.5 text-primary" /> Request Withdrawal
-            </CardTitle>
-            <CardDescription>Withdraw funds from your available balance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
-              {/* Wallet Info inside form */}
-              <div className="bg-primary/5 p-3.5 rounded-lg border border-primary/10 flex flex-col mb-1">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Available Wallet Balance</span>
-                <span className="text-xl font-black text-foreground mt-0.5">₹{stats.walletBalance.toLocaleString('en-IN')}</span>
+        <div className="rounded-2xl bg-slate-900/90 p-6 shadow-xl lg:col-span-4 h-fit text-left space-y-5">
+          <div className="space-y-1 border-b border-blue-900/40 pb-3">
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2 font-heading">
+              <ArrowDownCircle className="h-5 w-5 text-amber-400" /> Request Withdrawal
+            </h3>
+            <p className="text-xs text-blue-300">Withdraw funds from your available balance</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+            {/* Wallet Info inside form */}
+            <div className="bg-slate-950/80 p-4 rounded-xl flex flex-col shadow-inner">
+              <span className="text-[10px] text-amber-400 uppercase font-black tracking-wider">Available Wallet Balance</span>
+              <span className="text-2xl font-black text-white mt-1 font-heading">₹{stats.walletBalance.toLocaleString('en-IN')}</span>
+            </div>
+
+            {errorMessage && (
+              <div className="p-3.5 text-xs bg-rose-500/15 text-rose-300 rounded-xl flex items-center gap-2 font-extrabold shadow-md">
+                <AlertTriangle className="h-4 w-4" /> {errorMessage}
               </div>
+            )}
 
-              {errorMessage && (
-                <div className="p-3 text-xs bg-destructive/10 text-destructive rounded-lg flex items-center gap-2 font-medium">
-                  <AlertTriangle className="h-4 w-4" /> {errorMessage}
-                </div>
-              )}
+            {successMessage && !showAnimation && (
+              <div className="p-3.5 text-xs bg-emerald-500/15 text-emerald-300 rounded-xl flex items-center gap-2 font-extrabold shadow-md">
+                <CheckCircle2 className="h-4 w-4" /> {successMessage}
+              </div>
+            )}
 
-              {successMessage && !showAnimation && (
-                <div className="p-3 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="h-4 w-4" /> {successMessage}
-                </div>
-              )}
+            {/* Amount input with Minimum Withdrawal Display */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-300">
+                <label>Withdrawal Amount (₹) *</label>
+                <span className="text-[10px] text-amber-400 font-extrabold">Min Withdrawal: ₹500</span>
+              </div>
+              <input
+                required
+                type="number"
+                min="500"
+                value={amount || ''}
+                onChange={(e) => setAmount(Number(e.target.value))}
+                placeholder="e.g. 5000"
+                className="rounded-xl px-4 py-2.5 text-sm bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none font-bold border-none shadow-inner"
+              />
+            </div>
 
-              {/* Amount input with Minimum Withdrawal Display */}
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center text-xs font-bold text-muted-foreground">
-                  <label>Withdrawal Amount (₹) *</label>
-                  <span className="text-[10px] text-primary">Minimum Withdrawal: ₹500</span>
-                </div>
+            {/* Settlement Method Selection */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300">Settlement Method</label>
+              <select 
+                value={method} 
+                onChange={(e) => setMethod(e.target.value as any)}
+                className="rounded-xl px-3.5 py-2.5 text-xs bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none shadow-inner font-bold"
+              >
+                <option value="UPI">UPI Transfer</option>
+                <option value="Bank Transfer">Bank Account</option>
+              </select>
+            </div>
+
+            {method === 'UPI' ? (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <QrCode className="h-4 w-4 text-amber-400" /> Registered UPI ID *
+                </label>
                 <input
                   required
-                  type="number"
-                  min="500"
-                  value={amount || ''}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  placeholder="e.g. 5000"
-                  className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-2 focus:ring-ring focus:outline-none font-bold"
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  className="rounded-xl px-4 py-2.5 text-sm bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none shadow-inner font-mono font-bold"
                 />
               </div>
-
-              {/* Settlement Method Selection */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-muted-foreground">Settlement Method</label>
+            ) : profile?.bankAccounts && profile.bankAccounts.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-300">Select Bank Account</label>
                 <select 
-                  value={method} 
-                  onChange={(e) => setMethod(e.target.value as any)}
-                  className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
+                  value={selectedBankId} 
+                  onChange={(e) => setSelectedBankId(e.target.value)}
+                  className="rounded-xl px-3.5 py-2.5 text-xs bg-slate-950/80 text-white focus:ring-2 focus:ring-amber-400 focus:outline-none border-none shadow-inner font-bold"
                 >
-                  <option value="UPI">UPI Transfer</option>
-                  <option value="Bank Transfer">Bank Account</option>
+                  {profile.bankAccounts.map((b: any) => (
+                    <option key={b.id} value={b.id}>
+                      {b.bankName} - {b.accountNumber} ({b.id === profile.bankAccounts[0]?.id ? 'Primary' : 'Secondary'})
+                    </option>
+                  ))}
                 </select>
               </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-amber-400/10 text-amber-300 text-xs flex flex-col gap-2 shadow-md">
+                <div className="flex items-center gap-2 font-black">
+                  <AlertTriangle className="h-4.5 w-4.5 text-amber-400" /> No bank account configured
+                </div>
+                <p className="text-xs text-blue-200 leading-relaxed">
+                  You need to add a bank account to your profile to request direct bank settlements.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage('profile')}
+                  className="self-start mt-1 font-black text-xs px-3.5 py-1.5 rounded-xl bg-amber-400 text-blue-950 shadow-md cursor-pointer hover:bg-amber-500 transition-all"
+                >
+                  Add Bank Account ➔
+                </button>
+              </div>
+            )}
 
-              {method === 'UPI' ? (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                    <QrCode className="h-3.5 w-3.5 text-primary" /> Registered UPI ID *
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none"
-                  />
+            {/* Fee & Receive Summary Box */}
+            {amount > 0 && (
+              <div className="bg-slate-950/80 p-4 rounded-xl flex flex-col gap-2 text-xs text-blue-200 font-semibold shadow-inner">
+                <div className="flex justify-between items-center">
+                  <span>Withdrawal Amount:</span>
+                  <span className="text-white font-black">₹{amount.toLocaleString()}</span>
                 </div>
-              ) : profile?.bankAccounts && profile.bankAccounts.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-muted-foreground">Select Bank Account</label>
-                  <select 
-                    value={selectedBankId} 
-                    onChange={(e) => setSelectedBankId(e.target.value)}
-                    className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground focus:outline-none"
-                  >
-                    {profile.bankAccounts.map((b: any) => (
-                      <option key={b.id} value={b.id}>
-                        {b.bankName} - {b.accountNumber} ({b.id === profile.bankAccounts[0]?.id ? 'Primary' : 'Secondary'})
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex justify-between items-center text-rose-400">
+                  <span className="flex items-center gap-1">Processing Fee (0.2%): <HelpCircle className="h-3 w-3 text-blue-300" /></span>
+                  <span>- ₹{processingFee}</span>
                 </div>
-              ) : (
-                <div className="p-4 rounded-xl border border-dashed border-amber-500/50 bg-amber-500/5 text-amber-500 text-xs flex flex-col gap-2">
-                  <div className="flex items-center gap-2 font-bold">
-                    <AlertTriangle className="h-4.5 w-4.5" /> No bank account configured
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-normal">
-                    You need to add a bank account to your profile to request direct bank settlements.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setCurrentPage('profile')}
-                    className="self-start mt-1 font-bold text-[10px] cursor-pointer text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
-                  >
-                    Add Bank Account
-                  </Button>
+                <div className="flex justify-between items-center border-t border-blue-900/40 pt-2.5 font-black text-white text-sm">
+                  <span>You Will Receive:</span>
+                  <span className="text-emerald-400 text-base font-heading">₹{netReceiveAmount.toLocaleString()}</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Transparent Fee & Receive Summary Box (PDF Page 3) */}
-              {amount > 0 && (
-                <div className="border-t border-border/30 pt-3 flex flex-col gap-2 text-xs text-muted-foreground font-semibold">
-                  <div className="flex justify-between items-center">
-                    <span>Withdrawal Amount:</span>
-                    <span className="text-foreground font-bold">₹{amount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-rose-500">
-                    <span className="flex items-center gap-1">Processing Fee (0.2%): <HelpCircle className="h-3 w-3 text-muted-foreground" /></span>
-                    <span>- ₹{processingFee}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-border/30 pt-2 font-black text-foreground text-sm">
-                    <span>You Will Receive:</span>
-                    <span className="text-emerald-500">₹{netReceiveAmount.toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-
-              <Button 
-                type="submit" 
-                disabled={stats.walletBalance <= 0 || amount > stats.walletBalance || (method === 'Bank Transfer' && (!profile?.bankAccounts || profile.bankAccounts.length === 0))} 
-                className="w-full mt-2 cursor-pointer font-bold text-xs bg-primary text-white h-9"
-              >
-                Submit Settlement Request
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <button 
+              type="submit" 
+              disabled={stats.walletBalance <= 0 || amount > stats.walletBalance || (method === 'Bank Transfer' && (!profile?.bankAccounts || profile.bankAccounts.length === 0))} 
+              className="w-full mt-2 cursor-pointer font-black text-xs bg-amber-400 hover:bg-amber-500 text-blue-950 py-3 rounded-xl shadow-md transition-all uppercase tracking-wider"
+            >
+              Submit Settlement Request
+            </button>
+          </form>
+        </div>
 
         {/* History Register */}
-        <Card className="lg:col-span-8">
-          <CardHeader>
-            <CardTitle className="text-sm font-bold flex items-center gap-1.5"><HistoryIcon className="h-4.5 w-4.5 text-primary" /> Withdrawals Ledger</CardTitle>
-            <CardDescription>Audit register of requested bank and UPI transfer records</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
+        <div className="rounded-2xl bg-slate-900/90 p-6 shadow-xl lg:col-span-8 space-y-4">
+          <div className="space-y-1 border-b border-blue-900/40 pb-3">
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2 font-heading">
+              <HistoryIcon className="h-5 w-5 text-amber-400" /> Withdrawals Ledger
+            </h3>
+            <p className="text-xs text-blue-300">Audit register of requested bank and UPI transfer records</p>
+          </div>
+          <div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -339,13 +336,12 @@ export const Withdrawals: React.FC = () => {
                       )}
                     </TableCell>
                     <TableCell>{getStatusBadge(w.status)}</TableCell>
-                    <TableCell className="font-black text-foreground text-xs text-right">₹{w.amount.toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
