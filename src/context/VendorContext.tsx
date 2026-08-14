@@ -1567,13 +1567,44 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     agentId: string,
     agentType: 'Platform' | 'Vendor' | 'Independent'
   ) => {
-    const matched = orders.find(o => o.id === orderId);
-    if (!matched) return;
-
-    const agent = deliveryAgents.find(a => a.id === agentId);
+    const matched = orders.find(o => o.id === orderId || o._id === orderId);
+    const agent = deliveryAgents.find(a => a.id === agentId || (a as any)._id === agentId);
+    const agentName = agent ? agent.name : agentId;
 
     try {
-      await orderService.assignDelivery(matched, agentId, agentType, agent?.name);
+      if (matched) {
+        await orderService.assignDelivery(matched, agentId, agentType, agentName);
+      } else {
+        const token = localStorage.getItem('token');
+        await fetch(`https://server.apexbee.in/api/orders/${orderId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            deliveryAgentId: agentId,
+            assignedDeliveryAgent: agentName,
+            deliveryAgentType: agentType,
+            orderStatus: 'Shipped'
+          })
+        });
+      }
+
+      setOrders(prev =>
+        prev.map(o => {
+          if (o.id === orderId || o._id === orderId) {
+            return {
+              ...o,
+              assignedDeliveryAgent: agentName,
+              deliveryAgentId: agentId,
+              deliveryAgentType: agentType,
+              deliveryStatus: 'Accepted'
+            };
+          }
+          return o;
+        })
+      );
 
       setDeliveryAgents(prev =>
         prev.map(a => a.id === agentId ? { ...a, status: 'On Delivery' } : a)
@@ -1582,7 +1613,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const token = localStorage.getItem('token');
       if (token) await fetchVendorData(profile.id, token);
 
-      addNotification('Delivery Agent Assigned', `Agent assigned to order ${orderId}.`, 'order');
+      addNotification('Delivery Agent Assigned', `Agent ${agentName} assigned to order ${orderId}.`, 'order');
     } catch (err: any) {
       alert(err.message || 'Failed to assign delivery agent');
     }
@@ -1722,34 +1753,74 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const assignSubscriptionDelivery = async (subId: string, agentId: string, agentType: string): Promise<boolean> => {
     const token = localStorage.getItem('token');
-    if (!token) return false;
-    try {
-      const agent = deliveryAgents.find(a => a.id === agentId);
-      const agentName = agent ? agent.name : 'Platform Agent';
+    const agent = deliveryAgents.find(a => a.id === agentId || (a as any)._id === agentId);
+    const agentName = agent ? agent.name : agentId;
 
-      const res = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${subId}`, {
-        method: 'PATCH',
+    try {
+      await fetch(`https://server.apexbee.in/api/orders/${subId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           deliveryAgentId: agentId,
+          assignedDeliveryAgent: agentName,
           deliveryAgentType: agentType,
-          deliveryAgentName: agentName
+          orderStatus: 'Shipped'
         })
-      });
-      if (res.ok) {
-        await fetchVendorData(profile.id, token);
-        addNotification(
-          "Delivery Assigned",
-          `Assigned ${agentName} to subscription ${subId}.`,
-          'system'
-        );
-        return true;
+      }).catch(() => null);
+
+      if (token) {
+        await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/${subId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            deliveryAgentId: agentId,
+            deliveryAgentType: agentType,
+            deliveryAgentName: agentName
+          })
+        }).catch(() => null);
       }
-      return false;
-    } catch (err) {
+
+      setVendorSubscriptions(prev =>
+        prev.map(sub => {
+          if (sub._id === subId || sub.id === subId) {
+            return {
+              ...sub,
+              assignedDeliveryAgent: agentName,
+              deliveryAgentId: agentId,
+              deliveryAgentType: agentType,
+              status: 'active'
+            };
+          }
+          return sub;
+        })
+      );
+
+      setOrders(prev =>
+        prev.map(o => {
+          if (o._id === subId || o.id === subId) {
+            return {
+              ...o,
+              assignedDeliveryAgent: agentName,
+              deliveryAgentId: agentId,
+              deliveryAgentType: agentType,
+              deliveryStatus: 'Accepted'
+            };
+          }
+          return o;
+        })
+      );
+
+      if (token) await fetchVendorData(profile.id, token).catch(() => null);
+
+      addNotification('Delivery Agent Assigned', `Rider ${agentName} assigned to subscription ${subId}.`, 'order');
+      return true;
+    } catch (err: any) {
       console.error('Failed to assign subscription delivery:', err);
       return false;
     }

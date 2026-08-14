@@ -226,16 +226,23 @@ export const Orders: React.FC = () => {
     return { payout, commission: totalComm, avgRate, isApexBeeCommissionModel };
   };
 
-  const getDeliveryStatusBadge = (status: string) => {
+  const getDeliveryStatusBadge = (status: string, order?: Order) => {
     const current = normalizeStatus(status);
+    const hasAgent = Boolean(order?.assignedDeliveryAgent || (order as any)?.deliveryAgentId);
 
     switch (current) {
       case 'New':
-        return <Badge variant="info">New Order</Badge>;
+      case 'Pending':
+      case 'pending':
+      case 'Unassigned':
+        return <Badge variant="warning">⏳ Unassigned / Pending Rider</Badge>;
       case 'Accepted':
       case 'Assigned':
       case 'assigned':
-        return <Badge variant="warning">🛵 Rider Accepted</Badge>;
+        if (!hasAgent) {
+          return <Badge variant="warning">⏳ Unassigned / Pending Rider</Badge>;
+        }
+        return <Badge variant="warning">🛵 Rider Accepted ({order?.assignedDeliveryAgent})</Badge>;
       case 'Reached Vendor':
         return <Badge variant="purple">🏬 Rider at Store</Badge>;
       case 'Processing':
@@ -255,14 +262,63 @@ export const Orders: React.FC = () => {
     }
   };
 
+  const allCombinedOrders = useMemo(() => {
+    const existingIds = new Set(orders.map((o) => o.id));
+    const subOrdersMapped: Order[] = (vendorSubscriptions || []).map((sub: any) => {
+      const subId = sub.id || sub._id || 'SUB-100';
+      const hasAgent = Boolean(sub.assignedDeliveryAgent || sub.deliveryAgentId);
+      return {
+        id: subId,
+        _id: sub._id || subId,
+        customerName: sub.customerName || 'Subscriber',
+        customerPhone: sub.customerPhone || '',
+        deliveryAddress: sub.address || sub.deliveryAddress || 'Subscription Address',
+        items: [
+          {
+            productId: sub._id || 'sub-item',
+            productName: sub.productName || 'Daily Subscription Product',
+            sku: 'SUB-SKU',
+            quantity: sub.quantity || 1,
+            price: sub.unitPrice || 0,
+            image: '/placeholder.png'
+          }
+        ],
+        subtotal: (sub.unitPrice || 0) * (sub.quantity || 1),
+        shippingCharge: 0,
+        packingCharge: 0,
+        discount: 0,
+        totalAmount: (sub.unitPrice || 0) * (sub.quantity || 1),
+        paymentMethod: 'Prepaid (Subscription)',
+        paymentStatus: 'Paid',
+        deliveryStatus: hasAgent
+          ? (sub.status === 'active' || sub.status === 'Active' ? 'Accepted' : sub.status || 'Assigned')
+          : 'Pending',
+        orderDate: sub.startDate || new Date().toISOString(),
+        timeline: [],
+        assignedDeliveryAgent: sub.assignedDeliveryAgent || '',
+        assignedDeliveryAgentType: sub.deliveryAgentType || 'Platform',
+        isScheduledSubscription: true,
+        isSubscription: true,
+        scheduleDetails: {
+          frequency: sub.frequency || 'Daily',
+          startDate: sub.startDate || '',
+          slot: sub.deliverySlot || ''
+        }
+      } as Order;
+    }).filter((so) => !existingIds.has(so.id));
+
+    return [...orders, ...subOrdersMapped];
+  }, [orders, vendorSubscriptions]);
+
   const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
+    return allCombinedOrders.filter((o) => {
       const currentStatus = normalizeStatus(o.deliveryStatus);
       const query = searchQuery.toLowerCase();
 
       const matchesSearch =
         o.id.toLowerCase().includes(query) ||
-        o.customerName.toLowerCase().includes(query);
+        o.customerName.toLowerCase().includes(query) ||
+        (o.items && o.items.some((it) => it.productName.toLowerCase().includes(query)));
 
       let matchesStatus = true;
 
@@ -276,14 +332,6 @@ export const Orders: React.FC = () => {
       else if (filterStatus === 'returns')
         matchesStatus = currentStatus === 'Returned' || o.refundStatus === 'Pending';
 
-      // Filter by type: normal orders (isScheduledSubscription = false), or subscription orders (isScheduledSubscription = true)
-      let matchesType = true;
-      if (mainView === 'orders') {
-        matchesType = !o.isScheduledSubscription;
-      } else if (mainView === 'subscription') {
-        matchesType = !!o.isScheduledSubscription;
-      }
-
       // 3 Order Types: Normal, Self Pickup, Subscribed
       let matchesOrderType = true;
       const isSub = Boolean(o.isScheduledSubscription || o.isSubscription);
@@ -293,9 +341,9 @@ export const Orders: React.FC = () => {
       else if (orderTypeFilter === 'pickup') matchesOrderType = isPickup && !isSub;
       else if (orderTypeFilter === 'subscribed') matchesOrderType = isSub;
 
-      return matchesSearch && matchesStatus && matchesType && matchesOrderType;
+      return matchesSearch && matchesStatus && matchesOrderType;
     });
-  }, [orders, searchQuery, filterStatus, orderTypeFilter, mainView]);
+  }, [allCombinedOrders, searchQuery, filterStatus, orderTypeFilter]);
 
   const getSubMetrics = (sub: any) => {
     if (!sub || !sub.startDate) {
@@ -325,7 +373,11 @@ export const Orders: React.FC = () => {
     if (!selectedAgentId) return;
 
     await runAction(`assign-${orderId}`, async () => {
-      await assignDelivery(orderId, selectedAgentId, selectedAgentType);
+      if (selectedOrder?.isScheduledSubscription || selectedOrder?.isSubscription) {
+        await assignSubscriptionDelivery(orderId, selectedAgentId, selectedAgentType);
+      } else {
+        await assignDelivery(orderId, selectedAgentId, selectedAgentType);
+      }
       setSelectedAgentId('');
       refreshSelectedOrder(orderId);
     });
@@ -513,7 +565,7 @@ export const Orders: React.FC = () => {
                         </span>
                       </TableCell>
 
-                      <TableCell>{getDeliveryStatusBadge(status)}</TableCell>
+                      <TableCell>{getDeliveryStatusBadge(status, o)}</TableCell>
 
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1.5 items-center">
@@ -860,8 +912,11 @@ export const Orders: React.FC = () => {
                                 className="h-4 w-4 rounded border-none bg-slate-950 text-amber-400 focus:ring-amber-400 cursor-pointer"
                               />
                               <img
-                                src={item.image || "/placeholder.svg"}
+                                src={item.image || "/placeholder.png"}
                                 alt={item.productName}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="%2364748b" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+                                }}
                                 className="h-12 w-12 rounded-xl object-cover border border-slate-700 flex-shrink-0 shadow-md bg-slate-950"
                               />
                             </div>
@@ -1062,7 +1117,7 @@ export const Orders: React.FC = () => {
                   </div>
                 )}
 
-                {selectedStatus === 'Packed' && (
+                {selectedStatus !== 'Delivered' && selectedStatus !== 'Returned' && (
                   <form
                     onSubmit={(e) => handleAssignSubmit(e, selectedOrder.id)}
                     className="border border-border/80 bg-muted/20 p-4 rounded-xl flex flex-col gap-3"

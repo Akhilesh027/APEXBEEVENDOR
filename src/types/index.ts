@@ -144,9 +144,9 @@ export interface Order {
   packingCharge: number;
   discount: number;
   totalAmount: number;
-  paymentMethod: 'UPI' | 'Card' | 'COD' | 'NetBanking';
-  paymentStatus: 'Paid' | 'Pending' | 'Refunded';
-  deliveryStatus: 'New' | 'Confirmed' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Returned' | 'Refunded';
+  paymentMethod: 'UPI' | 'Card' | 'COD' | 'NetBanking' | 'Prepaid (Subscription)' | (string & {});
+  paymentStatus: 'Paid' | 'Pending' | 'Refunded' | (string & {});
+  deliveryStatus: 'New' | 'Confirmed' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Returned' | 'Refunded' | 'Accepted' | (string & {});
   orderDate: string;
   timeline: OrderTimeline[];
   assignedDeliveryAgent?: string;

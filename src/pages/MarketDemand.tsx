@@ -36,7 +36,7 @@ export const LegacyMarketDemand: React.FC = () => {
     setSavedOpportunities(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const API_ROOT = import.meta.env.VITE_API_URL || 'http://localhost:5500';
+  const API_ROOT = import.meta.env.VITE_API_URL || 'https://server.apexbee.in';
 
   // Fetch real market demand metrics from backend
   const fetchMarketDemand = async () => {
