@@ -64,15 +64,11 @@ export const orderService = {
 
   getOrderById: (orderId: string) => request(`/orders/${orderId}`),
 
-  acceptOrder: (order: any) =>
-    updateOrderStatus(
-      order,
-      { orderStatus: 'Confirmed' },
-      {
-        status: 'Confirmed',
-        note: 'Order confirmed by vendor and is in processing.',
-      }
-    ),
+  acceptOrder: (order: any, prepMinutes: number = 20) =>
+    request(`/orders/${order._id || order.id}/accept-prep`, {
+      method: 'PUT',
+      body: JSON.stringify({ prepMinutes })
+    }),
 
   packOrder: (order: any) =>
     updateOrderStatus(

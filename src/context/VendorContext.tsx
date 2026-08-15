@@ -1532,16 +1532,16 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Order Actions
-  const acceptOrder = async (orderId: string) => {
-    const matched = orders.find(o => o.id === orderId);
+  const acceptOrder = async (orderId: string, prepMinutes: number = 20) => {
+    const matched = orders.find(o => o.id === orderId || o._id === orderId);
     if (!matched) return;
 
     try {
-      await orderService.acceptOrder(matched);
+      await orderService.acceptOrder(matched, prepMinutes);
       const token = localStorage.getItem('token');
       if (token) await fetchVendorData(profile.id, token);
 
-      addNotification('Order Confirmed', `Order ${orderId} has been confirmed.`, 'order');
+      addNotification('Order Confirmed', `Order ${orderId} has been confirmed with ${prepMinutes} mins prep time.`, 'order');
     } catch (err: any) {
       alert(err.message || 'Failed to confirm order');
     }

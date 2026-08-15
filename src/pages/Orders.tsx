@@ -68,9 +68,12 @@ export const Orders: React.FC = () => {
   const [subAgentId, setSubAgentId] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Packing Checklist and PDF Download states/methods
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+
+  // Prep Time Modal State
+  const [prepModalOrder, setPrepModalOrder] = useState<Order | null>(null);
+  const [selectedPrepTime, setSelectedPrepTime] = useState<number>(20);
 
   // Specs States
   const [otpValue, setOtpValue] = useState('');
@@ -226,6 +229,54 @@ export const Orders: React.FC = () => {
     return { payout, commission: totalComm, avgRate, isApexBeeCommissionModel };
   };
 
+  const LiveOrderTimerBadge = ({ estimatedDeliveryTime, prepMins }: { estimatedDeliveryTime?: string; prepMins?: number }) => {
+    const [timeLeft, setTimeLeft] = useState<string>('');
+    const [isOverdue, setIsOverdue] = useState<boolean>(false);
+
+    useEffect(() => {
+      if (!estimatedDeliveryTime) return;
+
+      const updateTimer = () => {
+        const target = new Date(estimatedDeliveryTime).getTime();
+        const now = Date.now();
+        const diffSecs = Math.floor((target - now) / 1000);
+
+        if (diffSecs <= 0) {
+          const overMins = Math.floor(Math.abs(diffSecs) / 60);
+          setTimeLeft(`🚨 PREP OVERDUE (${overMins}m EXPIRED)`);
+          setIsOverdue(true);
+        } else {
+          const m = Math.floor(diffSecs / 60);
+          const s = diffSecs % 60;
+          setTimeLeft(`⏱️ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+          setIsOverdue(false);
+        }
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    }, [estimatedDeliveryTime]);
+
+    if (!estimatedDeliveryTime) {
+      return <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px]">⏱️ {prepMins || 20}m Prep</span>;
+    }
+
+    if (isOverdue) {
+      return (
+        <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-mono font-black text-[10px] border border-red-400 animate-pulse shadow-sm">
+          {timeLeft}
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-mono font-black text-[10px] border border-amber-400/40 animate-pulse">
+        {timeLeft || '⏱️ Calculating...'}
+      </span>
+    );
+  };
+
   const getDeliveryStatusBadge = (status: string, order?: Order) => {
     const current = normalizeStatus(status);
     const hasAgent = Boolean(order?.assignedDeliveryAgent || (order as any)?.deliveryAgentId);
@@ -246,7 +297,19 @@ export const Orders: React.FC = () => {
       case 'Reached Vendor':
         return <Badge variant="purple">🏬 Rider at Store</Badge>;
       case 'Processing':
-        return <Badge variant="warning">Confirmed / Processing</Badge>;
+      case 'preparing':
+      case 'Confirmed':
+        return (
+          <div className="flex flex-col gap-1 items-start">
+            <Badge variant="warning">Confirmed / Processing</Badge>
+            {((order as any)?.estimatedDeliveryTime || (order as any)?.estimatedDeliveryMinutes) && (
+              <LiveOrderTimerBadge
+                estimatedDeliveryTime={(order as any)?.estimatedDeliveryTime}
+                prepMins={(order as any)?.estimatedDeliveryMinutes}
+              />
+            )}
+          </div>
+        );
       case 'Packed':
         return <Badge variant="purple">Packed / Ready</Badge>;
       case 'Shipped':
@@ -571,18 +634,19 @@ export const Orders: React.FC = () => {
                         <div className="flex justify-end gap-1.5 items-center">
                           {status === 'New' && (
                             <Button
-                              onClick={() =>
-                                runAction(`accept-${o.id}`, () => acceptOrder(o.id))
-                              }
+                              onClick={() => {
+                                setPrepModalOrder(o);
+                                setSelectedPrepTime(20);
+                              }}
                               disabled={actionLoading === `accept-${o.id}`}
                               variant="primary"
                               size="sm"
-                              className="text-xs h-8 cursor-pointer"
+                              className="text-xs h-8 cursor-pointer bg-amber-400 text-slate-950 hover:bg-amber-500 font-extrabold"
                             >
                               {actionLoading === `accept-${o.id}` ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
-                                'Confirm Order'
+                                '⏱️ Accept & Set Time'
                               )}
                             </Button>
                           )}
@@ -1720,6 +1784,84 @@ export const Orders: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⏱️ PREP TIME SELECTION MODAL */}
+      {prepModalOrder && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-black text-amber-400 font-heading flex items-center gap-2">
+                <span>⏱️</span> Set Delivery & Prep Time
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPrepModalOrder(null)}
+                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                Confirm order <strong>#{prepModalOrder.id}</strong> ({prepModalOrder.customerName}). Select expected prep & delivery duration — live countdown clock will start immediately on Customer Home Screen!
+              </p>
+
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {[15, 20, 30, 45].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setSelectedPrepTime(mins)}
+                    className={`py-3 px-2 rounded-2xl text-xs font-black border transition cursor-pointer flex flex-col items-center justify-center ${selectedPrepTime === mins
+                      ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-lg scale-105'
+                      : 'bg-slate-800/90 text-white border-slate-700 hover:border-amber-400/50'
+                      }`}
+                  >
+                    <span className="text-base font-black">{mins}</span>
+                    <span className="text-[10px] font-bold">Mins</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <label className="text-xs font-bold text-slate-300 shrink-0">Custom Duration:</label>
+                <input
+                  type="number"
+                  min="5"
+                  max="180"
+                  value={selectedPrepTime}
+                  onChange={(e) => setSelectedPrepTime(Number(e.target.value) || 20)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <Button
+                type="button"
+                onClick={() => setPrepModalOrder(null)}
+                variant="outline"
+                className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const oId = prepModalOrder.id || (prepModalOrder as any)._id;
+                  const mins = selectedPrepTime;
+                  setPrepModalOrder(null);
+                  runAction(`accept-${oId}`, () => acceptOrder(oId, mins));
+                }}
+                className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-xl cursor-pointer"
+              >
+                Start {selectedPrepTime} Min Timer 🚀
+              </Button>
             </div>
           </div>
         </div>
