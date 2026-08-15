@@ -207,7 +207,7 @@ interface VendorContextType {
   negotiateCommission: (productId: string, proposedRate: number, message: string) => void;
 
   // Order Actions
-  acceptOrder: (orderId: string) => void;
+  acceptOrder: (orderId: string, prepMinutes?: number) => void;
   packOrder: (orderId: string) => void;
   assignDelivery: (orderId: string, agentId: string, agentType: 'Platform' | 'Vendor' | 'Independent') => void;
   shipOrder: (orderId: string) => void;
