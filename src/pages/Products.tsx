@@ -130,9 +130,9 @@ export const ProductManagement: React.FC = () => {
     isStoreProduct: true,
     isSubscriptionAvailable: false,
     isSelfPickup: true,
-    deliveryScope: 'both',
+    deliveryScope: 'local',
     isLocalDelivery: true,
-    isPanIndia: true,
+    isPanIndia: false,
     minimumOrderQuantity: '1',
   });
 
@@ -405,9 +405,9 @@ export const ProductManagement: React.FC = () => {
       isStoreProduct: true,
       isSubscriptionAvailable: false,
       isSelfPickup: true,
-      deliveryScope: 'both',
+      deliveryScope: 'local',
       isLocalDelivery: true,
-      isPanIndia: true,
+      isPanIndia: false,
       minimumOrderQuantity: '1',
     });
 
@@ -1653,12 +1653,20 @@ export const ProductManagement: React.FC = () => {
                         sameDay: false,
                         scheduled: form.isSubscriptionAvailable,
                         fragile: false,
+                        isPanIndia: form.isPanIndia,
+                        isLocalDelivery: form.isLocalDelivery,
                         isSubscriptionAvailable: form.isSubscriptionAvailable
                       }}
                       onChange={(policy) => {
+                        const isLocal = policy.homeDelivery ?? policy.isLocalDelivery ?? true;
+                        const isPan = policy.isPanIndia ?? false;
+                        const calcScope = isLocal && isPan ? 'both' : isPan ? 'pan_india' : 'local';
+
                         setForm({
                           ...form,
-                          isLocalDelivery: policy.homeDelivery,
+                          isLocalDelivery: isLocal,
+                          isPanIndia: isPan,
+                          deliveryScope: calcScope,
                           isSelfPickup: policy.storePickup,
                           isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled
                         });

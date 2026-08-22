@@ -32,14 +32,21 @@ export const Navbar: React.FC = () => {
   }
 
   const PORTAL_LINKS: Record<string, { label: string; url: string }> = {
-    customer: { label: 'Customer Portal', url: 'http://localhost:5173' },
+    customer: { label: 'Customer Portal', url: 'https://apexbee.in' },
     admin: { label: 'Admin Panel', url: 'http://localhost:5173/admin' },
-    vendor: { label: 'Vendor Portal', url: 'http://localhost:5177' },
-    franchise: { label: 'Franchise Management', url: 'http://localhost:5175' },
-    state_franchise: { label: 'Franchise Management', url: 'http://localhost:5175' },
-    district_franchise: { label: 'Franchise Management', url: 'http://localhost:5175' },
-    mandal_franchise: { label: 'Franchise Management', url: 'http://localhost:5175' },
-    service_provider: { label: 'Service Provider Portal', url: 'http://localhost:5176' },
+    vendor: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
+    wholesaler: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
+    manufacturer: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
+    franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
+    state_franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
+    district_franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
+    mandal_franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
+    food_partner: { label: 'Food Partner Portal', url: 'https://food.apexbee.in/' },
+    food: { label: 'Food Partner Portal', url: 'https://food.apexbee.in/' },
+    delivery_partner: { label: 'Delivery Partner Portal', url: 'https://delivery.apexbee.in/' },
+    delivery: { label: 'Delivery Partner Portal', url: 'https://delivery.apexbee.in/' },
+    service_provider: { label: 'Service Provider Portal', url: 'https://service.apexbee.in/login' },
+    service: { label: 'Service Provider Portal', url: 'https://service.apexbee.in/login' },
     course_provider: { label: 'Course Provider Portal', url: 'http://localhost:5174' },
   };
 

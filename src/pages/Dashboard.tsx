@@ -327,9 +327,10 @@ export const Dashboard: React.FC = () => {
 
   const timeGreeting = useMemo(() => {
     const hr = new Date().getHours();
-    if (hr < 12) return "Good Morning!";
-    if (hr < 17) return "Good Afternoon!";
-    return "Good Evening!";
+    if (hr >= 4 && hr < 12) return "Good Morning!";
+    if (hr >= 12 && hr < 17) return "Good Afternoon!";
+    if (hr >= 17 && hr < 22) return "Good Evening!";
+    return "Good Night!";
   }, []);
 
   // Filter Today's real order details

@@ -7,6 +7,8 @@ interface DeliverySectionProps {
     sameDay: boolean;
     scheduled: boolean;
     fragile: boolean;
+    isPanIndia?: boolean;
+    isLocalDelivery?: boolean;
     isSubscriptionAvailable?: boolean;
     cutoffTime?: string;
     deliverySlots?: string[];
@@ -30,11 +32,61 @@ export const DeliverySection: React.FC<DeliverySectionProps> = ({ policy, onChan
     <div className="p-5 border border-blue-900/60 rounded-2xl bg-slate-950/80 space-y-5 shadow-xl">
       <div className="flex items-center justify-between border-b border-blue-900/40 pb-3">
         <h4 className="font-extrabold font-heading text-amber-400 text-sm uppercase tracking-wider flex items-center gap-2">
-          <span>🚚</span> Fulfillment & Delivery Rules
+          <span>🚚</span> Delivery Scope & Fulfillment Rules
         </h4>
         <span className="text-[10px] font-black bg-blue-900/60 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
           Vendor Delivery Policy
         </span>
+      </div>
+
+      {/* 🌐 DELIVERY SCOPE SELECTION (Local vs Pan-India) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <label className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+          policy.homeDelivery || policy.isLocalDelivery !== false
+            ? 'bg-blue-950/60 border-blue-500/60 ring-1 ring-blue-500/30'
+            : 'bg-slate-900 border-blue-900/40 opacity-70'
+        }`}>
+          <input
+            type="checkbox"
+            checked={policy.homeDelivery || policy.isLocalDelivery !== false}
+            onChange={() => {
+              const val = !(policy.homeDelivery || policy.isLocalDelivery !== false);
+              onChange({ ...policy, homeDelivery: val, isLocalDelivery: val });
+            }}
+            className="mt-0.5 h-4.5 w-4.5 rounded text-amber-400 focus:ring-amber-400 bg-slate-950 border-blue-900 cursor-pointer shrink-0"
+          />
+          <div className="space-y-0.5">
+            <div className="text-xs font-extrabold text-white flex items-center gap-2">
+              <span>⚡ Local 15-30 Min Delivery</span>
+              <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.2 rounded font-black">LOCAL ONLY</span>
+            </div>
+            <p className="text-[11px] text-slate-300 font-normal leading-relaxed">
+              Delivered quickly to customers within your local mandal / town / district zone by local delivery partners.
+            </p>
+          </div>
+        </label>
+
+        <label className={`flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+          policy.isPanIndia
+            ? 'bg-amber-400/10 border-amber-400/60 ring-1 ring-amber-400/30'
+            : 'bg-slate-900 border-blue-900/40 opacity-70'
+        }`}>
+          <input
+            type="checkbox"
+            checked={!!policy.isPanIndia}
+            onChange={() => onChange({ ...policy, isPanIndia: !policy.isPanIndia })}
+            className="mt-0.5 h-4.5 w-4.5 rounded text-amber-400 focus:ring-amber-400 bg-slate-950 border-amber-400 cursor-pointer shrink-0"
+          />
+          <div className="space-y-0.5">
+            <div className="text-xs font-extrabold text-amber-300 flex items-center gap-2">
+              <span>🇮🇳 PAN-India Courier Delivery</span>
+              <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-black">NATIONAL</span>
+            </div>
+            <p className="text-[11px] text-slate-300 font-normal leading-relaxed">
+              Select if you can ship this product across India via national courier / speed post (e.g. clothing, dry goods, non-perishables).
+            </p>
+          </div>
+        </label>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-bold text-white">
