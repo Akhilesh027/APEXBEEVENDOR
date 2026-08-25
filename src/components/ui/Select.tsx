@@ -29,11 +29,11 @@ export const Select: React.FC<SelectProps> = ({
       <div className="relative">
         <select
           id={id}
-          className={`w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary cursor-pointer appearance-none transition-all ${className}`}
+          className={`w-full rounded-lg border border-border bg-card dark:bg-black text-foreground dark:text-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary cursor-pointer appearance-none transition-all ${className}`}
           {...props}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <option key={opt.value} value={opt.value} className="bg-white text-black dark:bg-black dark:text-white">
               {opt.label}
             </option>
           ))}

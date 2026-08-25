@@ -435,14 +435,25 @@ export const Orders: React.FC = () => {
     e.preventDefault();
     if (!selectedAgentId) return;
 
+    const agent = deliveryAgents.find(a => a.id === selectedAgentId || (a as any)._id === selectedAgentId || (a as any).userId === selectedAgentId);
+    const agentName = agent ? agent.name : selectedAgentId;
+
     await runAction(`assign-${orderId}`, async () => {
       if (selectedOrder?.isScheduledSubscription || selectedOrder?.isSubscription) {
         await assignSubscriptionDelivery(orderId, selectedAgentId, selectedAgentType);
       } else {
         await assignDelivery(orderId, selectedAgentId, selectedAgentType);
       }
+      setSelectedOrder(prev => prev ? {
+        ...prev,
+        deliveryAgentId: selectedAgentId,
+        assignedDeliveryAgent: agentName,
+        deliveryAgentName: agentName,
+        deliveryAgentType: selectedAgentType,
+        deliveryStatus: 'Shipped',
+        status: 'Shipped'
+      } : null);
       setSelectedAgentId('');
-      refreshSelectedOrder(orderId);
     });
   };
 
@@ -546,13 +557,12 @@ export const Orders: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Fulfillment Type</TableHead>
+                <TableHead>Order # & Type</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>Ordered Products</TableHead>
-                <TableHead>Price</TableHead>
+                <TableHead>Items & Products</TableHead>
+                <TableHead>Total & Payout</TableHead>
                 <TableHead>Payment</TableHead>
-                <TableHead>Fulfillment</TableHead>
+                <TableHead>Order Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -560,7 +570,7 @@ export const Orders: React.FC = () => {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No orders found matching the filter.
                   </TableCell>
                 </TableRow>
@@ -569,43 +579,49 @@ export const Orders: React.FC = () => {
                   const status = normalizeStatus(o.deliveryStatus);
 
                   return (
-                    <TableRow key={o.id} className="align-middle">
-                      <TableCell className="font-mono text-xs font-bold text-foreground">
-                        {o.id}
-                      </TableCell>
-
+                    <TableRow key={o.id} className="align-middle hover:bg-slate-900/40 transition-colors">
                       <TableCell>
-                        {Boolean(o.isScheduledSubscription || o.isSubscription) ? (
-                          <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 font-black text-[10px] border border-purple-500/30">🔁 Subscribed</span>
-                        ) : Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup) ? (
-                          <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 font-black text-[10px] border border-amber-500/30">🏪 Self Pickup</span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 font-black text-[10px] border border-blue-500/30">🚚 Normal Delivery</span>
-                        )}
+                        <div className="font-mono text-xs font-black text-foreground">{o.id}</div>
+                        <div className="mt-1">
+                          {Boolean(o.isScheduledSubscription || o.isSubscription) ? (
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-400 font-extrabold text-[10px] border border-purple-500/30 inline-flex items-center gap-1">
+                              🔁 Subscribed
+                            </span>
+                          ) : Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup) ? (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-extrabold text-[10px] border border-amber-500/30 inline-flex items-center gap-1">
+                              🏪 Store Pickup
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 font-extrabold text-[10px] border border-sky-500/30 inline-flex items-center gap-1">
+                              🚚 Doorstep Delivery
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-xs">
                         <div className="font-bold text-foreground">{o.customerName}</div>
-                        <div className="text-[10px] opacity-75">
-                          {new Date(o.orderDate).toLocaleDateString()}
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {o.customerPhone && <span className="font-mono">{o.customerPhone} • </span>}
+                          <span>{new Date(o.orderDate).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex flex-col gap-0.5 text-xs text-foreground max-w-xs truncate">
+                        <div className="flex flex-col gap-0.5 text-xs text-foreground max-w-xs">
                           {o.items.map((item) => (
-                            <span key={item.sku} className="font-semibold">
-                              {item.productName} ({item.quantity}x)
+                            <span key={item.sku || item.productName} className="font-semibold truncate">
+                              {item.productName} <span className="text-amber-400 font-black">({item.quantity}x)</span>
                             </span>
                           ))}
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
-                        <div className="font-bold text-foreground">
+                      <TableCell className="text-xs">
+                        <div className="font-black text-sm text-foreground">
                           ₹{o.totalAmount.toLocaleString('en-IN')}
                         </div>
-                        <div className="text-[10px] text-emerald-500 font-semibold mt-0.5">
+                        <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
                           Payout: ₹{getOrderPayout(o).payout.toLocaleString('en-IN')}
                         </div>
                       </TableCell>
@@ -619,12 +635,12 @@ export const Orders: React.FC = () => {
                                 ? 'destructive'
                                 : 'warning'
                           }
-                          className="py-0"
+                          className="py-0.5 font-bold"
                         >
                           {o.paymentStatus}
                         </Badge>
-                        <span className="text-[9px] text-muted-foreground block mt-1 font-semibold">
-                          Mode: {o.paymentMethod || 'UPI / Online'}
+                        <span className="text-[10px] text-muted-foreground block mt-1 font-medium">
+                          {o.paymentMethod || 'UPI / Online'}
                         </span>
                       </TableCell>
 
@@ -722,7 +738,7 @@ export const Orders: React.FC = () => {
                         href={`https://wa.me/91${selectedOrder.customerPhone}?text=Hello%20${selectedOrder.customerName},%20this%20is%20regarding%20your%20ApexBee%20order%20%23${selectedOrder.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 px-3 py-1 rounded-xl font-black flex items-center gap-1 text-[11px] transition-all"
+                        className="bg-[#25D366] text-white hover:bg-[#20bd5a] px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 text-[11px] transition-all shadow-sm shadow-emerald-600/30 border-0"
                       >
                         💬 WhatsApp Chat
                       </a>
@@ -860,7 +876,7 @@ export const Orders: React.FC = () => {
                       onClick={() => {
                         alert("Internal order note saved to registry!");
                       }}
-                      className="text-amber-400 font-extrabold hover:underline cursor-pointer border-0 bg-transparent"
+                      className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] rounded-lg cursor-pointer transition-all shadow-sm shadow-amber-400/20 border-0"
                     >
                       Save Note ➔
                     </button>
@@ -868,13 +884,43 @@ export const Orders: React.FC = () => {
                 </div>
 
                 {/* Courier dispatch ETA card */}
-                <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-2 text-xs shadow-xl">
-                  <span className="font-extrabold text-blue-400 uppercase tracking-wider text-[11px] font-heading block">🚚 Hyperlocal Courier Dispatch ETA Log</span>
-                  <div className="grid grid-cols-2 gap-3 text-left text-blue-200">
-                    <div>Courier Assigned: <b className="text-white">{deliveryAgents.find(a => a.id === selectedOrder.deliveryAgentId)?.name || 'Awaiting Assign'}</b></div>
-                    <div>Estimated Delivery ETA: <b className="text-white">{selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}</b></div>
-                  </div>
-                </div>
+                {(() => {
+                  const assignedAgentName =
+                    selectedOrder.assignedDeliveryAgent ||
+                    (selectedOrder as any).deliveryAgentName ||
+                    (selectedOrder as any).deliveryAgent?.name ||
+                    deliveryAgents.find(a => a.id === selectedOrder.deliveryAgentId || (a as any)._id === selectedOrder.deliveryAgentId || (a as any).userId === selectedOrder.deliveryAgentId)?.name;
+                  const isAssigned = Boolean(assignedAgentName || selectedOrder.deliveryAgentId);
+
+                  return (
+                    <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-2.5 text-xs shadow-xl border border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-blue-400 uppercase tracking-wider text-[11px] font-heading flex items-center gap-1.5">
+                          <Truck className="h-4 w-4 text-blue-400" /> Hyperlocal Courier Dispatch ETA Log
+                        </span>
+                        {isAssigned && (
+                          <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full font-black text-[10px]">
+                            ✅ Assigned
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left text-blue-200">
+                        <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                          <span className="font-bold text-slate-400 block text-[10px] uppercase">Courier Assigned</span>
+                          <b className={`text-sm block mt-0.5 ${assignedAgentName ? 'text-emerald-300' : 'text-amber-400'}`}>
+                            {assignedAgentName ? `🚚 ${assignedAgentName} (${selectedOrder.deliveryType || 'Assigned'})` : '⏳ Awaiting Assign'}
+                          </b>
+                        </div>
+                        <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                          <span className="font-bold text-slate-400 block text-[10px] uppercase">Estimated Delivery ETA</span>
+                          <b className="text-sm text-white block mt-0.5">
+                            {selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}
+                          </b>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Secure OTP Verification confirmation input */}
                 {selectedStatus !== 'New' && selectedStatus !== 'Delivered' && (
@@ -1118,16 +1164,14 @@ export const Orders: React.FC = () => {
                           <Button
                             onClick={() => handleDownloadInvoice(selectedOrder.id, selectedOrder.id)}
                             disabled={downloadingPdf !== null}
-                            variant="outline"
-                            className="flex-1 text-[10px] font-bold h-7.5 border-border hover:bg-secondary cursor-pointer"
+                            className="flex-1 text-[11px] font-bold h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm shadow-blue-500/20 transition-all cursor-pointer border-0"
                           >
                             {downloadingPdf === 'invoice' ? 'Generating...' : '🖨️ Tax Invoice PDF'}
                           </Button>
                           <Button
                             onClick={() => handleDownloadPackingSlip(selectedOrder.id, selectedOrder.id)}
                             disabled={downloadingPdf !== null}
-                            variant="outline"
-                            className="flex-1 text-[10px] font-bold h-7.5 border-border hover:bg-secondary cursor-pointer"
+                            className="flex-1 text-[11px] font-bold h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm shadow-indigo-500/20 transition-all cursor-pointer border-0"
                           >
                             {downloadingPdf === 'slip' ? 'Generating...' : '📋 Packing Slip PDF'}
                           </Button>
@@ -1148,7 +1192,7 @@ export const Orders: React.FC = () => {
                         )
                       }
                       disabled={actionLoading === `drawer-accept-${selectedOrder.id}`}
-                      className="w-full cursor-pointer"
+                      className="w-full h-10.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-md shadow-emerald-600/30 transition-all cursor-pointer border-0 flex items-center justify-center gap-2"
                     >
                       {actionLoading === `drawer-accept-${selectedOrder.id}` ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1170,7 +1214,7 @@ export const Orders: React.FC = () => {
                         )
                       }
                       disabled={actionLoading === `drawer-pack-${selectedOrder.id}`}
-                      className="w-full cursor-pointer"
+                      className="w-full h-10.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm rounded-xl shadow-md shadow-amber-500/30 transition-all cursor-pointer border-0 flex items-center justify-center gap-2"
                     >
                       {actionLoading === `drawer-pack-${selectedOrder.id}` ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1184,17 +1228,18 @@ export const Orders: React.FC = () => {
                 {selectedStatus !== 'Delivered' && selectedStatus !== 'Returned' && (
                   <form
                     onSubmit={(e) => handleAssignSubmit(e, selectedOrder.id)}
-                    className="border border-border/80 bg-muted/20 p-4 rounded-xl flex flex-col gap-3"
+                    className="border border-slate-800 bg-slate-950/90 p-4.5 rounded-2xl flex flex-col gap-3.5 shadow-xl text-white"
                   >
-                    <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1 text-primary">
-                      <Truck className="h-4.5 w-4.5" /> Assign Delivery Agent
+                    <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                      <Truck className="h-4.5 w-4.5 text-amber-400" /> Assign Delivery Agent
                     </span>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                       <Select
                         label="Select Agent Type"
                         value={selectedAgentType}
                         onChange={(e) => setSelectedAgentType(e.target.value as AgentType)}
+                        className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
                         options={[
                           { value: 'Platform', label: 'Platform Delivery Agent' },
                           { value: 'Vendor', label: 'Vendor Delivery Agent' },
@@ -1206,6 +1251,7 @@ export const Orders: React.FC = () => {
                         label="Available Executive"
                         value={selectedAgentId}
                         onChange={(e) => setSelectedAgentId(e.target.value)}
+                        className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
                         options={[
                           { value: '', label: '-- Choose Agent --' },
                           ...(
@@ -1224,7 +1270,7 @@ export const Orders: React.FC = () => {
                     <Button
                       type="submit"
                       disabled={!selectedAgentId || actionLoading === `assign-${selectedOrder.id}`}
-                      className="w-full mt-2 cursor-pointer"
+                      className="w-full mt-2 h-11 bg-[#F5B800] hover:bg-[#e0a800] text-[#171717] font-black text-sm rounded-xl shadow-md shadow-amber-500/30 transition-all cursor-pointer border-0 disabled:opacity-50 disabled:bg-slate-800 disabled:text-slate-500 flex items-center justify-center gap-2"
                     >
                       {actionLoading === `assign-${selectedOrder.id}` ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1250,7 +1296,7 @@ export const Orders: React.FC = () => {
                         )
                       }
                       disabled={actionLoading === `deliver-${selectedOrder.id}`}
-                      className="w-full cursor-pointer"
+                      className="w-full h-10.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-md shadow-emerald-600/30 transition-all cursor-pointer border-0 flex items-center justify-center gap-2"
                     >
                       {actionLoading === `deliver-${selectedOrder.id}` ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

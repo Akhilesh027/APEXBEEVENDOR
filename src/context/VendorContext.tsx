@@ -139,6 +139,8 @@ interface VendorContextType {
   authPage: 'login' | 'register';
   setAuthPage: (page: 'login' | 'register') => void;
   login: (email: string, password?: string) => Promise<boolean>;
+  sendLoginOtp: (email: string) => Promise<{ success: boolean; message: string; devOtp?: string }>;
+  loginWithOtp: (email: string, otp: string) => Promise<boolean>;
   register: (data: {
     businessName: string;
     ownerName: string;
@@ -531,23 +533,15 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.error("Error fetching vendor subscriptions:", err);
       }
 
-      // Fetch actual delivery agents
+      // Fetch actual delivery agents from MongoDB
       try {
         const agentsRes = await fetch(`https://server.apexbee.in/api/delivery/agents`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (agentsRes.ok) {
           const agentsData = await agentsRes.json();
-          const agents = agentsData.deliveryAgents || agentsData.agents || [];
-          if (agents && agents.length > 0) {
-            setDeliveryAgents(agents);
-          } else {
-            setDeliveryAgents([
-              { id: '6a73248ca68240482a1fd16e', name: 'delivery', phone: '9550379505', type: 'Platform', status: 'Active', rating: 5.0 },
-              { id: '65f123456789012345678902', name: 'Akhilesh Reddy', phone: '9707010797', type: 'Platform', status: 'Active', rating: 5.0 },
-              { id: '65f123456789012345678903', name: 'Ramesh Kumar', phone: '9876543210', type: 'Independent', status: 'Active', rating: 4.8 }
-            ]);
-          }
+          const agents = agentsData.deliveryAgents || agentsData.agents || agentsData.partners || [];
+          setDeliveryAgents(agents);
         }
       } catch (err) {
         console.error("Error fetching delivery agents:", err);
@@ -674,14 +668,26 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (notificationsRes.ok) {
         const notificationsData = await notificationsRes.json();
         if (notificationsData.success && notificationsData.notifications) {
-          const nlist = notificationsData.notifications.map((n: any) => ({
-            id: n._id || n.id,
-            title: n.title,
-            description: n.message || n.description,
-            type: n.type || 'system',
-            timestamp: n.createdAt || new Date().toISOString(),
-            isRead: n.isRead || false
-          }));
+          const nlist = notificationsData.notifications.map((n: any) => {
+            let nType = n.entityType || n.type;
+            const code = (n.eventCode || '').toLowerCase();
+            const msg = (n.message || n.description || '').toLowerCase();
+            if (!nType || nType === 'system' || nType === 'notification') {
+              if (code.includes('order') || msg.includes('order') || msg.includes('dispatch') || msg.includes('carrier') || msg.includes('ship')) nType = 'order';
+              else if (code.includes('wallet') || code.includes('payout') || msg.includes('payout') || msg.includes('withdrawal') || msg.includes('transfer') || msg.includes('balance') || msg.includes('settlement')) nType = 'wallet';
+              else if (code.includes('product') || msg.includes('product') || msg.includes('stock') || msg.includes('inventory')) nType = 'product';
+              else if (code.includes('kyc') || code.includes('application') || msg.includes('approval') || msg.includes('verified') || msg.includes('partner')) nType = 'kyc';
+              else nType = 'system';
+            }
+            return {
+              id: n._id || n.id,
+              title: n.title,
+              description: n.message || n.description,
+              type: nType,
+              timestamp: n.createdAt || new Date().toISOString(),
+              isRead: n.status === 'read' || n.isRead || false
+            };
+          });
           setNotifications(nlist);
         }
       }
@@ -1880,6 +1886,87 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const sendLoginOtp = async (email: string): Promise<{ success: boolean; message: string; devOtp?: string }> => {
+    try {
+      const res = await fetch('https://server.apexbee.in/api/auth/vendor-send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to send OTP');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'OTP sent successfully',
+        devOtp: data.devOtp
+      };
+    } catch (err: any) {
+      console.error('Send OTP error:', err);
+      throw err;
+    }
+  };
+
+  const loginWithOtp = async (email: string, otp: string): Promise<boolean> => {
+    try {
+      const res = await fetch('https://server.apexbee.in/api/auth/vendor-verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: otp.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Invalid or expired OTP');
+      }
+
+      const token = data.token;
+      const user = data.user;
+
+      const userRoles = user.roles || [user.role];
+      const permittedRoles = ['vendor', 'wholesaler', 'manufacturer', 'admin', 'food_partner', 'service_provider'];
+      const hasRole = userRoles.some((r: string) =>
+        permittedRoles.includes(String(r).toLowerCase())
+      );
+
+      if (!hasRole) {
+        throw new Error('Access Denied: You do not have an active vendor profile.');
+      }
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      await fetchVendorData(user.id || user._id, token);
+
+      setIsAuthenticated(true);
+      setCurrentPage('dashboard');
+      addNotification(
+        'Welcome Back!',
+        'Logged into your Vendor Portal successfully.',
+        'system'
+      );
+
+      return true;
+    } catch (err: any) {
+      console.error('Login with OTP error:', err);
+      throw err;
+    }
+  };
+
   const register = async (data: {
     businessName: string;
     ownerName: string;
@@ -1956,12 +2043,26 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setNotifications(prev =>
       prev.map(n => n.id === id ? { ...n, isRead: true } : n)
     );
+    const token = localStorage.getItem('vendor_token') || localStorage.getItem('token');
+    if (token && id && !id.startsWith('n-')) {
+      fetch(`https://server.apexbee.in/api/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => { });
+    }
   };
 
   const markAllAsRead = () => {
     setNotifications(prev =>
       prev.map(n => ({ ...n, isRead: true }))
     );
+    const token = localStorage.getItem('vendor_token') || localStorage.getItem('token');
+    if (token) {
+      fetch(`https://server.apexbee.in/api/notifications/mark-all-read`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => { });
+    }
   };
 
   const respondToRFQ = (rfqId: string, action: 'Accept' | 'Reject' | 'Counter', counterPrice?: number) => {
@@ -2327,6 +2428,8 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         authPage,
         setAuthPage,
         login,
+        sendLoginOtp,
+        loginWithOtp,
         register,
         logout,
 
