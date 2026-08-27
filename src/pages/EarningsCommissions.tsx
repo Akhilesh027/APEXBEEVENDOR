@@ -41,7 +41,18 @@ export const EarningsCommissions: React.FC = () => {
 
   const avgPlatformFee = React.useMemo(() => {
     if (products.length === 0) return '0.0% (Platform Model)';
-    const totalRates = products.reduce((acc, p) => acc + (p.commissionRate || 0), 0);
+    const totalRates = products.reduce((acc, p) => {
+      const r = Number(
+        p.adminPricing?.distributedFrom === 'apexbee_commission'
+          ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
+          : (p.adminPricing?.distributedFrom === 'both')
+          ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+          : (p.adminPricing?.distributedFrom === 'none')
+          ? 0
+          : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 25)
+      );
+      return acc + r;
+    }, 0);
     const avg = totalRates / products.length;
     return avg === 0 ? '0.0% (Platform Model)' : `${avg.toFixed(1)}%`;
   }, [products]);
@@ -50,26 +61,45 @@ export const EarningsCommissions: React.FC = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     const result = [];
-    const isZeroComm = products.every(p => !p.commissionRate || p.commissionRate === 0);
 
     for (let i = 5; i >= 0; i--) {
       const idx = (currentMonth - i + 12) % 12;
       const name = monthNames[idx];
       const monthOrders = orders.filter(o => {
-        if (!o.orderDate) return false;
-        const d = new Date(o.orderDate);
-        return d.getMonth() === idx;
+        const d = o.orderDate ? new Date(o.orderDate) : (o.createdAt ? new Date(o.createdAt) : null);
+        return d && d.getMonth() === idx;
       });
       const gross = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-      const commission = isZeroComm ? 0 : Math.round(gross * 0.1);
+      const commission = monthOrders.reduce((sum, o) => {
+        const commAmt = (o as any).commissionAmount || (o as any).vendorCommissionAmount || 0;
+        if (commAmt > 0) return sum + commAmt;
+        const oItems = o.items || [];
+        const itemComm = oItems.reduce((iSum: number, item: any) => {
+          const prod = products.find(p => p.id === item.productId || (p as any)._id === item.productId);
+          const r = prod?.commissionRate ?? 25;
+          return iSum + Math.round((item.price || 0) * (item.quantity || 1) * (r / 100));
+        }, 0);
+        return sum + (itemComm > 0 ? itemComm : Math.round((o.totalAmount || 0) * 0.25));
+      }, 0);
       result.push({ name, earnings: Math.max(0, gross - commission), commission });
     }
     return result;
   }, [orders, products]);
 
-  // Helper: calculate payout splits
-  const getProductSplits = (price: number, commRate: number | undefined, shipping: number, packing: number) => {
-    const rate = typeof commRate === 'number' ? commRate : 0;
+  // Helper: calculate live payout splits per product
+  const getProductSplits = (p: any) => {
+    const price = Number(p.price || 0);
+    const rate = Number(
+      p.adminPricing?.distributedFrom === 'apexbee_commission'
+        ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
+        : (p.adminPricing?.distributedFrom === 'both')
+        ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+        : (p.adminPricing?.distributedFrom === 'none')
+        ? 0
+        : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 25)
+    );
+    const shipping = Number(p.shippingCharges || 0);
+    const packing = Number(p.packingCharges || 0);
     const commission = Math.round(price * (rate / 100));
     const vendorReceives = price - commission;
     return {
@@ -85,12 +115,12 @@ export const EarningsCommissions: React.FC = () => {
   const handleExportCSV = () => {
     const headers = ["Product Name", "Category", "Selling Price (INR)", "Platform Comm (%)", "Comm Amount (INR)", "Net Payout (INR)", "Status"];
     const rows = products.map(p => {
-      const splits = getProductSplits(p.price, p.commissionRate, p.shippingCharges, p.packingCharges);
+      const splits = getProductSplits(p);
       return [
         `"${(p.name || '').replace(/"/g, '""')}"`,
         `"${p.category || 'General'}"`,
         splits.price,
-        `${p.commissionRate}%`,
+        `${splits.rate}%`,
         splits.commission,
         splits.vendorReceives,
         p.status
@@ -189,9 +219,9 @@ export const EarningsCommissions: React.FC = () => {
             </Card>
             <Card className="bg-indigo-500/5 border-indigo-500/20">
               <CardContent className="p-4 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">Average Platform Fee</span>
+                <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">Average Commission Rate</span>
                 <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{avgPlatformFee}</span>
-                <span className="text-[9px] text-muted-foreground mt-1">Calculated across apparel, catalog weight, and shipping categories.</span>
+                <span className="text-[9px] text-muted-foreground mt-1">Live vendor commission rate across catalog listings.</span>
               </CardContent>
             </Card>
           </div>
@@ -213,7 +243,7 @@ export const EarningsCommissions: React.FC = () => {
                     <TableHead>Product Details</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Selling Price (₹)</TableHead>
-                    <TableHead className="text-right">Platform Comm. (%)</TableHead>
+                    <TableHead className="text-right">Platform / Vendor Comm. (%)</TableHead>
                     <TableHead className="text-right">Comm. Amount (₹)</TableHead>
                     <TableHead className="text-right">Logistics/Packing (₹)</TableHead>
                     <TableHead className="text-right font-bold text-primary">Vendor Net Payout (₹)</TableHead>
@@ -222,14 +252,24 @@ export const EarningsCommissions: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {products.map(p => {
-                    const splits = getProductSplits(p.price, p.commissionRate, p.shippingCharges, p.packingCharges);
+                    const splits = getProductSplits(p);
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-bold text-foreground">{p.name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{p.category || 'General'}</TableCell>
                         <TableCell className="text-right font-semibold">₹{splits.price.toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="text-right text-amber-500 font-bold">{p.commissionRate}%</TableCell>
-                        <TableCell className="text-right text-destructive font-medium">-₹{splits.commission.toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="text-right font-bold">
+                          <span className={splits.rate === 0 ? "text-emerald-500 font-extrabold" : "text-amber-500"}>
+                            {splits.rate}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {splits.commission > 0 ? (
+                            <span className="text-destructive">-₹{splits.commission.toLocaleString('en-IN')}</span>
+                          ) : (
+                            <span className="text-emerald-500 font-bold">₹0</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right text-muted-foreground">₹{(splits.shipping + splits.packing).toLocaleString('en-IN')}</TableCell>
                         <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{splits.vendorReceives.toLocaleString('en-IN')}</TableCell>
                         <TableCell>
@@ -264,7 +304,7 @@ export const EarningsCommissions: React.FC = () => {
                     <TableHead>Product</TableHead>
                     <TableHead className="text-right">Qty Sold</TableHead>
                     <TableHead className="text-right">Gross Sales (₹)</TableHead>
-                    <TableHead className="text-right">Total Platform Fee (₹)</TableHead>
+                    <TableHead className="text-right">Total Commission (₹)</TableHead>
                     <TableHead className="text-right">Total Shipping/Packing (₹)</TableHead>
                     <TableHead className="text-right font-bold text-emerald-500">Net Vendor Earnings (₹)</TableHead>
                   </TableRow>
@@ -277,7 +317,7 @@ export const EarningsCommissions: React.FC = () => {
                       return acc + (item?.quantity || 1);
                     }, 0);
                     const grossSales = qtySold * p.price;
-                    const splits = getProductSplits(p.price, p.commissionRate, p.shippingCharges, p.packingCharges);
+                    const splits = getProductSplits(p);
                     const totalComm = qtySold * splits.commission;
                     const totalFees = qtySold * (splits.shipping + splits.packing);
                     const netEarnings = grossSales - totalComm - totalFees;
@@ -287,7 +327,13 @@ export const EarningsCommissions: React.FC = () => {
                         <TableCell className="font-bold text-foreground">{p.name}</TableCell>
                         <TableCell className="text-right font-semibold">{qtySold} units</TableCell>
                         <TableCell className="text-right font-semibold">₹{grossSales.toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="text-right text-destructive font-medium">-₹{totalComm.toLocaleString('en-IN')}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {totalComm > 0 ? (
+                            <span className="text-destructive">-₹{totalComm.toLocaleString('en-IN')}</span>
+                          ) : (
+                            <span className="text-emerald-500 font-bold">₹0</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right text-muted-foreground">₹{totalFees.toLocaleString('en-IN')}</TableCell>
                         <TableCell className="text-right font-black text-emerald-600 dark:text-emerald-400">₹{netEarnings.toLocaleString('en-IN')}</TableCell>
                       </TableRow>
@@ -364,16 +410,20 @@ export const EarningsCommissions: React.FC = () => {
                     <TableHead>Order Ref ID</TableHead>
                     <TableHead>Delivery Date</TableHead>
                     <TableHead className="text-right">Customer Paid (₹)</TableHead>
-                    <TableHead className="text-right">Platform Fee Deduct (₹)</TableHead>
+                    <TableHead className="text-right">Commission Deduct (₹)</TableHead>
                     <TableHead className="text-right font-bold text-primary">Expected Payout (₹)</TableHead>
                     <TableHead>Settlement Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.filter(o => o.orderStatus === 'Delivered' || o.deliveryStatus === 'Delivered' || o.orderStatus === 'Completed').map(o => {
-                    const isPlatformOrder = (o as any).distributionType === 'platform' || (o as any).distributedFrom === 'platform_fee' || products.every(p => !p.commissionRate || p.commissionRate === 0);
-                    const commDeduct = isPlatformOrder ? 0 : Math.round((o.totalAmount || 0) * 0.1);
-                    const netPayout = (o.totalAmount || 0) - commDeduct;
+                    const oItems = o.items || [];
+                    const commDeduct = (o as any).commissionAmount || (o as any).vendorCommissionAmount || oItems.reduce((sum: number, it: any) => {
+                      const prod = products.find(p => p.id === it.productId || (p as any)._id === it.productId);
+                      const splits = prod ? getProductSplits(prod) : { rate: 0, commission: 0 };
+                      return sum + Math.round((it.price || 0) * (it.quantity || 1) * (splits.rate / 100));
+                    }, 0);
+                    const netPayout = Math.max(0, (o.totalAmount || 0) - commDeduct);
                     return (
                       <TableRow key={o._id || o.id}>
                         <TableCell className="font-mono text-xs font-bold text-foreground">{o.orderNumber || o.id}</TableCell>
@@ -381,8 +431,12 @@ export const EarningsCommissions: React.FC = () => {
                           {o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('en-IN') : (o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN') : 'Today')}
                         </TableCell>
                         <TableCell className="text-right font-semibold">₹{(o.totalAmount || 0).toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="text-right font-medium text-emerald-400">
-                          {commDeduct > 0 ? `-₹${commDeduct.toLocaleString('en-IN')}` : '₹0 (0% Comm)'}
+                        <TableCell className="text-right font-medium">
+                          {commDeduct > 0 ? (
+                            <span className="text-destructive">-₹{commDeduct.toLocaleString('en-IN')}</span>
+                          ) : (
+                            <span className="text-emerald-400 font-bold">₹0</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-black text-indigo-600 dark:text-indigo-400">₹{netPayout.toLocaleString('en-IN')}</TableCell>
                         <TableCell>

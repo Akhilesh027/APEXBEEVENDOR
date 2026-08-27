@@ -586,7 +586,19 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           shippingCharges: p.shippingCharges || 0,
           packingCharges: p.packingCharges || 0,
           status: p.status || (p.moderationStatus === 'pending' ? 'Pending Review' : p.moderationStatus === 'approved' ? 'Approved' : 'Pending Review'),
-          commissionRate: Number(p.commissionRate || p.adminPricing?.platformCommissionRate || 10),
+          adminPricing: p.adminPricing || null,
+          platformFeePercent: Number(p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? 25),
+          vendorCommissionPercent: Number(p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0),
+          distributedFrom: p.adminPricing?.distributedFrom || 'platform_fee',
+          commissionRate: Number(
+            (p.adminPricing?.distributedFrom === 'apexbee_commission')
+              ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
+              : (p.adminPricing?.distributedFrom === 'both')
+                ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+                : (p.adminPricing?.distributedFrom === 'none')
+                  ? 0
+                  : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? (typeof p.commissionRate === 'number' ? p.commissionRate : 25))
+          ),
           variants: p.variants || [],
           isVariantProduct: p.isVariantProduct || false
         }));

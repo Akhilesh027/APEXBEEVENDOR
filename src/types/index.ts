@@ -103,6 +103,11 @@ export interface Product {
   packingCharges: number;
   status: 'Draft' | 'Pending Review' | 'Approved' | 'Live' | 'Rejected' | 'Awaiting Reapproval' | 'Awaiting Vendor Approval';
   commissionRate: number; // percentage (admin set)
+  adminPricing?: any;
+  platformFeePercent?: number;
+  platformCommissionPercent?: number;
+  vendorCommissionPercent?: number;
+  distributedFrom?: string;
   adminReviewNotes?: string;
   isVariantProduct: boolean;
   variants: ProductVariant[];
@@ -148,6 +153,7 @@ export interface Order {
   paymentStatus: 'Paid' | 'Pending' | 'Refunded' | (string & {});
   deliveryStatus: 'New' | 'Confirmed' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Returned' | 'Refunded' | 'Accepted' | (string & {});
   orderDate: string;
+  createdAt?: string;
   timeline: OrderTimeline[];
   assignedDeliveryAgent?: string;
   assignedDeliveryAgentType?: 'Platform' | 'Vendor' | 'Independent';

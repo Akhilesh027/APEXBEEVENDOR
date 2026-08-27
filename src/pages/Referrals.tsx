@@ -8,6 +8,12 @@ import { Select } from '../components/ui/Select';
 import { Share2, Copy, Check, Users, Award, HeartHandshake, Coins, TrendingUp } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
+const formatINR = (val: number | string | undefined | null) =>
+  Number(val || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
 export const Referrals: React.FC = () => {
   const { referrals, profile } = useVendor();
 
@@ -117,7 +123,7 @@ export const Referrals: React.FC = () => {
             </div>
             <div className="flex flex-col gap-0.5 min-w-0">
               <span className="text-[10px] text-muted-foreground uppercase font-bold truncate">Total Network Earnings</span>
-              <span className="text-lg font-extrabold text-foreground">₹{totalEarnings.toLocaleString('en-IN')}</span>
+              <span className="text-lg font-extrabold text-foreground">₹{formatINR(totalEarnings)}</span>
               <span className="text-[9px] text-emerald-500 font-bold truncate">Includes 1% lifetime override</span>
             </div>
           </CardContent>
@@ -352,9 +358,9 @@ export const Referrals: React.FC = () => {
                           <td className="py-2.5 px-4 text-xs">
                             <Badge variant="purple" className="py-0">{sales.type}</Badge>
                           </td>
-                          <td className="py-2.5 px-4 text-xs font-semibold text-foreground">₹{sales.totalSales.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-xs font-semibold text-foreground">₹{formatINR(sales.totalSales)}</td>
                           <td className="py-2.5 px-4 text-xs font-bold text-primary">{sales.rate}</td>
-                          <td className="py-2.5 px-4 text-xs font-black text-emerald-500 text-right">+₹{sales.overrideComm.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-xs font-black text-emerald-500 text-right">+₹{formatINR(sales.overrideComm)}</td>
                         </TableRow>
                       ))
                     )}
@@ -406,7 +412,7 @@ export const Referrals: React.FC = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(r.status)}</TableCell>
                       <TableCell className="font-extrabold text-xs text-emerald-500">
-                        {r.earnings > 0 ? `+₹${r.earnings.toLocaleString('en-IN')}` : '₹0'}
+                        {r.earnings > 0 ? `+₹${formatINR(r.earnings)}` : '₹0.00'}
                       </TableCell>
                       <TableCell className="text-right">
                         {r.status !== 'First Sale Completed' ? (
