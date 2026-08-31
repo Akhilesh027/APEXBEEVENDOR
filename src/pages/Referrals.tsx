@@ -46,7 +46,9 @@ export const Referrals: React.FC = () => {
   const totalEarnings = referrals.reduce((sum, r) => sum + (r.earnings || 0), 0);
 
   const referralCode = profile?.referralCode || "N/A";
-  const referralLink = `http://localhost:5173/register?ref=${referralCode}`;
+  const referralLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/register?ref=${referralCode}`
+    : `https://apexbee.in/register?ref=${referralCode}`;
 
   const copyToClipboard = (text: string, isLink: boolean) => {
     if (navigator.clipboard) {

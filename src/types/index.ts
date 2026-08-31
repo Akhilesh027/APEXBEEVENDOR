@@ -252,6 +252,8 @@ export interface TerritoryItem {
   activePartners: number;
   salesVolume: number;
   status: 'Active' | 'Under Expansion' | 'Inactive';
+  annualFee?: number;
+  franchiseFeePerYear?: number;
 }
 
 export interface CreditAccount {

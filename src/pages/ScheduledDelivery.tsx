@@ -8,9 +8,7 @@ import {
   AlertTriangle, ShieldCheck, User, Package, Wifi, RefreshCw, Send, MapPin
 } from 'lucide-react';
 
-const API_ROOT = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? 'https://server.apexbee.in'
-  : 'https://server.apexbee.in';
+const API_ROOT = import.meta.env.VITE_API_ORIGIN || 'https://server.apexbee.in';
 
 interface ScheduledDeliveryProps {
   defaultTab?: 'courier' | 'scheduled';

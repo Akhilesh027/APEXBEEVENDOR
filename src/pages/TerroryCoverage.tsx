@@ -142,6 +142,7 @@ export const TerritoryCoverage: React.FC = () => {
                   <th className="py-2.5 px-4">Mandal Pinpoint</th>
                   <th className="py-2.5 px-4 text-center">Active Retailers</th>
                   <th className="py-2.5 px-4">Sales Volume</th>
+                  <th className="py-2.5 px-4 text-center">Franchise Fee / Yr</th>
                   <th className="py-2.5 px-4">Franchise Status</th>
                 </tr>
               </thead>
@@ -154,6 +155,11 @@ export const TerritoryCoverage: React.FC = () => {
                     <td className="py-3 px-4 text-muted-foreground">{ter.mandal}</td>
                     <td className="py-3 px-4 text-center text-foreground font-bold">{ter.activePartners} stores</td>
                     <td className="py-3 px-4 text-primary">₹{(ter.salesVolume || 0).toLocaleString()}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-[10px] font-black">
+                        ₹{(ter.annualFee ?? ter.franchiseFeePerYear ?? (ter.mandal ? 25000 : 150000)).toLocaleString("en-IN")}/yr
+                      </span>
+                    </td>
                     <td className="py-3 px-4">
                       <Badge variant={ter.status === 'Active' ? 'success' : 'warning'} className="text-[9px] font-bold">
                         {ter.status}
