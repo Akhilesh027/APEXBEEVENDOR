@@ -1113,8 +1113,24 @@ export const BusinessProfile: React.FC = () => {
                       <input type="text" value={village} onChange={(e) => setVillage(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">Pincode *</label>
-                      <input required type="text" value={pincode} onChange={(e) => setPincode(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-muted-foreground">Pincode *</label>
+                        {pincode && pincode.length === 6 && (
+                          <span className="text-[10px] text-emerald-500 font-bold">✓ 6 digits</span>
+                        )}
+                        {pincode && pincode.length < 6 && (
+                          <span className="text-[10px] text-amber-500 font-semibold">{pincode.length}/6 digits</span>
+                        )}
+                      </div>
+                      <input
+                        required
+                        type="text"
+                        maxLength={6}
+                        placeholder="Enter 6-digit PIN code"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground font-mono font-medium"
+                      />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Latitude</label>
