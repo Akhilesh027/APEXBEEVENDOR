@@ -14,6 +14,7 @@ import { RenewalCenter } from '../features/subscription/pages/RenewalCenter';
 import { UpgradeModal } from '../features/subscription/components/UpgradeModal';
 import { DowngradeModal } from '../features/subscription/components/DowngradeModal';
 import { SubscriptionLoadingSkeleton } from '../features/subscription/components/SubscriptionLoadingSkeleton';
+import { AdminFeeInvoices } from '../features/subscription/pages/AdminFeeInvoices';
 import type { SubscriptionPlan, SubscriptionAddon } from '../features/subscription/types/subscription.types';
 import {
   LayoutDashboard,
@@ -52,7 +53,7 @@ export const SubscriptionManagement: React.FC = () => {
   } = useSubscription();
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'plans' | 'addons' | 'history' | 'renewals' | 'invoices' | 'checkout' | 'processing' | 'success' | 'failed' | 'pending'
+    'overview' | 'admin_fees' | 'plans' | 'addons' | 'history' | 'renewals' | 'invoices' | 'checkout' | 'processing' | 'success' | 'failed' | 'pending'
   >('overview');
 
   const [selectedProductObj, setSelectedProductObj] = useState<SubscriptionPlan | SubscriptionAddon | null>(null);
@@ -143,6 +144,16 @@ export const SubscriptionManagement: React.FC = () => {
             <LayoutDashboard className="w-4 h-4 text-amber-500" /> Overview
           </button>
           <button
+            onClick={() => setActiveTab('admin_fees')}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
+              activeTab === 'admin_fees'
+                ? 'bg-amber-400 text-blue-950 shadow-md scale-[1.02]'
+                : 'bg-slate-950/80 text-slate-300 hover:text-white hover:bg-slate-800 font-extrabold'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" /> Services & Fee Invoices
+          </button>
+          <button
             onClick={() => setActiveTab('plans')}
             className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-xs font-black cursor-pointer border-none ${
               activeTab === 'plans'
@@ -209,6 +220,10 @@ export const SubscriptionManagement: React.FC = () => {
               onRenewPlan={() => setActiveTab('plans')}
               onUpgradePlan={handleUpgradeClick}
             />
+          )}
+
+          {activeTab === 'admin_fees' && (
+            <AdminFeeInvoices />
           )}
 
           {activeTab === 'plans' && (

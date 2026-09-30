@@ -32,12 +32,18 @@ const mapTimelineForBackend = (timeline: any[] = []) =>
     note: t.description || t.note,
   }));
 
+const resolveOrderId = (order: any): string => {
+  if (!order) return '';
+  if (typeof order === 'string') return order;
+  return order._id || order.id || '';
+};
+
 const updateOrderStatus = async (
   order: any,
   payload: any,
   timelineStep?: { status: string; note: string }
 ) => {
-  const dbId = order._id || order.id;
+  const dbId = resolveOrderId(order);
 
   const timeline = timelineStep
     ? [
@@ -64,11 +70,13 @@ export const orderService = {
 
   getOrderById: (orderId: string) => request(`/orders/${orderId}`),
 
-  acceptOrder: (order: any, prepMinutes: number = 20) =>
-    request(`/orders/${order._id || order.id}/accept-prep`, {
+  acceptOrder: (order: any, prepMinutes: number = 20) => {
+    const dbId = resolveOrderId(order);
+    return request(`/orders/${dbId}/accept-prep`, {
       method: 'PUT',
       body: JSON.stringify({ prepMinutes })
-    }),
+    });
+  },
 
   packOrder: (order: any) =>
     updateOrderStatus(

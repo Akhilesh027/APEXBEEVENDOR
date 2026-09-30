@@ -359,7 +359,7 @@ export const Login: React.FC = () => {
                         <Button
                           type="submit"
                           className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold h-10 shadow-lg shadow-emerald-600/25 rounded-xl flex justify-center items-center gap-2 mt-4 cursor-pointer"
-                          disabled={loading || otp.length < 4}
+                          disabled={loading || otp.length < 6}
                         >
                           {loading ? (
                             <>

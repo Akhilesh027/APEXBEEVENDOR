@@ -434,10 +434,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           else if (['Reached Vendor', 'Pickup OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Vendor';
           else if (['Picked Up', 'Shipped', 'Out for Delivery'].includes(order.orderStatus)) deliveryStatus = 'Shipped';
           else if (['Reached Customer', 'Delivery OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Customer';
-          else if (order.orderStatus === 'Confirmed') deliveryStatus = 'Processing';
-          else if (order.orderStatus === 'Packed') deliveryStatus = 'Packed';
-          else if (order.orderStatus === 'Delivered') deliveryStatus = 'Delivered';
-          else if (order.orderStatus === 'Returned') deliveryStatus = 'Returned';
+          else if (['Confirmed', 'confirmed', 'preparing', 'Preparing', 'Processing', 'processing'].includes(order.orderStatus)) deliveryStatus = 'Processing';
+          else if (['Packed', 'packed'].includes(order.orderStatus)) deliveryStatus = 'Packed';
+          else if (['Delivered', 'delivered'].includes(order.orderStatus)) deliveryStatus = 'Delivered';
+          else if (['Returned', 'returned'].includes(order.orderStatus)) deliveryStatus = 'Returned';
           else if (order.orderStatus === 'Payment Verified') deliveryStatus = 'Processing';
           else deliveryStatus = order.orderStatus || 'New';
 
@@ -1552,10 +1552,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Order Actions
   const acceptOrder = async (orderId: string, prepMinutes: number = 20) => {
     const matched = orders.find(o => o.id === orderId || o._id === orderId);
-    if (!matched) return;
+    const target = matched || orderId;
 
     try {
-      await orderService.acceptOrder(matched, prepMinutes);
+      await orderService.acceptOrder(target, prepMinutes);
       const token = localStorage.getItem('token');
       if (token) await fetchVendorData(profile.id, token);
 
@@ -1566,11 +1566,11 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const packOrder = async (orderId: string) => {
-    const matched = orders.find(o => o.id === orderId);
-    if (!matched) return;
+    const matched = orders.find(o => o.id === orderId || o._id === orderId);
+    const target = matched || orderId;
 
     try {
-      await orderService.packOrder(matched);
+      await orderService.packOrder(target);
       const token = localStorage.getItem('token');
       if (token) await fetchVendorData(profile.id, token);
 

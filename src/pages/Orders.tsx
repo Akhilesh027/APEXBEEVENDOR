@@ -926,25 +926,25 @@ export const Orders: React.FC = () => {
                 {selectedStatus !== 'New' && selectedStatus !== 'Delivered' && (
                   <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-3 text-xs shadow-xl">
                     <span className="font-extrabold text-indigo-400 uppercase tracking-wider text-[11px] font-heading block">🔐 Dispatch/Delivery Secure OTP verification</span>
-                    <p className="text-xs text-blue-300">Enter 4-digit OTP provided by customer or driver to execute state transfer check.</p>
+                    <p className="text-xs text-blue-300">Enter 6-digit OTP provided by customer or driver to execute state transfer check.</p>
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        maxLength={4}
-                        placeholder="XXXX"
+                        maxLength={6}
+                        placeholder="XXXXXX"
                         value={otpValue}
                         onChange={(e) => setOtpValue(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="w-24 border-none rounded-xl p-2.5 bg-slate-900 text-white text-center font-mono font-black text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        className="w-28 border-none rounded-xl p-2.5 bg-slate-900 text-white text-center font-mono font-black text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-400"
                       />
                       <button
                         type="button"
                         onClick={() => {
-                          if (otpValue === '1234' || otpValue.length === 4) {
+                          if (otpValue.length === 6) {
                             setValidatedOrders(prev => [...prev, selectedOrder.id]);
                             alert("OTP verified! Security handshake completed.");
                             setOtpValue('');
                           } else {
-                            alert("Invalid verification code. Try again.");
+                            alert("Invalid verification code. Please enter the full 6-digit OTP.");
                           }
                         }}
                         className="px-4 bg-amber-400 text-blue-950 font-black rounded-xl border-0 cursor-pointer text-xs shadow-md"
