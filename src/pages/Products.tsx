@@ -9,6 +9,7 @@ import {
   Package,
   Wand2,
   ImageIcon,
+  Power,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
@@ -108,6 +109,7 @@ export const ProductManagement: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -646,6 +648,58 @@ export const ProductManagement: React.FC = () => {
     }
   };
 
+  const handleToggleProductStatus = async (product: any) => {
+    const isCurrentlyOn = product.isActive !== false && (product.status === 'Live' || product.status === 'Approved');
+    const newActiveState = !isCurrentlyOn;
+
+    try {
+      setTogglingId(product._id);
+      setErrorMsg('');
+
+      // Optimistic update for instant UI feedback
+      setProducts((prev) =>
+        prev.map((p) =>
+          p._id === product._id
+            ? {
+                ...p,
+                isActive: newActiveState,
+                status: newActiveState ? 'Live' : 'Inactive',
+              }
+            : p
+        )
+      );
+
+      const res = await productService.toggleStatus(product._id, newActiveState);
+
+      if (res?.success) {
+        setSuccessMsg(
+          newActiveState
+            ? `🟢 "${product.name}" is now ON and Live on ApexBee website!`
+            : `⚪ "${product.name}" is now OFF and hidden from customers.`
+        );
+        setTimeout(() => setSuccessMsg(''), 4500);
+
+        if (res.product) {
+          setProducts((prev) =>
+            prev.map((p) => (p._id === product._id ? { ...p, ...res.product } : p))
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle status:', err);
+      // Revert optimistic update
+      setProducts((prev) =>
+        prev.map((p) => (p._id === product._id ? product : p))
+      );
+      setErrorMsg(
+        err?.response?.data?.message || 'Failed to change product status. Please try again.'
+      );
+      setTimeout(() => setErrorMsg(''), 5000);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const handleAcceptPricing = async (id: string) => {
     try {
       setSaving(true);
@@ -711,7 +765,9 @@ export const ProductManagement: React.FC = () => {
     if (filter === 'All') {
       matchFilter = true;
     } else if (filter === 'Live') {
-      matchFilter = product.status === 'Live' || product.status === 'Approved';
+      matchFilter = (product.status === 'Live' || product.status === 'Approved') && product.isActive !== false;
+    } else if (filter === 'Off') {
+      matchFilter = product.isActive === false || product.status === 'Inactive';
     } else if (filter === 'Pending Action') {
       if (subFilter === 'All Pending') {
         matchFilter = ['Pending Review', 'Awaiting Seller Approval', 'Negotiation Requested'].includes(product.status);
@@ -775,12 +831,13 @@ export const ProductManagement: React.FC = () => {
           />
         </div>
 
-        {/* 4 Core Tabs + Sub-Status Dropdown */}
+        {/* 5 Core Tabs + Sub-Status Dropdown */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <div className="p-1.5 bg-slate-950/80 rounded-2xl shadow-inner flex flex-wrap gap-2 text-left w-full md:w-auto">
             {[
               { id: 'All', label: 'All Products' },
-              { id: 'Live', label: 'Live' },
+              { id: 'Live', label: 'Live (Online)' },
+              { id: 'Off', label: 'Off (Hidden)' },
               { id: 'Pending Action', label: 'Pending Action ⏳' },
               { id: 'Drafts', label: 'Drafts' }
             ].map((tab) => (
@@ -826,6 +883,7 @@ export const ProductManagement: React.FC = () => {
                 <th className="p-3">Stock</th>
                 <th className="p-3">Seller Price</th>
                 <th className="p-3">Admin Pricing</th>
+                <th className="p-3 text-center">Store Status (ON/OFF)</th>
                 <th className="p-3">Status</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
@@ -853,7 +911,7 @@ export const ProductManagement: React.FC = () => {
                         <p className="text-[10px] text-muted-foreground">
                           {product.brand || 'No Brand'}
                         </p>
-                        {/* Storefront & Subscription Badges */}
+                        {/* Storefront & Visibility Badges */}
                         <div className="flex flex-wrap gap-1 mt-1">
                           {product.isStoreProduct && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-extrabold uppercase tracking-wide">
@@ -865,9 +923,13 @@ export const ProductManagement: React.FC = () => {
                               🔁 Subscription
                             </span>
                           )}
-                          {product.status === 'Live' && product.isStoreProduct && (
+                          {product.isActive !== false && (product.status === 'Live' || product.status === 'Approved') ? (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-extrabold uppercase tracking-wide">
-                              ✅ Visible
+                              ✅ Visible in Store
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[9px] font-extrabold uppercase tracking-wide">
+                              🚫 Hidden from Store
                             </span>
                           )}
                         </div>
@@ -910,20 +972,66 @@ export const ProductManagement: React.FC = () => {
                     )}
                   </td>
 
+                  {/* Store Status ON/OFF Button */}
+                  <td className="p-3 text-center">
+                    {(() => {
+                      const isProductOn = product.isActive !== false && (product.status === 'Live' || product.status === 'Approved');
+                      return (
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={togglingId === product._id || product.status === 'Rejected'}
+                            onClick={() => handleToggleProductStatus(product)}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs border ${
+                              isProductOn
+                                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/20 ring-2 ring-emerald-500/30'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
+                            } ${togglingId === product._id ? 'opacity-60 cursor-wait' : ''} ${product.status === 'Rejected' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            title={
+                              product.status === 'Rejected'
+                                ? 'Rejected product cannot be turned on'
+                                : isProductOn
+                                ? 'Click to turn OFF (Hide from ApexBee website)'
+                                : 'Click to turn ON (Show in ApexBee website)'
+                            }
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                isProductOn ? 'bg-slate-950 animate-pulse' : 'bg-rose-400'
+                              }`}
+                            />
+                            <span>{isProductOn ? 'ON' : 'OFF'}</span>
+                            {togglingId === product._id && (
+                              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-0.5" />
+                            )}
+                          </button>
+                          <span className="text-[9px] font-semibold text-muted-foreground">
+                            {isProductOn ? 'Live on Store' : 'Hidden from Store'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </td>
+
                   <td className="p-3">
                     <span
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${product.status === 'Live'
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : product.status === 'Rejected'
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
+                        product.isActive === false || product.status === 'Inactive'
+                          ? 'bg-slate-700/60 text-slate-300 border border-slate-600/40'
+                          : product.status === 'Live'
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : product.status === 'Rejected'
                           ? 'bg-rose-500/10 text-rose-500'
                           : product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval'
-                            ? 'bg-purple-500/10 text-purple-600'
-                            : product.status === 'Awaiting Seller Approval'
-                              ? 'bg-indigo-500/10 text-indigo-500'
-                              : 'bg-amber-500/10 text-amber-500'
-                        }`}
+                          ? 'bg-purple-500/10 text-purple-600'
+                          : product.status === 'Awaiting Seller Approval'
+                          ? 'bg-indigo-500/10 text-indigo-500'
+                          : 'bg-amber-500/10 text-amber-500'
+                      }`}
                     >
-                      {product.status}
+                      {product.isActive === false && product.status === 'Live'
+                        ? 'Inactive (Turned Off)'
+                        : product.status}
                     </span>
                   </td>
 
@@ -949,7 +1057,7 @@ export const ProductManagement: React.FC = () => {
 
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center">
+                  <td colSpan={9} className="p-10 text-center">
                     <div className="flex flex-col items-center gap-3 text-muted-foreground">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                       <span className="text-xs font-semibold">
@@ -960,13 +1068,13 @@ export const ProductManagement: React.FC = () => {
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center text-muted-foreground font-medium">
+                  <td colSpan={9} className="p-10 text-center text-muted-foreground font-medium">
                     No products added yet. Start by clicking "Add Product" above!
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center text-muted-foreground font-medium">
+                  <td colSpan={9} className="p-10 text-center text-muted-foreground font-medium">
                     No products found matching your filters.
                   </td>
                 </tr>

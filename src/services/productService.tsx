@@ -52,6 +52,15 @@ export const productService = {
     return res.data;
   },
 
+  toggleStatus: async (id: string, isActive?: boolean) => {
+    const res = await axios.patch(
+      `${API_URL}/products/${id}/toggle-status`,
+      isActive !== undefined ? { isActive } : {},
+      { headers: authHeaders() }
+    );
+    return res.data;
+  },
+
   sellerAcceptPricing: async (id: string) => {
     const res = await axios.patch(
       `${API_URL}/products/${id}/seller-accept-pricing`,
