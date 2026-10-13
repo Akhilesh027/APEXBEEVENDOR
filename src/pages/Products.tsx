@@ -661,10 +661,10 @@ export const ProductManagement: React.FC = () => {
         prev.map((p) =>
           p._id === product._id
             ? {
-                ...p,
-                isActive: newActiveState,
-                status: newActiveState ? 'Live' : 'Inactive',
-              }
+              ...p,
+              isActive: newActiveState,
+              status: newActiveState ? 'Live' : 'Inactive',
+            }
             : p
         )
       );
@@ -982,23 +982,21 @@ export const ProductManagement: React.FC = () => {
                             type="button"
                             disabled={togglingId === product._id || product.status === 'Rejected'}
                             onClick={() => handleToggleProductStatus(product)}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs border ${
-                              isProductOn
-                                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/20 ring-2 ring-emerald-500/30'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
-                            } ${togglingId === product._id ? 'opacity-60 cursor-wait' : ''} ${product.status === 'Rejected' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs border ${isProductOn
+                              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/20 ring-2 ring-emerald-500/30'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
+                              } ${togglingId === product._id ? 'opacity-60 cursor-wait' : ''} ${product.status === 'Rejected' ? 'opacity-40 cursor-not-allowed' : ''}`}
                             title={
                               product.status === 'Rejected'
                                 ? 'Rejected product cannot be turned on'
                                 : isProductOn
-                                ? 'Click to turn OFF (Hide from ApexBee website)'
-                                : 'Click to turn ON (Show in ApexBee website)'
+                                  ? 'Click to turn OFF (Hide from ApexBee website)'
+                                  : 'Click to turn ON (Show in ApexBee website)'
                             }
                           >
                             <span
-                              className={`w-2 h-2 rounded-full ${
-                                isProductOn ? 'bg-slate-950 animate-pulse' : 'bg-rose-400'
-                              }`}
+                              className={`w-2 h-2 rounded-full ${isProductOn ? 'bg-slate-950 animate-pulse' : 'bg-rose-400'
+                                }`}
                             />
                             <span>{isProductOn ? 'ON' : 'OFF'}</span>
                             {togglingId === product._id && (
@@ -1015,19 +1013,18 @@ export const ProductManagement: React.FC = () => {
 
                   <td className="p-3">
                     <span
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
-                        product.isActive === false || product.status === 'Inactive'
-                          ? 'bg-slate-700/60 text-slate-300 border border-slate-600/40'
-                          : product.status === 'Live'
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold ${product.isActive === false || product.status === 'Inactive'
+                        ? 'bg-slate-700/60 text-slate-300 border border-slate-600/40'
+                        : product.status === 'Live'
                           ? 'bg-emerald-500/10 text-emerald-500'
                           : product.status === 'Rejected'
-                          ? 'bg-rose-500/10 text-rose-500'
-                          : product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval'
-                          ? 'bg-purple-500/10 text-purple-600'
-                          : product.status === 'Awaiting Seller Approval'
-                          ? 'bg-indigo-500/10 text-indigo-500'
-                          : 'bg-amber-500/10 text-amber-500'
-                      }`}
+                            ? 'bg-rose-500/10 text-rose-500'
+                            : product.status === 'Vendor Edited' || product.status === 'Updated - Pending Approval'
+                              ? 'bg-purple-500/10 text-purple-600'
+                              : product.status === 'Awaiting Seller Approval'
+                                ? 'bg-indigo-500/10 text-indigo-500'
+                                : 'bg-amber-500/10 text-amber-500'
+                        }`}
                     >
                       {product.isActive === false && product.status === 'Live'
                         ? 'Inactive (Turned Off)'

@@ -917,6 +917,17 @@ export const Orders: React.FC = () => {
                             {selectedOrder.deliveryStatus === 'Delivered' ? 'Delivered' : 'Within 45 Minutes'}
                           </b>
                         </div>
+                        {selectedOrder.pickupVerification?.otp && (
+                          <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex items-center justify-between sm:col-span-2">
+                            <div>
+                              <span className="font-bold text-amber-400 block text-[10px] uppercase">Driver Handover Pickup OTP</span>
+                              <span className="text-[11px] text-slate-300">Share this code with delivery partner upon package handover</span>
+                            </div>
+                            <span className="font-mono font-black text-sm text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-xl border border-emerald-500/30">
+                              {selectedOrder.pickupVerification.otp}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
