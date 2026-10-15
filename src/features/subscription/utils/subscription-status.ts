@@ -7,6 +7,7 @@ export interface StatusBadgeProps {
 }
 
 export const getStatusBadgeProps = (status: SubscriptionStatus): StatusBadgeProps => {
+  switch (status) {
     case 'ACTIVE':
     case 'TRIAL':
     case 'TRIALING':
