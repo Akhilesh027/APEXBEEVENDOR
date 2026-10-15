@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   CreditCard,
   CheckCircle2,
+  AlertCircle,
   Clock,
   Sparkles,
   Store,
@@ -30,6 +31,9 @@ interface FeeInvoice {
   invoiceNumber: string;
   title: string;
   description?: string;
+  recipientName?: string;
+  recipientEmail?: string;
+  recipientPhone?: string;
   baseAmount: number;
   taxAmount: number;
   totalAmount: number;

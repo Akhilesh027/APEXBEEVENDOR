@@ -259,7 +259,7 @@ export const useSubscription = () => {
               name: 'ApexBee Market',
               description: chosenName,
               prefill: {
-                name: summary?.businessName || 'Vendor Partner',
+                name: (summary as any)?.businessName || 'Vendor Partner',
               },
               theme: {
                 color: '#F5B800',
