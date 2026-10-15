@@ -12,6 +12,7 @@ import type {
 } from '../types/subscription.types';
 import { subscriptionApi } from '../api/subscription.api';
 import { MOCK_SCENARIOS } from '../mocks/subscription.mock';
+import { openRazorpayModal } from '../../../utils/razorpay';
 
 export const useSubscription = () => {
   const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
@@ -51,8 +52,11 @@ export const useSubscription = () => {
 
       if (sumRes && sumRes.success && sumRes.summary) {
         const s = sumRes.summary;
-        if (s.planName && s.planName.toLowerCase().includes('academy')) {
-          s.planName = 'POS Premium Plan';
+        if (s.planName) {
+          s.planName = s.planName.replace(/\s*\(Trial\)/gi, '').trim();
+          if (s.planName.toLowerCase().includes('academy')) {
+            s.planName = 'POS Premium Plan';
+          }
         }
         setSummary(s);
       } else {
@@ -236,17 +240,63 @@ export const useSubscription = () => {
 
       if (orderRes && orderRes.success && orderRes.order) {
         const orderId = orderRes.order._id || orderRes.order.id;
-        const payRes = await subscriptionApi.processPayment({
-          orderId,
-          paymentMethod,
-          sandboxSuccess: true,
-          productId: checkoutProduct?.id,
-          priceId: checkoutQuote?.priceId
-        });
 
-        if (payRes && payRes.success) {
-          await loadSubscriptionData();
-          return { success: true, payment: payRes.payment, invoice: payRes.invoice };
+        if (paymentMethod !== 'Wallet') {
+          // 1. Create Razorpay order on backend
+          const payableAmount = checkoutQuote?.finalPayableAmount || 9990;
+          const rzpOrderRes = await subscriptionApi.createRazorpayOrder({
+            orderId,
+            quoteId,
+            amount: payableAmount,
+          });
+
+          if (rzpOrderRes && rzpOrderRes.success && rzpOrderRes.orderId) {
+            // 2. Open Razorpay Checkout modal
+            const rzpSuccess = await openRazorpayModal({
+              key: rzpOrderRes.keyId,
+              amount: rzpOrderRes.amount,
+              order_id: rzpOrderRes.orderId,
+              name: 'ApexBee Market',
+              description: chosenName,
+              prefill: {
+                name: summary?.businessName || 'Vendor Partner',
+              },
+              theme: {
+                color: '#F5B800',
+              },
+            });
+
+            // 3. Confirm and activate subscription
+            const payRes = await subscriptionApi.processPayment({
+              orderId,
+              paymentMethod: 'Razorpay Online',
+              sandboxSuccess: true,
+              productId: checkoutProduct?.id,
+              priceId: checkoutQuote?.priceId,
+              razorpayPaymentId: rzpSuccess.razorpay_payment_id,
+              razorpayOrderId: rzpSuccess.razorpay_order_id,
+              razorpaySignature: rzpSuccess.razorpay_signature,
+            });
+
+            if (payRes && payRes.success) {
+              await loadSubscriptionData();
+              return { success: true, payment: payRes.payment, invoice: payRes.invoice };
+            }
+          }
+        } else {
+          // Wallet deduction payment
+          const payRes = await subscriptionApi.processPayment({
+            orderId,
+            paymentMethod: 'WALLET',
+            sandboxSuccess: true,
+            productId: checkoutProduct?.id,
+            priceId: checkoutQuote?.priceId,
+          });
+
+          if (payRes && payRes.success) {
+            await loadSubscriptionData();
+            return { success: true, payment: payRes.payment, invoice: payRes.invoice };
+          }
         }
       }
 

@@ -61,7 +61,23 @@ export const subscriptionApi = {
     });
   },
 
-  processPayment: async (data: { orderId: string; paymentMethod: string; sandboxSuccess?: boolean; productId?: string; priceId?: string }) => {
+  createRazorpayOrder: async (data: { orderId?: string; quoteId?: string; amount?: number }) => {
+    return safeFetch(`${getApiBaseUrl()}/vendor/subscription-orders/razorpay`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  processPayment: async (data: {
+    orderId: string;
+    paymentMethod: string;
+    sandboxSuccess?: boolean;
+    productId?: string;
+    priceId?: string;
+    razorpayPaymentId?: string;
+    razorpayOrderId?: string;
+    razorpaySignature?: string;
+  }) => {
     return safeFetch(`${getApiBaseUrl()}/vendor/subscription-payments/create`, {
       method: 'POST',
       body: JSON.stringify(data)

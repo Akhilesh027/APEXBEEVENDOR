@@ -41,7 +41,7 @@ export const CurrentPlanCard: React.FC<CurrentPlanCardProps> = ({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2">
-            {summary?.planName || 'ApexBee Vendor Plan'}
+            {summary?.planName ? summary.planName.replace(/\s*\(Trial\)/gi, '').trim() : 'ApexBee Vendor Plan'}
           </h2>
           <p className="text-sm text-slate-300 mt-1 font-medium max-w-xl">
             Complete omnichannel marketplace POS, doorstep subscriptions & automated vendor workflow.

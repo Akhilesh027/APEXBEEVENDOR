@@ -243,6 +243,9 @@ interface VendorContextType {
   };
 }
 
+const API_ROOT = import.meta.env.VITE_API_ORIGIN || 'https://server.apexbee.in';
+const API_URL = import.meta.env.VITE_API_URL || `${API_ROOT}/api`;
+
 const VendorContext = createContext<VendorContextType | undefined>(undefined);
 
 
@@ -256,7 +259,15 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const user = JSON.parse(userStr);
         const type = user.roles?.includes('manufacturer') ? 'Manufacturer' :
           user.roles?.includes('wholesaler') ? 'Wholesaler' : 'Vendor';
-        const isDevotional = user.email === 'vendor1@gmail.com' || user.sellerProfile?.businessType === 'Devotional';
+        const userCats = Array.isArray(user.categories) && user.categories.length > 0
+          ? user.categories
+          : (Array.isArray(user.sellerProfile?.categories) && user.sellerProfile.categories.length > 0
+            ? user.sellerProfile.categories
+            : (user.category ? [user.category] : (user.sellerProfile?.category ? [user.sellerProfile.category] : [])));
+        const isDevotional = user.email === 'vendor1@gmail.com' || user.category === 'Devotional' || user.primaryCategory === 'Devotional';
+        const primaryCat = isDevotional ? "Devotional" : (user.primaryCategory || user.sellerProfile?.primaryCategory || userCats[0] || "");
+        const categoryVal = isDevotional ? "Devotional" : (primaryCat || userCats.join(', ') || (user.sellerProfile?.businessType !== 'Vendor' ? user.sellerProfile?.businessType : '') || "Daily Needs");
+
         return {
           id: user.id || user._id || "",
           businessName: isDevotional ? "Devotional Store & Pooja Needs" : (user.sellerProfile?.businessName || user.name || "My Business"),
@@ -264,7 +275,13 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           email: user.email || "",
           phone: user.phone || user.mobile || "",
           businessType: type as any,
-          category: isDevotional ? "Devotional" : (user.sellerProfile?.businessType || "General"),
+          category: categoryVal,
+          primaryCategory: primaryCat,
+          categories: isDevotional ? ["Devotional"] : userCats,
+          allowedCategories: user.allowedCategories || user.sellerProfile?.allowedCategories || [],
+          subCategory: user.subCategory || user.sellerProfile?.subCategory || '',
+          approvedSubcategories: user.approvedSubcategories || user.sellerProfile?.approvedSubcategories || [],
+          subCategories: user.subCategories || user.sellerProfile?.subCategories || [],
           address: user.sellerProfile?.addressText || "",
           kycStatus: (user.sellerProfile?.kycStatus === 'Approved') ? 'Verified' : 'Pending Verification',
           kycProgress: (user.sellerProfile?.kycStatus === 'Approved') ? 100 : 50,
@@ -273,7 +290,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           panNumber: user.sellerProfile?.panNumber || '',
           aadhaarNumber: user.sellerProfile?.aadhaarNumber || '',
           bankAccounts: [],
-          documents: enrichProfileDocuments(type as any, user.sellerProfile?.businessType || "General", user.sellerProfile?.documents || []),
+          documents: enrichProfileDocuments(type as any, categoryVal, user.sellerProfile?.documents || []),
           referralCode: user.referralCode || ''
         };
       } catch (e) {
@@ -304,7 +321,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const fetchVendorData = async (userId: string, token: string) => {
     try {
-      const profileRes = await fetch(`https://server.apexbee.in/api/vendor/profile/${userId}`, {
+      const profileRes = await fetch(`${API_URL}/vendor/profile/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (profileRes.ok) {
@@ -369,6 +386,10 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             businessHours: v.businessHours || {},
             storeType: v.storeType || 'retail_grocery',
             primaryCategory: v.primaryCategory || '',
+            categories: Array.isArray(v.categories) && v.categories.length > 0
+              ? v.categories
+              : (v.category ? String(v.category).split(',').map((s: string) => s.trim()).filter(Boolean) : (v.primaryCategory ? [v.primaryCategory] : [])),
+            allowedCategories: Array.isArray(v.allowedCategories) ? v.allowedCategories.map((id: any) => typeof id === 'object' ? String(id._id || id) : String(id)) : [],
             subCategory: v.subCategory || '',
             approvedSubcategories: Array.isArray(v.approvedSubcategories) && v.approvedSubcategories.length > 0
               ? v.approvedSubcategories
@@ -376,13 +397,30 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             subCategories: v.subCategories || []
           });
 
+          try {
+            const curUserStr = localStorage.getItem('user');
+            if (curUserStr) {
+              const curUser = JSON.parse(curUserStr);
+              const updatedCats = Array.isArray(v.categories) && v.categories.length > 0 ? v.categories : curUser.categories;
+              curUser.categories = updatedCats;
+              curUser.allowedCategories = v.allowedCategories || curUser.allowedCategories;
+              curUser.primaryCategory = v.primaryCategory || curUser.primaryCategory;
+              if (curUser.sellerProfile) {
+                curUser.sellerProfile.categories = updatedCats;
+                curUser.sellerProfile.allowedCategories = curUser.allowedCategories;
+                curUser.sellerProfile.primaryCategory = curUser.primaryCategory;
+              }
+              localStorage.setItem('user', JSON.stringify(curUser));
+            }
+          } catch (e) { }
+
           if (v.storeDesign) {
             setStoreDesign(v.storeDesign);
           }
         }
       }
 
-      const statsRes = await fetch(`https://server.apexbee.in/api/vendor/dashboard-stats/${userId}`, {
+      const statsRes = await fetch(`${API_URL}/vendor/dashboard-stats/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (statsRes.ok) {
@@ -393,7 +431,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Fetch actual orders for vendor
-      const ordersRes = await fetch(`https://server.apexbee.in/api/orders?sellerId=${userId}`, {
+      const ordersRes = await fetch(`${API_URL}/orders?sellerId=${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (ordersRes.ok) {
@@ -1846,7 +1884,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     try {
-      const res = await fetch('https://server.apexbee.in/api/auth/login', {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1900,7 +1938,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const sendLoginOtp = async (email: string): Promise<{ success: boolean; message: string; devOtp?: string }> => {
     try {
-      const res = await fetch('https://server.apexbee.in/api/auth/vendor-send-otp', {
+      const res = await fetch(`${API_URL}/auth/vendor-send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1929,7 +1967,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const loginWithOtp = async (email: string, otp: string): Promise<boolean> => {
     try {
-      const res = await fetch('https://server.apexbee.in/api/auth/vendor-verify-otp', {
+      const res = await fetch(`${API_URL}/auth/vendor-verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1990,7 +2028,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     category: string;
   }): Promise<void> => {
     // Call real registration API
-    const res = await fetch('https://server.apexbee.in/api/auth/register', {
+    const res = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

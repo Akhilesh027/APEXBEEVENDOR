@@ -9,9 +9,9 @@ import {
   ExternalLink,
   ShieldCheck,
   Check,
-  AlertCircle,
   Tag
 } from "lucide-react";
+import { openRazorpayModal } from "../../../utils/razorpay";
 
 interface PricingItem {
   _id: string;
@@ -91,24 +91,62 @@ export const AdminFeeInvoices: React.FC = () => {
   const handlePayInvoice = async (invoice: FeeInvoice) => {
     try {
       setPayingId(invoice._id);
+
+      // 1. Create Razorpay Order on Backend
+      const orderRes = await fetch(`${API_BASE}/fee-pricing/create-razorpay-order`, {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify({
+          invoiceId: invoice._id,
+        }),
+      });
+
+      const orderData = await orderRes.json();
+      if (!orderData.success) {
+        throw new Error(orderData.message || "Failed to initialize Razorpay checkout");
+      }
+
+      // 2. Open Razorpay Checkout Modal
+      const rzpResponse = await openRazorpayModal({
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        order_id: orderData.orderId,
+        name: "ApexBee Market",
+        description: invoice.title || "License & Enrollment Fee",
+        prefill: {
+          name: invoice.recipientName || "Vendor Partner",
+          email: invoice.recipientEmail || "",
+          contact: invoice.recipientPhone || "",
+        },
+        theme: {
+          color: "#F5B800",
+        },
+      });
+
+      // 3. Complete and verify payment
       const res = await fetch(`${API_BASE}/fee-pricing/pay`, {
         method: "POST",
         headers: getAuthHeader(),
         body: JSON.stringify({
           invoiceId: invoice._id,
-          paymentMethod: "UPI / Razorpay",
+          paymentMethod: "Razorpay Online",
+          paymentGatewayOrderId: rzpResponse.razorpay_order_id,
+          paymentId: rzpResponse.razorpay_payment_id,
+          signature: rzpResponse.razorpay_signature,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        showToast("Payment Successful! Invoice settled and license activated.");
+        showToast("Payment Successful via Razorpay! Invoice settled and license activated.");
         fetchData();
       } else {
-        showToast(data.message || "Payment failed", "error");
+        showToast(data.message || "Payment verification failed", "error");
       }
-    } catch (err) {
-      showToast("Error processing payment", "error");
+    } catch (err: any) {
+      console.error("Payment error:", err);
+      showToast(err.message || "Error processing payment", "error");
     } finally {
       setPayingId(null);
     }
@@ -247,18 +285,32 @@ export const AdminFeeInvoices: React.FC = () => {
                     </span>
                   </div>
 
-                  <div>
+                  <div className="flex items-center gap-2">
                     {inv.status === "pending" ? (
-                      <button
-                        onClick={() => handlePayInvoice(inv)}
-                        disabled={payingId === inv._id}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition-all shadow"
-                      >
-                        {payingId === inv._id ? "Processing..." : `Pay ₹${inv.totalAmount}`}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handlePayInvoice(inv)}
+                          disabled={payingId === inv._id}
+                          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {payingId === inv._id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                          {payingId === inv._id ? "Processing..." : `Pay Now (₹${inv.totalAmount})`}
+                        </button>
+                        {inv.paymentLinkToken && (
+                          <a
+                            href={`https://apexbee.in/pay/${inv.paymentLinkToken}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                          >
+                            <span>Open Link</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </>
                     ) : (
-                      <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" /> Paid & Active
+                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                        <Check className="w-3.5 h-3.5" /> Paid & Commission Settled
                       </span>
                     )}
                   </div>

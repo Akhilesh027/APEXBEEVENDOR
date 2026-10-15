@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useVendor } from "../context/VendorContext";
-import { useSubscription } from "../features/subscription/hooks/useSubscription";
 import {
   Card,
   CardContent,
@@ -26,6 +25,8 @@ import {
   Zap,
   Truck,
   Sparkles,
+  Receipt,
+  CreditCard
 } from "lucide-react";
 import {
   AreaChart,
@@ -62,11 +63,8 @@ const formatCurrency = (amount?: number) =>
 
 export const Dashboard: React.FC = () => {
   const { stats, profile, notifications, setCurrentPage, orders, products } = useVendor();
-  const { summary } = useSubscription();
-  const activePlanName = summary?.planName || '15-Day Free Trial';
-  const activePlanStatus = summary?.status || 'TRIAL';
-  const daysRemaining = summary?.daysRemaining ?? summary?.trialDaysRemaining ?? ((summary?.status as any) === 'TRIAL' || (summary?.status as any) === 'TRIALING' ? 14 : 30);
 
+  const [pendingInvoices, setPendingInvoices] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
@@ -92,9 +90,28 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const fetchInvoices = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch(`https://server.apexbee.in/api/fee-pricing/my-invoices`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setPendingInvoices(data.data.filter((i: any) => i.status === 'pending'));
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching vendor fee invoices:', err);
+    }
+  };
+
   useEffect(() => {
     if (profile.id) {
       fetchCompletion();
+      fetchInvoices();
     }
   }, [profile]);
 
@@ -380,6 +397,40 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
+      {/* Pending Admin Payment Link Alert Banner */}
+      {pendingInvoices.length > 0 && (
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/25 via-orange-500/15 to-transparent border border-amber-500/40 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl text-left">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-500/20 rounded-2xl text-amber-400 border border-amber-500/30 shrink-0">
+              <Receipt className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black">
+                  Action Required: Admin Payment Link
+                </span>
+                <span className="font-mono text-xs text-amber-300 font-bold">{pendingInvoices[0].invoiceNumber}</span>
+              </div>
+              <h3 className="text-base md:text-lg font-bold text-white mt-1">
+                {pendingInvoices[0].title} — ₹{pendingInvoices[0].totalAmount}
+              </h3>
+              <p className="text-xs text-blue-200 mt-0.5">
+                Admin has issued an onboarding / license fee payment link. Complete payment to activate your live storefront. Commissions will be automatically distributed upon payment.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setCurrentPage('subscriptions')}
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4" />
+              Pay Now (₹{pendingInvoices[0].totalAmount})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Enterprise Executive Dashboard Hero Banner */}
       <div className="rounded-3xl bg-slate-900/90 p-6 md:p-8 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="relative z-10 space-y-3">
@@ -388,11 +439,11 @@ export const Dashboard: React.FC = () => {
               ✓ Verified Storefront
             </span>
             <button
-              onClick={() => setCurrentPage('subscription')}
+              onClick={() => setCurrentPage('subscriptions')}
               className="bg-slate-800 hover:bg-slate-700 text-amber-300 font-extrabold px-3.5 py-1 rounded-full text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm border border-amber-400/20"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>{activePlanName}</span>
+              <Receipt className="h-3.5 w-3.5" />
+              <span>Invoices & Fee Status</span>
             </button>
             <span className="text-blue-300 text-xs font-mono font-bold">ID: #{profile.id}</span>
           </div>
@@ -584,34 +635,36 @@ export const Dashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Active Subscription Overview Card */}
-      <div className="rounded-2xl bg-slate-900/90 p-5 shadow-xl text-left flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Fee Invoices & Store License Status Card */}
+      <div className="rounded-2xl bg-slate-900/90 p-5 shadow-xl text-left flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800">
         <div className="flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shadow-md shrink-0 font-black">
-            <Sparkles className="h-5 w-5" />
+          <div className="h-11 w-11 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-md shrink-0 font-black">
+            <Receipt className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-white">{activePlanName}</span>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                {activePlanStatus}
+              <span className="text-sm font-extrabold text-white">
+                {pendingInvoices.length > 0 ? "Pending Admin Payment Invoice" : "Store License Status"}
+              </span>
+              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase border ${pendingInvoices.length > 0 ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"}`}>
+                {pendingInvoices.length > 0 ? `${pendingInvoices.length} PENDING` : "ACTIVE"}
               </span>
             </div>
             <span className="text-xs text-blue-200 mt-0.5">
-              {activePlanStatus === 'TRIAL'
-                ? `15-Day Free Trial Active • ${daysRemaining} days remaining in trial period`
-                : `Commercial Subscription Active • ${daysRemaining} days remaining`}
+              {pendingInvoices.length > 0
+                ? `You have a pending invoice of ₹${pendingInvoices[0].totalAmount}. Pay now to activate benefits and settle commissions.`
+                : "Your store license is active. Review fee invoices, dynamic payment links, and settlement history."}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => setCurrentPage('subscription')}
-            className="px-5 py-2.5 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-blue-950 shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            onClick={() => setCurrentPage('subscriptions')}
+            className="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-blue-950 shadow-md transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <Sparkles className="h-4 w-4" />
-            <span>Manage / Upgrade Plan</span>
+            <Receipt className="h-4 w-4" />
+            <span>{pendingInvoices.length > 0 ? "Pay Pending Invoice" : "Invoices & Payment Links"}</span>
           </button>
         </div>
       </div>

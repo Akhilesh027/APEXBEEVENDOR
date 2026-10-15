@@ -187,42 +187,220 @@ export const ProductManagement: React.FC = () => {
     }
   };
 
-  // Auto-select category based on Vendor's business category
-  useEffect(() => {
-    if (categories.length > 0 && profile && !form.categoryId && !editingProduct) {
-      const vendorCatName = (profile.primaryCategory || profile.category || '').trim().toLowerCase();
-      if (vendorCatName) {
-        const matched = categories.find((cat) => {
-          const cName = cat.name.trim().toLowerCase();
-          return cName === vendorCatName || vendorCatName.includes(cName) || cName.includes(vendorCatName);
+  const vendorCategoryFilters = useMemo(() => {
+    const names = new Set<string>();
+    const ids = new Set<string>();
+
+    const GENERIC_EXCLUDE = new Set([
+      'general',
+      'general retail',
+      'general store',
+      'vendor',
+      'vendor (retail seller)',
+      'retail seller',
+      'retail',
+      'retail store',
+      'wholesaler',
+      'manufacturer',
+      'all',
+      'none',
+      'n/a',
+      'undefined',
+      'null'
+    ]);
+
+    const addName = (val: any) => {
+      if (!val) return;
+      if (typeof val === 'string') {
+        val.split(',').forEach(part => {
+          const trimmed = part.trim().toLowerCase();
+          if (trimmed && !GENERIC_EXCLUDE.has(trimmed)) {
+            names.add(trimmed);
+            const clean = trimmed.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (clean && !GENERIC_EXCLUDE.has(clean)) {
+              names.add(clean);
+            }
+          }
         });
-        if (matched) {
-          setForm((prev) => ({ ...prev, categoryId: matched._id }));
-        } else if (categories.length > 0) {
-          setForm((prev) => ({ ...prev, categoryId: categories[0]._id }));
+      } else if (typeof val === 'object') {
+        if (val._id) ids.add(String(val._id));
+        if (val.id) ids.add(String(val.id));
+        if (val.name) addName(val.name);
+        if (val.slug) addName(val.slug);
+      }
+    };
+
+    const addId = (val: any) => {
+      if (!val) return;
+      if (typeof val === 'string' && val.length > 10) {
+        ids.add(val.trim());
+      } else if (typeof val === 'object' && (val._id || val.id)) {
+        ids.add(String(val._id || val.id));
+      }
+    };
+
+    if (profile) {
+      if (Array.isArray(profile.categories)) {
+        profile.categories.forEach(addName);
+        profile.categories.forEach(addId);
+      }
+      if (Array.isArray(profile.allowedCategories)) {
+        profile.allowedCategories.forEach(addId);
+        profile.allowedCategories.forEach(addName);
+      }
+      if (profile.primaryCategory) addName(profile.primaryCategory);
+      if (profile.category) addName(profile.category);
+    }
+
+    if (user) {
+      if (Array.isArray(user.categories)) {
+        user.categories.forEach(addName);
+        user.categories.forEach(addId);
+      }
+      if (Array.isArray(user.allowedCategories)) {
+        user.allowedCategories.forEach(addId);
+      }
+      if (user.primaryCategory) addName(user.primaryCategory);
+      if (user.category) addName(user.category);
+
+      if (user.sellerProfile) {
+        if (Array.isArray(user.sellerProfile.categories)) {
+          user.sellerProfile.categories.forEach(addName);
+          user.sellerProfile.categories.forEach(addId);
         }
-      } else if (categories.length > 0) {
-        setForm((prev) => ({ ...prev, categoryId: categories[0]._id }));
+        if (Array.isArray(user.sellerProfile.allowedCategories)) {
+          user.sellerProfile.allowedCategories.forEach(addId);
+        }
+        if (user.sellerProfile.primaryCategory) addName(user.sellerProfile.primaryCategory);
+        if (user.sellerProfile.category) addName(user.sellerProfile.category);
       }
     }
-  }, [categories, profile, editingProduct, form.categoryId]);
+
+    return {
+      names: Array.from(names),
+      ids: Array.from(ids),
+      hasRestrictions: names.size > 0 || ids.size > 0
+    };
+  }, [profile, user]);
+
+  const vendorApprovedSubs = useMemo(() => {
+    const rawList: any[] = [];
+    if (profile) {
+      if (Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0) {
+        rawList.push(...profile.approvedSubcategories);
+      } else if (Array.isArray(profile.subCategories) && profile.subCategories.length > 0) {
+        rawList.push(...profile.subCategories);
+      } else if (profile.subCategory) {
+        rawList.push(profile.subCategory);
+      }
+    }
+    if (user) {
+      if (Array.isArray(user.approvedSubcategories)) rawList.push(...user.approvedSubcategories);
+      if (Array.isArray(user.sellerProfile?.approvedSubcategories)) rawList.push(...user.sellerProfile.approvedSubcategories);
+      if (user.sellerProfile?.subCategory) rawList.push(user.sellerProfile.subCategory);
+    }
+
+    const flatList = rawList.flatMap(s => typeof s === 'string' && s.includes(',') ? s.split(',').map(x => x.trim()) : s).filter(Boolean);
+    return Array.from(new Set(flatList.map((s: string) => String(s).trim().toLowerCase())));
+  }, [profile, user]);
+
+  const availableCategories = useMemo(() => {
+    if (!categories.length) return [];
+    if (!vendorCategoryFilters.hasRestrictions && vendorApprovedSubs.length === 0) {
+      return categories;
+    }
+
+    const { names, ids } = vendorCategoryFilters;
+
+    const filtered = categories.filter((cat) => {
+      // Direct ID match
+      const cId = String(cat._id || cat.id || '');
+      if (cId && ids.includes(cId)) return true;
+
+      // Name & Slug match
+      const cName = String(cat.name || '').trim().toLowerCase();
+      const cSlug = String(cat.slug || '').trim().toLowerCase();
+      const cleanName = cName.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleanSlug = cSlug.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+
+      const matchesMain = names.some(vCat => {
+        const vClean = vCat.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+        return (
+          vCat === cName ||
+          vCat === cSlug ||
+          (vClean && cleanName && (vClean === cleanName || cleanName.includes(vClean) || vClean.includes(cleanName))) ||
+          (vClean && cleanSlug && (vClean === cleanSlug || cleanSlug.includes(vClean) || vClean.includes(cleanSlug)))
+        );
+      });
+      if (matchesMain) return true;
+
+      // Check subcategories of this category
+      if (Array.isArray(cat.children) && cat.children.length > 0) {
+        const matchesChild = cat.children.some((child: any) => {
+          const childId = String(child._id || child.id || '');
+          if (childId && ids.includes(childId)) return true;
+          const chName = String(child.name || '').trim().toLowerCase();
+          const chClean = chName.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+
+          const matchesChildName = names.some(vCat => {
+            const vClean = vCat.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            return vCat === chName || (vClean && chClean && (vClean === chClean || chClean.includes(vClean) || vClean.includes(chClean)));
+          });
+          if (matchesChildName) return true;
+
+          const matchesApprovedSub = vendorApprovedSubs.some(approved => {
+            const aClean = approved.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            return approved === chName || (aClean && chClean && (aClean === chClean || chClean.includes(aClean) || aClean.includes(chClean)));
+          });
+          return matchesApprovedSub;
+        });
+        if (matchesChild) return true;
+      }
+
+      return false;
+    });
+
+    if (filtered.length > 0) {
+      return filtered;
+    }
+
+    // Fallback only if no categories matched directly but vendor has approved subcategories
+    if (vendorApprovedSubs.length > 0) {
+      const subMatched = categories.filter(cat => {
+        if (!Array.isArray(cat.children)) return false;
+        return cat.children.some((ch: any) => {
+          const sName = String(ch.name || '').trim().toLowerCase();
+          const sClean = sName.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+          return vendorApprovedSubs.some(approved => {
+            const aClean = approved.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            return approved === sName || (aClean && sClean && (aClean === sClean || sClean.includes(aClean) || aClean.includes(sClean)));
+          });
+        });
+      });
+      if (subMatched.length > 0) return subMatched;
+    }
+
+    return vendorCategoryFilters.hasRestrictions ? filtered : categories;
+  }, [categories, vendorCategoryFilters, vendorApprovedSubs]);
+
+  // Auto-select category based on Vendor's business categories
+  useEffect(() => {
+    if (availableCategories.length > 0 && !editingProduct) {
+      if (!form.categoryId || !availableCategories.some(c => c._id === form.categoryId)) {
+        setForm((prev) => ({
+          ...prev,
+          categoryId: availableCategories[0]._id,
+          subCategoryId: '',
+          childCategoryId: ''
+        }));
+      }
+    }
+  }, [availableCategories, editingProduct, form.categoryId]);
 
   const selectedCategory = useMemo(
     () => categories.find((cat) => cat._id === form.categoryId),
     [categories, form.categoryId]
   );
-
-  const vendorApprovedSubs = useMemo(() => {
-    if (!profile) return [];
-    const rawList = Array.isArray(profile.approvedSubcategories) && profile.approvedSubcategories.length > 0
-      ? profile.approvedSubcategories
-      : Array.isArray(profile.subCategories) && profile.subCategories.length > 0
-        ? profile.subCategories
-        : profile.subCategory
-          ? [profile.subCategory]
-          : [];
-    return rawList.map((s: string) => String(s).trim().toLowerCase()).filter(Boolean);
-  }, [profile]);
 
   const rawSubCategories = selectedCategory?.children || [];
 
@@ -230,9 +408,16 @@ export const ProductManagement: React.FC = () => {
     if (!vendorApprovedSubs.length) return rawSubCategories;
     const filtered = rawSubCategories.filter((sub: any) => {
       const sName = String(sub.name || '').trim().toLowerCase();
-      return vendorApprovedSubs.some(approved =>
-        approved === sName || sName.includes(approved) || approved.includes(sName)
-      );
+      const sSlug = String(sub.slug || '').trim().toLowerCase();
+      const sClean = sName.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      return vendorApprovedSubs.some(approved => {
+        const aClean = approved.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+        return (
+          approved === sName ||
+          approved === sSlug ||
+          (aClean && sClean && (aClean === sClean || sClean.includes(aClean) || aClean.includes(sClean)))
+        );
+      });
     });
     return filtered.length > 0 ? filtered : rawSubCategories;
   }, [rawSubCategories, vendorApprovedSubs]);
@@ -245,7 +430,11 @@ export const ProductManagement: React.FC = () => {
       } else if (vendorApprovedSubs.length > 0) {
         const matchedSub = subCategories.find((sub: any) => {
           const sName = String(sub.name || '').trim().toLowerCase();
-          return vendorApprovedSubs.some(approved => approved === sName || sName.includes(approved) || approved.includes(sName));
+          const sClean = sName.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+          return vendorApprovedSubs.some(approved => {
+            const aClean = approved.replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+            return approved === sName || (aClean && sClean && (aClean === sClean || sClean.includes(aClean) || aClean.includes(sClean)));
+          });
         });
         if (matchedSub) {
           setForm((prev) => ({ ...prev, subCategoryId: matchedSub._id }));
@@ -253,6 +442,7 @@ export const ProductManagement: React.FC = () => {
       }
     }
   }, [subCategories, form.subCategoryId, editingProduct, vendorApprovedSubs]);
+
 
   const selectedSubCategory = useMemo(
     () => subCategories.find((cat: any) => cat._id === form.subCategoryId),
@@ -649,6 +839,29 @@ export const ProductManagement: React.FC = () => {
   };
 
   const handleToggleProductStatus = async (product: any) => {
+    // Verify product has completed both Admin approval and Vendor approval
+    const isApprovedByBoth =
+      (product.sellerPricingAccepted === true || product.status === 'Live' || product.status === 'Inactive' || (product.adminPricingApproved && product.status === 'Approved')) &&
+      product.status !== 'Awaiting Seller Approval' &&
+      product.status !== 'Pending Review' &&
+      product.status !== 'Draft' &&
+      product.status !== 'Rejected' &&
+      product.status !== 'Negotiation Requested' &&
+      product.status !== 'Vendor Edited' &&
+      product.status !== 'Updated - Pending Approval';
+
+    if (!isApprovedByBoth) {
+      if (product.status === 'Awaiting Seller Approval') {
+        setErrorMsg('Please review and accept pricing (Vendor approval) before enabling Store Status.');
+      } else if (product.status === 'Rejected') {
+        setErrorMsg('Cannot activate a rejected product.');
+      } else {
+        setErrorMsg('Store Status (ON/OFF) is only available after Admin approval and Vendor approval.');
+      }
+      setTimeout(() => setErrorMsg(''), 5000);
+      return;
+    }
+
     const isCurrentlyOn = product.isActive !== false && (product.status === 'Live' || product.status === 'Approved');
     const newActiveState = !isCurrentlyOn;
 
@@ -972,39 +1185,115 @@ export const ProductManagement: React.FC = () => {
                     )}
                   </td>
 
-                  {/* Store Status ON/OFF Button */}
+                  {/* Store Status ON/OFF Button - Only show after Admin approved and Vendor approved */}
                   <td className="p-3 text-center">
                     {(() => {
-                      const isProductOn = product.isActive !== false && (product.status === 'Live' || product.status === 'Approved');
-                      return (
-                        <div className="inline-flex flex-col items-center gap-1">
-                          <button
-                            type="button"
-                            disabled={togglingId === product._id || product.status === 'Rejected'}
-                            onClick={() => handleToggleProductStatus(product)}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs border ${isProductOn
-                              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/20 ring-2 ring-emerald-500/30'
-                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
-                              } ${togglingId === product._id ? 'opacity-60 cursor-wait' : ''} ${product.status === 'Rejected' ? 'opacity-40 cursor-not-allowed' : ''}`}
-                            title={
-                              product.status === 'Rejected'
-                                ? 'Rejected product cannot be turned on'
-                                : isProductOn
+                      const isApprovedByBoth =
+                        (product.sellerPricingAccepted === true || product.status === 'Live' || product.status === 'Inactive' || (product.adminPricingApproved && product.status === 'Approved')) &&
+                        product.status !== 'Awaiting Seller Approval' &&
+                        product.status !== 'Pending Review' &&
+                        product.status !== 'Draft' &&
+                        product.status !== 'Rejected' &&
+                        product.status !== 'Negotiation Requested' &&
+                        product.status !== 'Vendor Edited' &&
+                        product.status !== 'Updated - Pending Approval';
+
+                      // 1. Both Admin and Vendor Approved: Show the ON/OFF toggle switch
+                      if (isApprovedByBoth) {
+                        const isProductOn = product.isActive !== false && (product.status === 'Live' || product.status === 'Approved');
+                        return (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={togglingId === product._id}
+                              onClick={() => handleToggleProductStatus(product)}
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer shadow-xs border ${isProductOn
+                                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/20 ring-2 ring-emerald-500/30'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
+                                } ${togglingId === product._id ? 'opacity-60 cursor-wait' : ''}`}
+                              title={
+                                isProductOn
                                   ? 'Click to turn OFF (Hide from ApexBee website)'
                                   : 'Click to turn ON (Show in ApexBee website)'
-                            }
-                          >
-                            <span
-                              className={`w-2 h-2 rounded-full ${isProductOn ? 'bg-slate-950 animate-pulse' : 'bg-rose-400'
-                                }`}
-                            />
-                            <span>{isProductOn ? 'ON' : 'OFF'}</span>
-                            {togglingId === product._id && (
-                              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-0.5" />
-                            )}
-                          </button>
+                              }
+                            >
+                              <span
+                                className={`w-2 h-2 rounded-full ${isProductOn ? 'bg-slate-950 animate-pulse' : 'bg-rose-400'
+                                  }`}
+                              />
+                              <span>{isProductOn ? 'ON' : 'OFF'}</span>
+                              {togglingId === product._id && (
+                                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-0.5" />
+                              )}
+                            </button>
+                            <span className="text-[9px] font-semibold text-muted-foreground">
+                              {isProductOn ? 'Live on Store' : 'Hidden from Store'}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // 2. Admin approved pricing, but waiting for Vendor (Seller) approval
+                      if (
+                        product.status === 'Awaiting Seller Approval' ||
+                        (product.adminPricingApproved && !product.sellerPricingAccepted && product.status !== 'Rejected' && product.status !== 'Negotiation Requested')
+                      ) {
+                        return (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedProduct(product);
+                                setShowPricingView(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/40 hover:border-indigo-400 transition-all cursor-pointer shadow-xs active:scale-95"
+                              title="Admin approved! Review and accept pricing to enable Store Status (ON/OFF)"
+                            >
+                              <span>👉 Accept Pricing</span>
+                            </button>
+                            <span className="text-[9px] font-semibold text-indigo-400">
+                              Vendor Approval Needed
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // 3. Negotiation Requested
+                      if (product.status === 'Negotiation Requested') {
+                        return (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                              💬 In Negotiation
+                            </span>
+                            <span className="text-[9px] font-semibold text-muted-foreground">
+                              Admin Reviewing
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // 4. Rejected by Admin
+                      if (product.status === 'Rejected' || product.moderationStatus === 'rejected') {
+                        return (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                              ❌ Rejected
+                            </span>
+                            <span className="text-[9px] font-semibold text-rose-400/80">
+                              Admin Declined
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // 5. Default / Draft / Pending Review: Awaiting Admin Approval
+                      return (
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            ⏳ Pending Admin
+                          </span>
                           <span className="text-[9px] font-semibold text-muted-foreground">
-                            {isProductOn ? 'Live on Store' : 'Hidden from Store'}
+                            Awaiting Admin Approval
                           </span>
                         </div>
                       );
@@ -1321,9 +1610,58 @@ export const ProductManagement: React.FC = () => {
                       </h3>
 
                       <div className="space-y-4">
+                        {/* 🔘 Clickable Main Category Tabs for Approved Categories */}
+                        {availableCategories.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                Main Category <span className="text-amber-400">*</span>
+                                {availableCategories.length > 1 ? (
+                                  <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded-full">
+                                    {availableCategories.length} Categories Permitted
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                                    1 Category Permitted
+                                  </span>
+                                )}
+                              </label>
+                              {availableCategories.length > 1 && (
+                                <span className="text-[10px] text-blue-300">Tap chip to switch</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {availableCategories.map((cat) => {
+                                const isSelected = form.categoryId === cat._id;
+                                return (
+                                  <button
+                                    key={cat._id}
+                                    type="button"
+                                    onClick={() =>
+                                      setForm({
+                                        ...form,
+                                        categoryId: cat._id,
+                                        subCategoryId: '',
+                                        childCategoryId: '',
+                                      })
+                                    }
+                                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${isSelected
+                                      ? 'bg-amber-400 text-blue-950 ring-2 ring-amber-400/50 scale-105'
+                                      : 'bg-slate-900 text-slate-200 border border-blue-900/60 hover:bg-slate-800'
+                                      }`}
+                                  >
+                                    <span>{isSelected ? "✓" : "📁"}</span>
+                                    <span>{cat.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Main Category <span className="text-amber-400">*</span>
+                            Category Selection {availableCategories.length > 1 ? "(or select from dropdown)" : ""}
                           </label>
                           <select
                             value={form.categoryId}
@@ -1335,12 +1673,14 @@ export const ProductManagement: React.FC = () => {
                                 childCategoryId: '',
                               })
                             }
-                            disabled={Boolean(form.categoryId && (profile?.primaryCategory || profile?.category))}
-                            className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                            disabled={availableCategories.length <= 1}
+                            className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none disabled:opacity-75"
                             required
                           >
-                            <option value="">-- Select Category --</option>
-                            {categories.map((cat) => (
+                            {availableCategories.length > 1 && (
+                              <option value="">-- Select Category --</option>
+                            )}
+                            {availableCategories.map((cat) => (
                               <option key={cat._id} value={cat._id}>
                                 {cat.name}
                               </option>

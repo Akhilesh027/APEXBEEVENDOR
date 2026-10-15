@@ -27,7 +27,8 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
   onBack
 }) => {
   const [agreedTerms, setAgreedTerms] = useState<boolean>(true);
-  const [paymentMethod, setPaymentMethod] = useState<string>('UPI');
+  const [paymentMethod, setPaymentMethod] = useState<string>('Razorpay');
+  const [isPaying, setIsPaying] = useState<boolean>(false);
   const [upiIdInput, setUpiIdInput] = useState<string>('');
 
   const rawBase = (productObj as any)?.yearlyPrice || (productObj as any)?.monthlyPrice || (productObj as any)?.price || 0;
@@ -195,10 +196,8 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
 
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'UPI', label: 'UPI (GPay / PhonePe)' },
-                { id: 'Credit Card', label: 'Credit / Debit Card' },
-                { id: 'Net Banking', label: 'Net Banking' },
-                { id: 'Wallet', label: 'Vendor Wallet' }
+                { id: 'Razorpay', label: 'Online (UPI / Cards / NetBanking)' },
+                { id: 'Wallet', label: 'Vendor Wallet Credits' }
               ].map((m) => (
                 <button
                   key={m.id}
@@ -241,48 +240,54 @@ export const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
             </span>
           </label>
 
-          {/* Mock Simulation Buttons Bar */}
-          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-2 text-xs">
-            <span className="font-extrabold text-amber-900 dark:text-amber-200 block">
-              🧪 Verification Mode: Choose Payment Outcome Simulation
-            </span>
-            <div className="flex flex-col gap-2">
-              <button
-                disabled={!agreedTerms}
-                onClick={() => onProceedPayment(paymentMethod, 'SUCCESS')}
-                className={`w-full py-3 rounded-2xl font-black text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  agreedTerms
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    : 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" /> Simulate Payment Success
-              </button>
+          {/* Razorpay Pay Now Button */}
+          <div className="p-5 rounded-3xl bg-slate-900 border border-amber-500/30 shadow-xl space-y-3 text-xs">
+            <div className="flex items-center justify-between text-white pb-1">
+              <span className="font-bold flex items-center gap-1.5 text-amber-300">
+                <Lock className="w-3.5 h-3.5 text-emerald-400" /> 100% Encrypted & Secure
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                Razorpay Checkout
+              </span>
+            </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  disabled={!agreedTerms}
-                  onClick={() => onProceedPayment(paymentMethod, 'FAILED')}
-                  className={`py-2 rounded-xl font-bold text-xs border transition ${
-                    agreedTerms
-                      ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  Simulate Payment Failure
-                </button>
-                <button
-                  disabled={!agreedTerms}
-                  onClick={() => onProceedPayment(paymentMethod, 'PENDING')}
-                  className={`py-2 rounded-xl font-bold text-xs border transition ${
-                    agreedTerms
-                      ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200 dark:bg-amber-950/50 dark:text-amber-300'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  Simulate Pending Payment
-                </button>
-              </div>
+            <button
+              disabled={!agreedTerms || isPaying}
+              onClick={async () => {
+                try {
+                  setIsPaying(true);
+                  await onProceedPayment(paymentMethod, 'SUCCESS');
+                } catch (err: any) {
+                  console.error('Payment error:', err);
+                } finally {
+                  setIsPaying(false);
+                }
+              }}
+              className={`w-full py-3.5 rounded-2xl font-black text-sm shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                agreedTerms && !isPaying
+                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 shadow-amber-500/20 active:scale-[0.98]'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
+              }`}
+            >
+              {isPaying ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <span>Processing Razorpay Checkout...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Pay ₹{activeQuote.finalPayableAmount.toLocaleString('en-IN')} via Razorpay</span>
+                </>
+              )}
+            </button>
+
+            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium">
+              <span>UPI (GPay / PhonePe)</span>
+              <span>•</span>
+              <span>Credit & Debit Cards</span>
+              <span>•</span>
+              <span>NetBanking</span>
             </div>
           </div>
         </div>

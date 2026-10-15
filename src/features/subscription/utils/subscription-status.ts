@@ -7,18 +7,13 @@ export interface StatusBadgeProps {
 }
 
 export const getStatusBadgeProps = (status: SubscriptionStatus): StatusBadgeProps => {
-  switch (status) {
     case 'ACTIVE':
+    case 'TRIAL':
+    case 'TRIALING':
       return {
         label: 'Active',
         className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
         dotColor: 'bg-emerald-500'
-      };
-    case 'TRIALING':
-      return {
-        label: 'Trial Mode',
-        className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
-        dotColor: 'bg-blue-500'
       };
     case 'PENDING_PAYMENT':
       return {

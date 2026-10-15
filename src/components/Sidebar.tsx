@@ -12,7 +12,6 @@ import {
   HelpCircle,
   CreditCard,
   PlusCircle,
-  Sparkles,
   Menu,
   X,
   Coins,
@@ -31,7 +30,8 @@ import {
   QrCode,
   MapPin,
   Search,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Receipt
 } from 'lucide-react';
 import { useSubscription } from '../features/subscription/hooks/useSubscription';
 import { Badge } from './ui/Badge';
@@ -53,9 +53,6 @@ interface NavSection {
 
 export const Sidebar: React.FC = () => {
   const { currentPage, setCurrentPage, products, orders, profile } = useVendor();
-  const { summary } = useSubscription();
-  const activePlanName = summary?.planName || '15-Day Free Trial';
-  const activePlanStatus = summary?.status || 'TRIAL';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -117,7 +114,7 @@ export const Sidebar: React.FC = () => {
     {
       title: 'FINANCE & WALLET',
       items: [
-        { id: 'subscriptions', label: 'Subscription Plan', icon: <CreditCard className="h-4 w-4 text-indigo-400" /> },
+        { id: 'subscriptions', label: 'Payment Links & Invoices', icon: <Receipt className="h-4 w-4 text-amber-400" /> },
         { id: 'wallet', label: 'Wallet & Payout Requests', icon: <Wallet className="h-4 w-4 text-amber-400" /> },
         { id: 'settlements', label: 'Settlement History', icon: <Coins className="h-4 w-4 text-emerald-400" /> },
         { id: 'earnings', label: 'Earnings & Commissions', icon: <TrendingUp className="h-4 w-4 text-blue-400" /> },
@@ -271,29 +268,7 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* Active Plan Card */}
-        <div
-          onClick={() => handlePageClick('subscriptions')}
-          className="mx-3 my-2 p-2.5 rounded-xl bg-blue-900/50 border border-blue-800/40 hover:bg-blue-900/80 cursor-pointer transition-all flex items-center justify-between group shadow-sm shrink-0"
-          title="Click to manage active subscription plan"
-        >
-          <div className="flex items-center gap-2 overflow-hidden">
-            <div className="h-7 w-7 rounded-lg bg-amber-400 text-blue-950 flex items-center justify-center shrink-0 font-black shadow-xs">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col truncate">
-              <span className="text-[9px] uppercase tracking-wider font-black text-amber-300">
-                Active Plan
-              </span>
-              <span className="text-xs font-extrabold text-white group-hover:text-amber-300 transition-colors truncate">
-                {activePlanName}
-              </span>
-            </div>
-          </div>
-          <span className="text-[9px] px-1.5 py-0.5 rounded font-black uppercase bg-amber-400 text-blue-950 shrink-0 ml-1">
-            {activePlanStatus}
-          </span>
-        </div>
+
 
         {renderNavItems()}
       </aside>
@@ -315,21 +290,7 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
 
-            <div
-              onClick={() => handlePageClick('subscriptions')}
-              className="mx-3 my-2 p-2.5 rounded-xl bg-blue-900/60 border border-blue-800/40 cursor-pointer flex items-center justify-between shadow-sm"
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
-                <div className="flex flex-col truncate">
-                  <span className="text-[9px] font-black text-amber-300 uppercase">Active Plan</span>
-                  <span className="text-xs font-bold text-white truncate">{activePlanName}</span>
-                </div>
-              </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded font-black uppercase bg-amber-400 text-blue-950">
-                {activePlanStatus}
-              </span>
-            </div>
+
 
             {renderNavItems()}
           </aside>

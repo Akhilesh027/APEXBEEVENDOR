@@ -1,19 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
-import { useSubscription } from '../features/subscription/hooks/useSubscription';
-import { Search, LogOut, User, Settings, Sparkles, Store, PhoneCall, ShieldCheck } from 'lucide-react';
+import { Search, LogOut, User, Settings, Store, PhoneCall, ShieldCheck } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Navbar: React.FC = () => {
   const { profile, logout, setCurrentPage } = useVendor();
-  const { summary } = useSubscription();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const activePlanName = summary?.planName || '15-Day Free Trial';
-  const activePlanStatus = summary?.status || 'TRIAL';
 
   const getAuthUser = () => {
     try {
@@ -131,17 +126,6 @@ export const Navbar: React.FC = () => {
           </span>
         </button>
 
-        {/* Active Subscription Badge */}
-        <button
-          onClick={() => setCurrentPage('subscription')}
-          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-extrabold bg-blue-900/60 text-amber-300 hover:bg-blue-900 transition-all cursor-pointer shadow-xs"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-          <span>{activePlanName}</span>
-          <span className="text-[9px] px-1.5 py-0.2 rounded font-black uppercase bg-amber-400 text-blue-950 ml-0.5">
-            {activePlanStatus}
-          </span>
-        </button>
 
         {/* 1-Tap Call Support Button */}
         <button
