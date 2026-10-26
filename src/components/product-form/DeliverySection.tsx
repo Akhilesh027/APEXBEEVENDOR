@@ -175,63 +175,230 @@ export const DeliverySection: React.FC<DeliverySectionProps> = ({ policy, onChan
 
       {/* 📅 PRE-ORDER FULFILLMENT RULES CONFIGURATION */}
       {policy.isPreOrder && (
-        <div className="p-4 rounded-xl border border-purple-400/40 bg-gradient-to-br from-slate-900 via-purple-950/30 to-blue-950 space-y-3.5 text-xs shadow-lg">
+        <div className="p-4 rounded-xl border border-purple-400/40 bg-gradient-to-br from-slate-900 via-purple-950/30 to-blue-950 space-y-4 text-xs shadow-lg">
           <div className="flex items-center justify-between border-b border-purple-400/20 pb-2">
             <div className="font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5 text-xs">
-              <span>📅</span> Pre-Order Fulfillment & Dispatch Schedule
+              <span>📅</span> Pre-Order Fulfillment & Bakery Schedule
             </div>
             <span className="text-[10px] font-bold bg-purple-500/20 text-purple-200 border border-purple-400/30 px-2 py-0.5 rounded-md">
               Visible on Customer Product Card & Details
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-200">
-            <div>
-              <label className="block text-xs font-bold text-purple-200 mb-1">
-                Expected Release / Shipping Date <span className="text-amber-400">*</span>
-              </label>
-              <input
-                type="date"
-                min={new Date().toISOString().split('T')[0]}
-                value={policy.preOrderReleaseDate ? String(policy.preOrderReleaseDate).split('T')[0] : ''}
-                onChange={(e) => onChange({ ...policy, preOrderReleaseDate: e.target.value })}
-                required
-                className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
-              />
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Date when stock arrives and customer delivery begins.
-              </p>
-            </div>
+          {/* Pre-Order Type Selector */}
+          <div>
+            <label className="block text-xs font-bold text-purple-200 mb-1.5">
+              Select Pre-Order Scheduling Model <span className="text-amber-400">*</span>
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => onChange({ ...policy, preOrderType: 'ADVANCE_NOTICE' })}
+                className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                  (policy.preOrderType || 'ADVANCE_NOTICE') === 'ADVANCE_NOTICE'
+                    ? 'border-purple-400 bg-purple-600/20 text-white ring-1 ring-purple-400'
+                    : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <span className="font-extrabold text-xs text-purple-200 flex items-center gap-1">
+                  <span>🎂</span> Advance Notice Days
+                </span>
+                <span className="text-[10px] text-slate-300">
+                  e.g. Order before 2 days (custom cakes, catering, bakery)
+                </span>
+              </button>
 
+              <button
+                type="button"
+                onClick={() => onChange({ ...policy, preOrderType: 'DAILY_CUTOFF' })}
+                className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                  policy.preOrderType === 'DAILY_CUTOFF'
+                    ? 'border-purple-400 bg-purple-600/20 text-white ring-1 ring-purple-400'
+                    : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <span className="font-extrabold text-xs text-purple-200 flex items-center gap-1">
+                  <span>🌅</span> Daily Cutoff / Next-Day
+                </span>
+                <span className="text-[10px] text-slate-300">
+                  e.g. Order before 6 PM today for tomorrow morning
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onChange({ ...policy, preOrderType: 'RELEASE_DATE' })}
+                className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 cursor-pointer ${
+                  policy.preOrderType === 'RELEASE_DATE'
+                    ? 'border-purple-400 bg-purple-600/20 text-white ring-1 ring-purple-400'
+                    : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <span className="font-extrabold text-xs text-purple-200 flex items-center gap-1">
+                  <span>🚀</span> Fixed Launch Date
+                </span>
+                <span className="text-[10px] text-slate-300">
+                  e.g. Festival hamper or book releasing on a fixed date
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-200">
+            {/* Advance Notice Type Fields */}
+            {(policy.preOrderType || 'ADVANCE_NOTICE') === 'ADVANCE_NOTICE' && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-purple-200 mb-1">
+                    Minimum Notice Required Before Delivery <span className="text-amber-400">*</span>
+                  </label>
+                  <select
+                    value={policy.preOrderLeadTimeDays || 2}
+                    onChange={(e) => onChange({ ...policy, preOrderLeadTimeDays: Number(e.target.value) })}
+                    className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none font-semibold cursor-pointer"
+                  >
+                    <option value={1}>1 Day Notice (Tomorrow Delivery)</option>
+                    <option value={2}>2 Days Notice (Recommended for Cakes & Bakes)</option>
+                    <option value={3}>3 Days Notice (Designer / Fondant Cakes)</option>
+                    <option value={4}>4 Days Notice</option>
+                    <option value={5}>5 Days Notice</option>
+                    <option value={7}>7 Days Notice (Weekly Bulk Orders)</option>
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Customers can only pick dates that are at least <strong>{policy.preOrderLeadTimeDays || 2} days</strong> ahead.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-purple-200 mb-1">
+                    Daily Order Cut-off Time
+                  </label>
+                  <input
+                    type="time"
+                    value={policy.preOrderDailyCutoffTime || '18:00'}
+                    onChange={(e) => onChange({ ...policy, preOrderDailyCutoffTime: e.target.value })}
+                    className="w-full p-2 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Orders placed after this time add an extra 1 day to the minimum lead time.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Daily Cutoff Mode Fields */}
+            {policy.preOrderType === 'DAILY_CUTOFF' && (
+              <div>
+                <label className="block text-xs font-bold text-purple-200 mb-1">
+                  Cut-off Time for Next-Day Dispatch <span className="text-amber-400">*</span>
+                </label>
+                <input
+                  type="time"
+                  value={policy.preOrderDailyCutoffTime || '20:00'}
+                  onChange={(e) => onChange({ ...policy, preOrderDailyCutoffTime: e.target.value })}
+                  className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Orders placed before this time will be fulfilled tomorrow morning.
+                </p>
+              </div>
+            )}
+
+            {/* Fixed Release Date Mode Fields */}
+            {policy.preOrderType === 'RELEASE_DATE' && (
+              <div>
+                <label className="block text-xs font-bold text-purple-200 mb-1">
+                  Expected Release / Shipping Date <span className="text-amber-400">*</span>
+                </label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={policy.preOrderReleaseDate ? String(policy.preOrderReleaseDate).split('T')[0] : ''}
+                  onChange={(e) => onChange({ ...policy, preOrderReleaseDate: e.target.value })}
+                  required
+                  className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Date when stock arrives and customer delivery begins.
+                </p>
+              </div>
+            )}
+
+            {/* Max Pre-Order Limit */}
             <div>
               <label className="block text-xs font-bold text-purple-200 mb-1">
-                Max Pre-Order Quota / Limit (Optional)
+                Max Daily Pre-Order Capacity (Optional)
               </label>
               <input
                 type="number"
                 min={0}
-                placeholder="e.g. 50 (leave 0 for unlimited)"
+                placeholder="e.g. 10 (leave empty for unlimited)"
                 value={policy.preOrderLimit ?? ''}
                 onChange={(e) => onChange({ ...policy, preOrderLimit: e.target.value })}
                 className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
               />
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Maximum units available for advance booking.
+              <p className="text-[10px] text-slate-400 mt-1">
+                Maximum units you can prepare and fulfill per day.
               </p>
             </div>
 
+            {/* Additional Features: Cake Inscription & Time Slot Toggles */}
+            <div className="md:col-span-2 pt-2 border-t border-purple-400/20 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-purple-500/30 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={policy.preOrderAllowCustomMessage !== false}
+                  onChange={(e) => onChange({ ...policy, preOrderAllowCustomMessage: e.target.checked })}
+                  className="rounded text-purple-400 focus:ring-purple-400 bg-slate-900 border-purple-400"
+                />
+                <div>
+                  <span className="font-bold text-purple-200 text-xs">Allow Custom Customer Note / Instructions</span>
+                  <p className="text-[10px] text-slate-400">Auto-tailored to product (e.g. Message on cake, gift greeting, cooking requests)</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-purple-500/30 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={policy.preOrderAllowTimeSlot !== false}
+                  onChange={(e) => onChange({ ...policy, preOrderAllowTimeSlot: e.target.checked })}
+                  className="rounded text-purple-400 focus:ring-purple-400 bg-slate-900 border-purple-400"
+                />
+                <div>
+                  <span className="font-bold text-purple-200 text-xs">Allow Delivery Time Slot Choice</span>
+                  <p className="text-[10px] text-slate-400">Morning (9am-1pm) / Afternoon (1pm-5pm) / Evening (5pm-9pm)</p>
+                </div>
+              </label>
+            </div>
+
+            {policy.preOrderAllowCustomMessage !== false && (
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-purple-200 mb-1">
+                  Custom Input Field Label (Optional Override)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Auto-detected based on product (e.g. Message on Cake, Gift Note, Cooking Instructions)"
+                  value={policy.preOrderCustomMessageLabel || ''}
+                  onChange={(e) => onChange({ ...policy, preOrderCustomMessageLabel: e.target.value })}
+                  className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none placeholder:text-slate-500"
+                />
+              </div>
+            )}
+
+            {/* Pre-Order Notice Message */}
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-purple-200 mb-1">
                 Pre-Order Notice / Message for Customers
               </label>
               <input
                 type="text"
-                placeholder="e.g. Special festive batch dispatching on Diwali week. Limited booking."
+                placeholder="e.g. Freshly baked on the morning of delivery. Order at least 2 days prior."
                 value={policy.preOrderMessage || ''}
                 onChange={(e) => onChange({ ...policy, preOrderMessage: e.target.value })}
                 className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
               />
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-[10px] text-slate-400 mt-1">
                 Shown prominently on the product card, details page, and checkout.
               </p>
             </div>

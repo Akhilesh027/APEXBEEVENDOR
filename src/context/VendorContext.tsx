@@ -1890,7 +1890,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: email.trim(),
           password,
         }),
       });
@@ -1904,13 +1904,31 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const token = data.token;
       const user = data.user;
 
-      const userRoles = user.roles || [user.role];
+      const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
 
-      const permittedRoles = ['vendor', 'wholesaler', 'manufacturer', 'admin'];
+      const permittedRoles = [
+        'vendor',
+        'wholesaler',
+        'manufacturer',
+        'admin',
+        'food_partner',
+        'food_staff',
+        'service_provider',
+        'seller',
+        'merchant',
+        'business_partner',
+        'store_owner',
+        'retailer',
+        'franchise',
+        'state_franchise',
+        'district_franchise',
+        'mandal_franchise',
+        'entrepreneur'
+      ];
 
       const hasRole = userRoles.some((r: string) =>
-        permittedRoles.includes(String(r).toLowerCase())
-      );
+        permittedRoles.includes(String(r).toLowerCase().trim())
+      ) || Boolean(user.sellerProfile);
 
       if (!hasRole) {
         throw new Error('Access Denied: You do not have an active vendor profile.');
@@ -1944,7 +1962,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: email.trim(),
         }),
       });
 
@@ -1973,7 +1991,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: email.trim(),
           otp: otp.trim(),
         }),
       });
@@ -1987,11 +2005,29 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const token = data.token;
       const user = data.user;
 
-      const userRoles = user.roles || [user.role];
-      const permittedRoles = ['vendor', 'wholesaler', 'manufacturer', 'admin', 'food_partner', 'service_provider'];
+      const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+      const permittedRoles = [
+        'vendor',
+        'wholesaler',
+        'manufacturer',
+        'admin',
+        'food_partner',
+        'food_staff',
+        'service_provider',
+        'seller',
+        'merchant',
+        'business_partner',
+        'store_owner',
+        'retailer',
+        'franchise',
+        'state_franchise',
+        'district_franchise',
+        'mandal_franchise',
+        'entrepreneur'
+      ];
       const hasRole = userRoles.some((r: string) =>
-        permittedRoles.includes(String(r).toLowerCase())
-      );
+        permittedRoles.includes(String(r).toLowerCase().trim())
+      ) || Boolean(user.sellerProfile);
 
       if (!hasRole) {
         throw new Error('Access Denied: You do not have an active vendor profile.');

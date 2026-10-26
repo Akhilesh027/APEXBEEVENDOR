@@ -130,8 +130,14 @@ export const ProductManagement: React.FC = () => {
     stock: '',
     sellerType: 'vendor',
     isStoreProduct: true,
-    isSubscriptionAvailable: false,
     isPreOrder: false,
+    preOrderType: 'ADVANCE_NOTICE',
+    preOrderLeadTimeDays: 2,
+    preOrderLeadTimeHours: 24,
+    preOrderDailyCutoffTime: '18:00',
+    preOrderAllowTimeSlot: true,
+    preOrderAllowCustomMessage: true,
+    preOrderCustomMessageLabel: 'Message on Cake / Custom Instructions',
     preOrderReleaseDate: '',
     preOrderMessage: '',
     preOrderLimit: '',
@@ -601,6 +607,13 @@ export const ProductManagement: React.FC = () => {
       isStoreProduct: true,
       isSubscriptionAvailable: false,
       isPreOrder: false,
+      preOrderType: 'ADVANCE_NOTICE',
+      preOrderLeadTimeDays: 2,
+      preOrderLeadTimeHours: 24,
+      preOrderDailyCutoffTime: '18:00',
+      preOrderAllowTimeSlot: true,
+      preOrderAllowCustomMessage: true,
+      preOrderCustomMessageLabel: 'Message on Cake / Custom Instructions',
       preOrderReleaseDate: '',
       preOrderMessage: '',
       preOrderLimit: '',
@@ -643,8 +656,15 @@ export const ProductManagement: React.FC = () => {
       isStoreProduct: !!product.isStoreProduct,
       isSubscriptionAvailable: !!product.isSubscriptionAvailable,
       isPreOrder: !!product.isPreOrder,
+      preOrderType: product.preOrderType || product.attributes?.preOrderType || 'ADVANCE_NOTICE',
+      preOrderLeadTimeDays: Number(product.preOrderLeadTimeDays || product.attributes?.preOrderLeadTimeDays || 2),
+      preOrderLeadTimeHours: Number(product.preOrderLeadTimeHours || product.attributes?.preOrderLeadTimeHours || 24),
+      preOrderDailyCutoffTime: product.preOrderDailyCutoffTime || product.attributes?.preOrderDailyCutoffTime || '18:00',
+      preOrderAllowTimeSlot: product.preOrderAllowTimeSlot !== false,
+      preOrderAllowCustomMessage: Boolean(product.preOrderAllowCustomMessage || product.attributes?.preOrderAllowCustomMessage),
+      preOrderCustomMessageLabel: product.preOrderCustomMessageLabel || product.attributes?.preOrderCustomMessageLabel || 'Message on Cake / Custom Instructions',
       preOrderReleaseDate: product.preOrderReleaseDate ? String(product.preOrderReleaseDate).split('T')[0] : '',
-      preOrderMessage: product.preOrderMessage || '',
+      preOrderMessage: product.preOrderMessage || product.attributes?.preOrderMessage || '',
       preOrderLimit: product.preOrderLimit ? String(product.preOrderLimit) : '',
       isSelfPickup: product.isSelfPickup !== false,
       deliveryScope: product.deliveryScope || (product.isPanIndia ? (product.isLocalDelivery !== false ? 'both' : 'pan_india') : 'local'),
@@ -791,8 +811,14 @@ export const ProductManagement: React.FC = () => {
       fd.append('sellerType', form.sellerType);
       fd.append('sellerId', user.id || user._id);
       fd.append('isStoreProduct', String(form.isStoreProduct));
-      fd.append('isSubscriptionAvailable', String(form.isSubscriptionAvailable));
       fd.append('isPreOrder', String(form.isPreOrder));
+      fd.append('preOrderType', form.preOrderType || 'ADVANCE_NOTICE');
+      fd.append('preOrderLeadTimeDays', String(Number(form.preOrderLeadTimeDays) || 1));
+      fd.append('preOrderLeadTimeHours', String(Number(form.preOrderLeadTimeHours) || 24));
+      fd.append('preOrderDailyCutoffTime', form.preOrderDailyCutoffTime || '18:00');
+      fd.append('preOrderAllowTimeSlot', String(form.preOrderAllowTimeSlot !== false));
+      fd.append('preOrderAllowCustomMessage', String(!!form.preOrderAllowCustomMessage));
+      fd.append('preOrderCustomMessageLabel', form.preOrderCustomMessageLabel || 'Message on Cake / Custom Instructions');
       fd.append('preOrderReleaseDate', form.preOrderReleaseDate || '');
       fd.append('preOrderMessage', form.preOrderMessage || '');
       fd.append('preOrderLimit', String(Number(form.preOrderLimit) || 0));
@@ -1154,7 +1180,7 @@ export const ProductManagement: React.FC = () => {
                           )}
                           {product.isPreOrder && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 text-[9px] font-extrabold uppercase tracking-wide">
-                              📅 Pre-Order {product.preOrderReleaseDate ? `(${new Date(product.preOrderReleaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})` : ''}
+                              📅 Pre-Order {product.preOrderType === 'ADVANCE_NOTICE' ? `(${product.preOrderLeadTimeDays || 2}d Notice)` : product.preOrderReleaseDate ? `(${new Date(product.preOrderReleaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})` : ''}
                             </span>
                           )}
                           {product.isActive !== false && (product.status === 'Live' || product.status === 'Approved') ? (
@@ -2123,6 +2149,13 @@ export const ProductManagement: React.FC = () => {
                         isLocalDelivery: form.isLocalDelivery,
                         isSubscriptionAvailable: form.isSubscriptionAvailable,
                         isPreOrder: form.isPreOrder,
+                        preOrderType: form.preOrderType,
+                        preOrderLeadTimeDays: form.preOrderLeadTimeDays,
+                        preOrderLeadTimeHours: form.preOrderLeadTimeHours,
+                        preOrderDailyCutoffTime: form.preOrderDailyCutoffTime,
+                        preOrderAllowTimeSlot: form.preOrderAllowTimeSlot,
+                        preOrderAllowCustomMessage: form.preOrderAllowCustomMessage,
+                        preOrderCustomMessageLabel: form.preOrderCustomMessageLabel,
                         preOrderReleaseDate: form.preOrderReleaseDate,
                         preOrderMessage: form.preOrderMessage,
                         preOrderLimit: form.preOrderLimit,
@@ -2140,6 +2173,13 @@ export const ProductManagement: React.FC = () => {
                           isSelfPickup: policy.storePickup,
                           isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled,
                           isPreOrder: !!policy.isPreOrder,
+                          preOrderType: policy.preOrderType !== undefined ? policy.preOrderType : form.preOrderType,
+                          preOrderLeadTimeDays: policy.preOrderLeadTimeDays !== undefined ? policy.preOrderLeadTimeDays : form.preOrderLeadTimeDays,
+                          preOrderLeadTimeHours: policy.preOrderLeadTimeHours !== undefined ? policy.preOrderLeadTimeHours : form.preOrderLeadTimeHours,
+                          preOrderDailyCutoffTime: policy.preOrderDailyCutoffTime !== undefined ? policy.preOrderDailyCutoffTime : form.preOrderDailyCutoffTime,
+                          preOrderAllowTimeSlot: policy.preOrderAllowTimeSlot !== undefined ? policy.preOrderAllowTimeSlot : form.preOrderAllowTimeSlot,
+                          preOrderAllowCustomMessage: policy.preOrderAllowCustomMessage !== undefined ? policy.preOrderAllowCustomMessage : form.preOrderAllowCustomMessage,
+                          preOrderCustomMessageLabel: policy.preOrderCustomMessageLabel !== undefined ? policy.preOrderCustomMessageLabel : form.preOrderCustomMessageLabel,
                           preOrderReleaseDate: policy.preOrderReleaseDate !== undefined ? policy.preOrderReleaseDate : form.preOrderReleaseDate,
                           preOrderMessage: policy.preOrderMessage !== undefined ? policy.preOrderMessage : form.preOrderMessage,
                           preOrderLimit: policy.preOrderLimit !== undefined ? policy.preOrderLimit : form.preOrderLimit,

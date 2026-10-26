@@ -51,8 +51,9 @@ export const Login: React.FC = () => {
   // Handle Send OTP
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email.trim()) {
-      setError('Please enter your registered email address.');
+    const cleanIdentifier = email.trim();
+    if (!cleanIdentifier) {
+      setError('Please enter your registered email address or mobile number.');
       return;
     }
 
@@ -61,12 +62,12 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await sendLoginOtp(email);
+      const res = await sendLoginOtp(cleanIdentifier);
       setOtpSent(true);
       setCountdown(60);
-      setSuccessMsg(res.message || `A verification OTP has been sent to ${email}`);
+      setSuccessMsg(res.message || `A verification OTP has been sent to ${cleanIdentifier}`);
     } catch (err: any) {
-      setError(err.message || 'You are not registered. Please register or apply for a seller account first.');
+      setError(err.message || 'Account not found. Please verify the entered details or register first.');
     } finally {
       setLoading(false);
     }
@@ -95,8 +96,9 @@ export const Login: React.FC = () => {
   // Handle Password Login (Fallback)
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setError('Please enter your email address');
+    const cleanIdentifier = email.trim();
+    if (!cleanIdentifier) {
+      setError('Please enter your registered email address or mobile number');
       return;
     }
     if (!password) {
@@ -107,7 +109,7 @@ export const Login: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      await login(cleanIdentifier, password);
     } catch (err: any) {
       setError(err.message || 'Failed to log in. Please check your credentials.');
     } finally {
@@ -292,12 +294,12 @@ export const Login: React.FC = () => {
                       /* STEP 1: Enter Email */
                       <form onSubmit={handleSendOtp} className="space-y-3.5">
                         <div className="space-y-1.5 text-left">
-                          <label className="text-xs font-bold text-muted-foreground">Registered Vendor Email</label>
+                          <label className="text-xs font-bold text-muted-foreground">Registered Email or Phone Number</label>
                           <div className="relative flex items-center">
                             <Mail className="absolute left-3 h-4 w-4 text-muted-foreground" />
                             <input
-                              type="email"
-                              placeholder="vendor@company.com"
+                              type="text"
+                              placeholder="vendor@company.com or 10-digit mobile"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               className="w-full bg-secondary/40 text-foreground border border-border hover:border-muted-foreground/50 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
@@ -399,12 +401,12 @@ export const Login: React.FC = () => {
                 {loginMode === 'password' && (
                   <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
                     <div className="space-y-1.5 text-left">
-                      <label className="text-xs font-bold text-muted-foreground">Email Address</label>
+                      <label className="text-xs font-bold text-muted-foreground">Registered Email or Phone Number</label>
                       <div className="relative flex items-center">
                         <Mail className="absolute left-3 h-4 w-4 text-muted-foreground" />
                         <input
-                          type="email"
-                          placeholder="name@company.com"
+                          type="text"
+                          placeholder="vendor@company.com or 10-digit mobile"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full bg-secondary/40 text-foreground border border-border hover:border-muted-foreground/50 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
