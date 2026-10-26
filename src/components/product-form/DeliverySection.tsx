@@ -11,6 +11,13 @@ interface DeliverySectionProps {
     isLocalDelivery?: boolean;
     isSubscriptionAvailable?: boolean;
     isPreOrder?: boolean;
+    preOrderType?: string;
+    preOrderLeadTimeDays?: number | string;
+    preOrderLeadTimeHours?: number | string;
+    preOrderDailyCutoffTime?: string;
+    preOrderAllowCustomMessage?: boolean;
+    preOrderAllowTimeSlot?: boolean;
+    preOrderCustomMessageLabel?: string;
     preOrderReleaseDate?: string;
     preOrderMessage?: string;
     preOrderLimit?: number | string;

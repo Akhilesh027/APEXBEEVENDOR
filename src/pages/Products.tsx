@@ -130,6 +130,7 @@ export const ProductManagement: React.FC = () => {
     stock: '',
     sellerType: 'vendor',
     isStoreProduct: true,
+    isSubscriptionAvailable: false,
     isPreOrder: false,
     preOrderType: 'ADVANCE_NOTICE',
     preOrderLeadTimeDays: 2,
