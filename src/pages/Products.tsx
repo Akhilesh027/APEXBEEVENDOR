@@ -131,6 +131,10 @@ export const ProductManagement: React.FC = () => {
     sellerType: 'vendor',
     isStoreProduct: true,
     isSubscriptionAvailable: false,
+    isPreOrder: false,
+    preOrderReleaseDate: '',
+    preOrderMessage: '',
+    preOrderLimit: '',
     isSelfPickup: true,
     deliveryScope: 'local',
     isLocalDelivery: true,
@@ -596,6 +600,10 @@ export const ProductManagement: React.FC = () => {
       sellerType: 'vendor',
       isStoreProduct: true,
       isSubscriptionAvailable: false,
+      isPreOrder: false,
+      preOrderReleaseDate: '',
+      preOrderMessage: '',
+      preOrderLimit: '',
       isSelfPickup: true,
       deliveryScope: 'local',
       isLocalDelivery: true,
@@ -634,6 +642,10 @@ export const ProductManagement: React.FC = () => {
       sellerType: product.sellerType || 'vendor',
       isStoreProduct: !!product.isStoreProduct,
       isSubscriptionAvailable: !!product.isSubscriptionAvailable,
+      isPreOrder: !!product.isPreOrder,
+      preOrderReleaseDate: product.preOrderReleaseDate ? String(product.preOrderReleaseDate).split('T')[0] : '',
+      preOrderMessage: product.preOrderMessage || '',
+      preOrderLimit: product.preOrderLimit ? String(product.preOrderLimit) : '',
       isSelfPickup: product.isSelfPickup !== false,
       deliveryScope: product.deliveryScope || (product.isPanIndia ? (product.isLocalDelivery !== false ? 'both' : 'pan_india') : 'local'),
       isLocalDelivery: product.isLocalDelivery !== undefined ? !!product.isLocalDelivery : (product.deliveryScope === 'local' || product.deliveryScope === 'both' || !product.deliveryScope),
@@ -780,6 +792,10 @@ export const ProductManagement: React.FC = () => {
       fd.append('sellerId', user.id || user._id);
       fd.append('isStoreProduct', String(form.isStoreProduct));
       fd.append('isSubscriptionAvailable', String(form.isSubscriptionAvailable));
+      fd.append('isPreOrder', String(form.isPreOrder));
+      fd.append('preOrderReleaseDate', form.preOrderReleaseDate || '');
+      fd.append('preOrderMessage', form.preOrderMessage || '');
+      fd.append('preOrderLimit', String(Number(form.preOrderLimit) || 0));
       fd.append('isSelfPickup', String(form.isSelfPickup));
       const calculatedScope = form.isLocalDelivery && form.isPanIndia ? 'both' : form.isPanIndia ? 'pan_india' : 'local';
       fd.append('deliveryScope', calculatedScope);
@@ -1134,6 +1150,11 @@ export const ProductManagement: React.FC = () => {
                           {product.isSubscriptionAvailable && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-600 text-[9px] font-extrabold uppercase tracking-wide">
                               🔁 Subscription
+                            </span>
+                          )}
+                          {product.isPreOrder && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 text-[9px] font-extrabold uppercase tracking-wide">
+                              📅 Pre-Order {product.preOrderReleaseDate ? `(${new Date(product.preOrderReleaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})` : ''}
                             </span>
                           )}
                           {product.isActive !== false && (product.status === 'Live' || product.status === 'Approved') ? (
@@ -2100,7 +2121,11 @@ export const ProductManagement: React.FC = () => {
                         fragile: false,
                         isPanIndia: form.isPanIndia,
                         isLocalDelivery: form.isLocalDelivery,
-                        isSubscriptionAvailable: form.isSubscriptionAvailable
+                        isSubscriptionAvailable: form.isSubscriptionAvailable,
+                        isPreOrder: form.isPreOrder,
+                        preOrderReleaseDate: form.preOrderReleaseDate,
+                        preOrderMessage: form.preOrderMessage,
+                        preOrderLimit: form.preOrderLimit,
                       }}
                       onChange={(policy) => {
                         const isLocal = policy.homeDelivery ?? policy.isLocalDelivery ?? true;
@@ -2113,7 +2138,11 @@ export const ProductManagement: React.FC = () => {
                           isPanIndia: isPan,
                           deliveryScope: calcScope,
                           isSelfPickup: policy.storePickup,
-                          isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled
+                          isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled,
+                          isPreOrder: !!policy.isPreOrder,
+                          preOrderReleaseDate: policy.preOrderReleaseDate !== undefined ? policy.preOrderReleaseDate : form.preOrderReleaseDate,
+                          preOrderMessage: policy.preOrderMessage !== undefined ? policy.preOrderMessage : form.preOrderMessage,
+                          preOrderLimit: policy.preOrderLimit !== undefined ? policy.preOrderLimit : form.preOrderLimit,
                         });
                       }}
                     />

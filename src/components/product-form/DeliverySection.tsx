@@ -10,6 +10,10 @@ interface DeliverySectionProps {
     isPanIndia?: boolean;
     isLocalDelivery?: boolean;
     isSubscriptionAvailable?: boolean;
+    isPreOrder?: boolean;
+    preOrderReleaseDate?: string;
+    preOrderMessage?: string;
+    preOrderLimit?: number | string;
     cutoffTime?: string;
     deliverySlots?: string[];
   };
@@ -139,6 +143,25 @@ export const DeliverySection: React.FC<DeliverySectionProps> = ({ policy, onChan
           </div>
         </label>
 
+        {/* 📦 PRE-ORDER AVAILABILITY TOGGLE */}
+        <label className="flex items-center space-x-2.5 cursor-pointer p-3.5 rounded-xl bg-gradient-to-r from-purple-500/10 via-indigo-600/10 to-purple-600/10 border border-purple-400/40 hover:border-purple-400 transition-all md:col-span-2">
+          <input
+            type="checkbox"
+            checked={!!policy.isPreOrder}
+            onChange={() => togglePolicy('isPreOrder')}
+            className="h-4.5 w-4.5 rounded text-purple-400 focus:ring-purple-400 bg-slate-950 border-purple-400 cursor-pointer"
+          />
+          <div className="flex flex-col">
+            <span className="text-purple-300 font-extrabold text-xs flex items-center gap-1.5">
+              <span>📅 Enable Pre-Order (Advance Booking)</span>
+              <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.2 rounded font-black tracking-wider uppercase">ADVANCE BOOKING</span>
+            </span>
+            <span className="text-[10px] text-slate-300 font-normal">
+              Accept orders and advance payments before stock arrives. Product will be marked as Pre-Order with expected dispatch date.
+            </span>
+          </div>
+        </label>
+
         <label className="flex items-center space-x-2.5 cursor-pointer p-3.5 rounded-xl bg-slate-900 border border-rose-500/40 hover:border-rose-400 transition-all text-rose-300">
           <input
             type="checkbox"
@@ -149,6 +172,72 @@ export const DeliverySection: React.FC<DeliverySectionProps> = ({ policy, onChan
           <span>Fragile / Special Care</span>
         </label>
       </div>
+
+      {/* 📅 PRE-ORDER FULFILLMENT RULES CONFIGURATION */}
+      {policy.isPreOrder && (
+        <div className="p-4 rounded-xl border border-purple-400/40 bg-gradient-to-br from-slate-900 via-purple-950/30 to-blue-950 space-y-3.5 text-xs shadow-lg">
+          <div className="flex items-center justify-between border-b border-purple-400/20 pb-2">
+            <div className="font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+              <span>📅</span> Pre-Order Fulfillment & Dispatch Schedule
+            </div>
+            <span className="text-[10px] font-bold bg-purple-500/20 text-purple-200 border border-purple-400/30 px-2 py-0.5 rounded-md">
+              Visible on Customer Product Card & Details
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-200">
+            <div>
+              <label className="block text-xs font-bold text-purple-200 mb-1">
+                Expected Release / Shipping Date <span className="text-amber-400">*</span>
+              </label>
+              <input
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={policy.preOrderReleaseDate ? String(policy.preOrderReleaseDate).split('T')[0] : ''}
+                onChange={(e) => onChange({ ...policy, preOrderReleaseDate: e.target.value })}
+                required
+                className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Date when stock arrives and customer delivery begins.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-purple-200 mb-1">
+                Max Pre-Order Quota / Limit (Optional)
+              </label>
+              <input
+                type="number"
+                min={0}
+                placeholder="e.g. 50 (leave 0 for unlimited)"
+                value={policy.preOrderLimit ?? ''}
+                onChange={(e) => onChange({ ...policy, preOrderLimit: e.target.value })}
+                className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Maximum units available for advance booking.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-purple-200 mb-1">
+                Pre-Order Notice / Message for Customers
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Special festive batch dispatching on Diwali week. Limited booking."
+                value={policy.preOrderMessage || ''}
+                onChange={(e) => onChange({ ...policy, preOrderMessage: e.target.value })}
+                className="w-full p-2.5 text-xs rounded-xl border border-purple-500/50 bg-slate-900 text-white focus:ring-2 focus:ring-purple-400/50 outline-none"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Shown prominently on the product card, details page, and checkout.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 📜 SUBSCRIPTION FULFILLMENT & DELIVERY RULES CONFIGURATION */}
       {(policy.isSubscriptionAvailable ?? policy.scheduled) && (

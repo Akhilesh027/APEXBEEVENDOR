@@ -131,6 +131,10 @@ export const DynamicProductFormContainer: React.FC<DynamicProductFormContainerPr
       fssaiNumber,
       gstNumber,
       deliveryPolicy,
+      isPreOrder: deliveryPolicy?.isPreOrder || false,
+      preOrderReleaseDate: deliveryPolicy?.preOrderReleaseDate || null,
+      preOrderMessage: deliveryPolicy?.preOrderMessage || '',
+      preOrderLimit: deliveryPolicy?.preOrderLimit || 0,
       customizationPolicy,
       productMode: schema?.productMode || 'standard',
     };
