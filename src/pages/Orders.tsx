@@ -1,3 +1,9 @@
+import { businessId, orderInBusiness } from '../services/businessPortal';
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { useOperationalAlerts } from '../context/OperationalAlertsContext';
+import { NeedsAttention } from '../components/OperationalAlerts';
+import { workspaceRequest } from '../services/workspaceService';
+import { mapVendorOrder } from '../services/vendorOrder';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent } from '../components/ui/Card';
@@ -38,8 +44,8 @@ const normalizeStatus = (status?: string) => {
 
 export const Orders: React.FC = () => {
   const {
-    orders,
-    products,
+    orders: allOrders,
+    products: allProducts,
     deliveryAgents,
     acceptOrder,
     packOrder,
@@ -47,11 +53,19 @@ export const Orders: React.FC = () => {
     deliverOrder,
     approveReturn,
     rejectReturn,
-    vendorSubscriptions,
+    vendorSubscriptions: allVendorSubscriptions,
     assignSubscriptionDelivery,
     currentPage,
+    profile,
   } = useVendor();
 
+  const isVendorSelfDelivery = profile?.deliveryMode === 'self_delivery' || !!profile?.isSelfDelivery;
+
+  const { productIds } = useBusinessWorkspace();
+  const { target, clearTarget } = useOperationalAlerts();
+  const products = useMemo(() => productIds ? allProducts.filter(p => productIds.includes(p.id)) : allProducts, [allProducts, productIds]);
+  const orders = useMemo(() => productIds ? allOrders.filter(o => orderInBusiness(o, productIds)) : allOrders, [allOrders, productIds]);
+  const vendorSubscriptions = useMemo(() => productIds ? allVendorSubscriptions.filter((sub: any) => productIds.includes(businessId(sub.productId))) : allVendorSubscriptions, [allVendorSubscriptions, productIds]);
   const mainView = React.useMemo(() => {
     if (currentPage === 'orders-localshop') return 'localshop';
     if (currentPage === 'orders-subscriptions') return 'subscription';
@@ -59,14 +73,27 @@ export const Orders: React.FC = () => {
   }, [currentPage]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'normal' | 'pickup' | 'subscribed'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'normal' | 'self_delivery' | 'pickup' | 'subscribed'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [alertOrderError, setAlertOrderError] = useState('');
   const [selectedSubscription, setSelectedSubscription] = useState<any | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [selectedAgentType, setSelectedAgentType] = useState<AgentType>('Platform');
   const [subAgentType, setSubAgentType] = useState<AgentType>('Platform');
   const [subAgentId, setSubAgentId] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Self Delivery Modal States
+  const [selfDeliveryModalOrder, setSelfDeliveryModalOrder] = useState<Order | null>(null);
+  const [selfDeliveryStaffName, setSelfDeliveryStaffName] = useState('');
+  const [selfDeliveryStaffPhone, setSelfDeliveryStaffPhone] = useState('');
+  const [selfDeliveryNotes, setSelfDeliveryNotes] = useState('');
+  const [isSubmittingSelfDelivery, setIsSubmittingSelfDelivery] = useState(false);
+
+  // Self Delivery Completion Modal States
+  const [selfDeliveryCompleteOrder, setSelfDeliveryCompleteOrder] = useState<Order | null>(null);
+  const [selfDeliveryOtp, setSelfDeliveryOtp] = useState('');
+  const [isSubmittingDeliveryComplete, setIsSubmittingDeliveryComplete] = useState(false);
 
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
@@ -87,6 +114,175 @@ export const Orders: React.FC = () => {
   const [showReturnLedgerModal, setShowReturnLedgerModal] = useState(false);
   const [orderNotes, setOrderNotes] = useState<Record<string, string>>({});
   const [tempNote, setTempNote] = useState('');
+
+  // Delivery Slot Extension Modal State
+  const [slotModalOpen, setSlotModalOpen] = useState(false);
+  const [slotOrderTarget, setSlotOrderTarget] = useState<Order | null>(null);
+  const [slotExtensionMinutes, setSlotExtensionMinutes] = useState(60);
+  const [slotExtensionReason, setSlotExtensionReason] = useState("Store dispatch delayed due to road traffic and rain. Delivery on the way.");
+  const [slotCustomSlot, setSlotCustomSlot] = useState("");
+  const [isSubmittingSlotExt, setIsSubmittingSlotExt] = useState(false);
+
+  const handleOpenSlotModal = (order: Order) => {
+    setSlotOrderTarget(order);
+    setSlotExtensionMinutes(60);
+    setSlotExtensionReason("Store dispatch delayed due to operational requirements. Rider is on the way.");
+    setSlotCustomSlot(order.deliverySlot || order.preOrderTimeSlot || "");
+    setSlotModalOpen(true);
+  };
+
+  const handleConfirmSlotExtension = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slotOrderTarget) return;
+    setIsSubmittingSlotExt(true);
+    try {
+      const orderId = slotOrderTarget._id || slotOrderTarget.id;
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
+      const res = await fetch(`https://server.apexbee.in/api/orders/${orderId}/extend-slot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          additionalMinutes: slotExtensionMinutes,
+          newSlot: slotCustomSlot || undefined,
+          reason: slotExtensionReason
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || "Delivery time extended and customer notified!");
+        setSlotModalOpen(false);
+        if (selectedOrder && (selectedOrder._id === orderId || selectedOrder.id === orderId)) {
+          setSelectedOrder(prev => prev ? {
+            ...prev,
+            slotExtended: true,
+            slotExtendedUntil: data.order?.slotExtendedUntil,
+            slotExtensionReason
+          } : null);
+        }
+      } else {
+        alert(data.message || "Failed to extend delivery slot.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Error extending delivery slot.");
+    } finally {
+      setIsSubmittingSlotExt(false);
+    }
+  };
+
+  const handleDispatchSelfDelivery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selfDeliveryModalOrder) return;
+    setIsSubmittingSelfDelivery(true);
+    try {
+      const orderId = selfDeliveryModalOrder._id || selfDeliveryModalOrder.id;
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
+      const staffName = selfDeliveryStaffName.trim() || profile?.ownerName || 'Store Self-Delivery Staff';
+      const staffPhone = selfDeliveryStaffPhone.trim() || profile?.phone || profile?.whatsappNumber || '';
+
+      const res = await fetch(`https://server.apexbee.in/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          orderStatus: 'Shipped',
+          deliveryType: 'self_delivery',
+          deliveryAgentType: 'Vendor',
+          assignedDeliveryAgent: staffName,
+          deliveryAgentName: staffName,
+          dispatchNotes: selfDeliveryNotes || `Dispatched via Store Self-Delivery by ${staffName}`,
+          notes: `Dispatched via Store Self-Delivery (${staffName} - ${staffPhone})`
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update order status to self-delivery');
+      }
+
+      setSelfDeliveryModalOrder(null);
+      setSelfDeliveryStaffName('');
+      setSelfDeliveryStaffPhone('');
+      setSelfDeliveryNotes('');
+      alert(`Order ${orderId} dispatched for Store Self-Delivery by ${staffName}!`);
+
+      if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId)) {
+        setSelectedOrder(prev => prev ? {
+          ...prev,
+          deliveryStatus: 'Shipped',
+          deliveryType: 'self_delivery',
+          deliveryAgentType: 'Vendor',
+          assignedDeliveryAgent: staffName
+        } : null);
+      }
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Self delivery dispatch error:', err);
+      alert(err.message || 'Failed to dispatch order for self-delivery');
+    } finally {
+      setIsSubmittingSelfDelivery(false);
+    }
+  };
+
+  const handleConfirmSelfDelivered = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selfDeliveryCompleteOrder) return;
+    setIsSubmittingDeliveryComplete(true);
+    try {
+      const orderId = selfDeliveryCompleteOrder._id || selfDeliveryCompleteOrder.id;
+      const token = localStorage.getItem('token') || localStorage.getItem('vendor_token');
+
+      const res = await fetch(`https://server.apexbee.in/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          orderStatus: 'Delivered',
+          deliveryStatus: 'Delivered',
+          otp: selfDeliveryOtp || undefined,
+          notes: 'Delivered directly to customer by Store Partner'
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to mark order as delivered');
+      }
+
+      setSelfDeliveryCompleteOrder(null);
+      setSelfDeliveryOtp('');
+      alert(`Order ${orderId} marked as DELIVERED successfully!`);
+
+      if (selectedOrder && (selectedOrder.id === orderId || selectedOrder._id === orderId)) {
+        setSelectedOrder(prev => prev ? {
+          ...prev,
+          deliveryStatus: 'Delivered'
+        } : null);
+      }
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Delivery confirmation error:', err);
+      alert(err.message || 'Failed to confirm order delivery');
+    } finally {
+      setIsSubmittingDeliveryComplete(false);
+    }
+  };
+
+  useEffect(() => {
+    if (target?.type !== 'order' || currentPage !== 'orders-all') return;
+    const controller = new AbortController();
+    setAlertOrderError('');
+    setSelectedOrder(null);
+    workspaceRequest<{ order: unknown }>(`/alerts/orders/${encodeURIComponent(target.id)}`, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setSelectedOrder(mapVendorOrder(data.order)); })
+      .catch(error => { if (!controller.signal.aborted) setAlertOrderError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) clearTarget(); });
+    return () => controller.abort();
+  }, [target, currentPage, clearTarget]);
 
   React.useEffect(() => {
     if (selectedOrder) {
@@ -220,30 +416,32 @@ export const Orders: React.FC = () => {
       totalComm = 0;
     }
 
+    const isSelfDelivered = order.deliveryType === 'self_delivery' || isVendorSelfDelivery || Boolean((order as any).isSelfDelivery);
+    const vendorDeliveryFee = isSelfDelivered ? (order.shippingCharge || 0) : 0;
+
     const payout = Math.max(0, order.totalAmount - totalComm);
     const avgRate =
       order.subtotal > 0 && totalComm > 0 ? Math.round((totalComm / order.subtotal) * 100) : 0;
 
     const isApexBeeCommissionModel = isExplicitApexBeeCommission && totalComm > 0;
 
-    return { payout, commission: totalComm, avgRate, isApexBeeCommissionModel };
+    return { payout, commission: totalComm, avgRate, isApexBeeCommissionModel, isSelfDelivered, vendorDeliveryFee };
   };
 
-  const LiveOrderTimerBadge = ({ estimatedDeliveryTime, prepMins }: { estimatedDeliveryTime?: string; prepMins?: number }) => {
+  const LiveOrderTimerBadge = ({ estimatedDeliveryTime }: { estimatedDeliveryTime: string }) => {
     const [timeLeft, setTimeLeft] = useState<string>('');
     const [isOverdue, setIsOverdue] = useState<boolean>(false);
 
     useEffect(() => {
-      if (!estimatedDeliveryTime) return;
-
       const updateTimer = () => {
         const target = new Date(estimatedDeliveryTime).getTime();
         const now = Date.now();
-        const diffSecs = Math.floor((target - now) / 1000);
+        if (!Number.isFinite(target)) return;
+        const diffSecs = Math.ceil((target - now) / 1000);
 
         if (diffSecs <= 0) {
           const overMins = Math.floor(Math.abs(diffSecs) / 60);
-          setTimeLeft(`🚨 PREP OVERDUE (${overMins}m EXPIRED)`);
+          setTimeLeft(`Prep overdue · ${overMins}m`);
           setIsOverdue(true);
         } else {
           const m = Math.floor(diffSecs / 60);
@@ -257,10 +455,6 @@ export const Orders: React.FC = () => {
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     }, [estimatedDeliveryTime]);
-
-    if (!estimatedDeliveryTime) {
-      return <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-mono font-bold text-[10px]">⏱️ {prepMins || 20}m Prep</span>;
-    }
 
     if (isOverdue) {
       return (
@@ -302,10 +496,9 @@ export const Orders: React.FC = () => {
         return (
           <div className="flex flex-col gap-1 items-start">
             <Badge variant="warning">Confirmed / Processing</Badge>
-            {((order as any)?.estimatedDeliveryTime || (order as any)?.estimatedDeliveryMinutes) && (
+            {order?.estimatedDeliveryTime && (
               <LiveOrderTimerBadge
-                estimatedDeliveryTime={(order as any)?.estimatedDeliveryTime}
-                prepMins={(order as any)?.estimatedDeliveryMinutes}
+                estimatedDeliveryTime={order.estimatedDeliveryTime}
               />
             )}
           </div>
@@ -395,12 +588,14 @@ export const Orders: React.FC = () => {
       else if (filterStatus === 'returns')
         matchesStatus = currentStatus === 'Returned' || o.refundStatus === 'Pending';
 
-      // 3 Order Types: Normal, Self Pickup, Subscribed
+      // 4 Order Types: Normal Platform, Store Self-Delivery, Self Pickup, Subscribed
       let matchesOrderType = true;
       const isSub = Boolean(o.isScheduledSubscription || o.isSubscription);
       const isPickup = Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup);
+      const isSelfDeliv = Boolean(o.deliveryType === 'self_delivery' || (o as any).fulfillment?.deliveryType === 'self_delivery');
 
-      if (orderTypeFilter === 'normal') matchesOrderType = !isSub && !isPickup;
+      if (orderTypeFilter === 'normal') matchesOrderType = !isSub && !isPickup && !isSelfDeliv;
+      else if (orderTypeFilter === 'self_delivery') matchesOrderType = isSelfDeliv && !isSub && !isPickup;
       else if (orderTypeFilter === 'pickup') matchesOrderType = isPickup && !isSub;
       else if (orderTypeFilter === 'subscribed') matchesOrderType = isSub;
 
@@ -434,6 +629,20 @@ export const Orders: React.FC = () => {
   const handleAssignSubmit = async (e: React.FormEvent, orderId: string) => {
     e.preventDefault();
     if (!selectedAgentId) return;
+
+    // Guard: Store Self-Delivery orders cannot be assigned to platform delivery agents
+    const targetOrder = orders.find(o => o.id === orderId || o._id === orderId) || selectedOrder;
+    const isOrderSelfDeliv = Boolean(
+      isVendorSelfDelivery ||
+      targetOrder?.deliveryType === 'self_delivery' ||
+      (targetOrder as any)?.isVendorSelfDelivery ||
+      profile?.isSelfDelivery
+    );
+
+    if (isOrderSelfDeliv) {
+      alert("Store Self-Delivery is enabled. Platform delivery boys cannot be assigned to this order. Please use the Store Self-Delivery Station to dispatch with your in-house staff.");
+      return;
+    }
 
     const agent = deliveryAgents.find(a => a.id === selectedAgentId || (a as any)._id === selectedAgentId || (a as any).userId === selectedAgentId);
     const agentName = agent ? agent.name : selectedAgentId;
@@ -474,10 +683,11 @@ export const Orders: React.FC = () => {
     : '';
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
+    <div className="pos-page flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1 text-left">
-          <h1 className="text-2xl md:text-3xl font-black font-heading tracking-tight text-white">
+          <p className="pos-eyebrow mb-1">Orders &amp; fulfillment</p>
+          <h1 className="pos-page-title">
             Order & Subscriber Hub
           </h1>
           <p className="text-xs text-blue-300">
@@ -486,13 +696,18 @@ export const Orders: React.FC = () => {
         </div>
       </div>
 
+      {target?.type === 'order' && <p role="status" className="text-sm text-muted-foreground">Opening order…</p>}
+      {alertOrderError && <p role="alert" className="text-sm text-rose-300">{alertOrderError}</p>}
+      {mainView === 'orders' && <NeedsAttention ordersOnly />}
+
       {mainView !== 'localshop' ? (
         <>
-          {/* 3 Order Types Bar: Normal Delivery, Self Pickup, Subscribed */}
+          {/* Order Types Bar: All, Platform Delivery, Store Self-Delivery, Self Pickup, Subscribed */}
           <div className="flex items-center gap-2 p-2 bg-slate-900/90 rounded-2xl shadow-xl w-fit flex-wrap">
             {[
               { id: 'all', label: '🌐 All Types' },
-              { id: 'normal', label: '🚚 Normal Delivery' },
+              { id: 'normal', label: '🚚 Platform Delivery' },
+              { id: 'self_delivery', label: '🛵 Store Self-Delivery' },
               { id: 'pickup', label: '🏪 In-Store Self Pickup' },
               { id: 'subscribed', label: '🔁 Subscribed Orders' },
             ].map((t) => (
@@ -582,20 +797,38 @@ export const Orders: React.FC = () => {
                     <TableRow key={o.id} className="align-middle hover:bg-slate-900/40 transition-colors">
                       <TableCell>
                         <div className="font-mono text-xs font-black text-foreground">{o.id}</div>
-                        <div className="mt-1">
+                        <div className="mt-1 flex flex-col gap-1 items-start">
                           {Boolean(o.isScheduledSubscription || o.isSubscription) ? (
                             <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-400 font-extrabold text-[10px] border border-purple-500/30 inline-flex items-center gap-1">
-                              🔁 Subscribed
+                              🔁 Subscribed Order
                             </span>
                           ) : Boolean(o.fulfillment?.type === 'pickup' || o.deliveryType === 'pickup' || (o as any).isSelfPickup) ? (
                             <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-extrabold text-[10px] border border-amber-500/30 inline-flex items-center gap-1">
-                              🏪 Store Pickup
+                              🏪 In-Store Self Pickup
+                            </span>
+                          ) : Boolean(o.deliveryType === 'self_delivery' || isVendorSelfDelivery) ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/30 inline-flex items-center gap-1">
+                              🛵 Store Self-Delivery
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 font-extrabold text-[10px] border border-sky-500/30 inline-flex items-center gap-1">
-                              🚚 Doorstep Delivery
+                              🚚 Platform Partner Delivery
                             </span>
                           )}
+
+                          <div className="flex flex-wrap items-center gap-1 text-[9px]">
+                            <span className="text-slate-400 font-semibold">
+                              {o.fulfillment?.deliveryMode === 'express' || (o as any).deliveryMode === 'express'
+                                ? '🚀 Express'
+                                : o.fulfillment?.deliveryMode === 'same_day' || (o as any).deliveryMode === 'same_day'
+                                  ? '⚡ Same Day'
+                                  : '📦 Standard'}
+                            </span>
+                            <span className="text-slate-500">•</span>
+                            <span className={o.shippingCharge === 0 ? 'text-emerald-400 font-bold' : 'text-slate-300 font-bold'}>
+                              {o.shippingCharge === 0 ? 'Free Del.' : `₹${o.shippingCharge} Del.`}
+                            </span>
+                          </div>
                         </div>
                       </TableCell>
 
@@ -623,6 +856,9 @@ export const Orders: React.FC = () => {
                         </div>
                         <div className="text-[10px] text-emerald-400 font-bold mt-0.5">
                           Payout: ₹{getOrderPayout(o).payout.toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          Items ₹{o.subtotal}{o.shippingCharge > 0 ? ` + ₹${o.shippingCharge} Del.` : ''}
                         </div>
                       </TableCell>
 
@@ -667,6 +903,32 @@ export const Orders: React.FC = () => {
                             </Button>
                           )}
 
+                          {(isVendorSelfDelivery || o.deliveryType === 'self_delivery') && (status === 'Processing' || status === 'Packed') && (
+                            <Button
+                              onClick={() => {
+                                setSelfDeliveryModalOrder(o);
+                                setSelfDeliveryStaffName(profile?.ownerName || '');
+                                setSelfDeliveryStaffPhone(profile?.phone || profile?.whatsappNumber || '');
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-8 cursor-pointer bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border-emerald-500/30 font-bold"
+                            >
+                              🛵 Self-Deliver
+                            </Button>
+                          )}
+
+                          {(isVendorSelfDelivery || o.deliveryType === 'self_delivery') && status === 'Shipped' && (
+                            <Button
+                              onClick={() => setSelfDeliveryCompleteOrder(o)}
+                              variant="primary"
+                              size="sm"
+                              className="text-xs h-8 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold"
+                            >
+                              ✅ Mark Delivered
+                            </Button>
+                          )}
+
                           {status === 'Processing' && (
                             <Button
                               onClick={() => runAction(`pack-${o.id}`, () => packOrder(o.id))}
@@ -680,6 +942,32 @@ export const Orders: React.FC = () => {
                               ) : (
                                 'Pack Order'
                               )}
+                            </Button>
+                          )}
+
+                          {(isVendorSelfDelivery || o.deliveryType === 'self_delivery') && (status === 'Processing' || status === 'Packed') && (
+                            <Button
+                              onClick={() => {
+                                setSelfDeliveryModalOrder(o);
+                                setSelfDeliveryStaffName(profile?.ownerName || '');
+                                setSelfDeliveryStaffPhone(profile?.phone || profile?.whatsappNumber || '');
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-8 cursor-pointer bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border-emerald-500/30 font-bold"
+                            >
+                              🛵 Self-Deliver
+                            </Button>
+                          )}
+
+                          {(isVendorSelfDelivery || o.deliveryType === 'self_delivery') && status === 'Shipped' && (
+                            <Button
+                              onClick={() => setSelfDeliveryCompleteOrder(o)}
+                              variant="primary"
+                              size="sm"
+                              className="text-xs h-8 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold"
+                            >
+                              ✅ Mark Delivered
                             </Button>
                           )}
 
@@ -722,6 +1010,101 @@ export const Orders: React.FC = () => {
               size="lg"
             >
               <div className="flex flex-col gap-5 text-left pb-10 text-slate-100">
+                {/* 🚚 COMPREHENSIVE DELIVERY & FULFILLMENT OVERVIEW CARD */}
+                <div className="rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4.5 border border-sky-500/30 shadow-xl space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">
+                        {selectedOrder.fulfillment?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup
+                          ? '🏪'
+                          : selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery
+                            ? '🛵'
+                            : selectedOrder.isScheduledSubscription
+                              ? '🔁'
+                              : '🚚'}
+                      </span>
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold text-sky-400 block">
+                          Delivery Logistics & Fulfillment Type
+                        </span>
+                        <h3 className="text-white font-black text-sm">
+                          {selectedOrder.fulfillment?.type === 'pickup' || selectedOrder.deliveryType === 'pickup' || (selectedOrder as any).isSelfPickup
+                            ? 'In-Store Customer Counter Pickup'
+                            : selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery
+                              ? 'Store Partner Self-Delivery (Fulfilled by Store Staff)'
+                              : selectedOrder.isScheduledSubscription
+                                ? 'Scheduled Subscription Delivery Route'
+                                : 'ApexBee Platform Logistics Partner Delivery'}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                        {selectedOrder.fulfillment?.deliveryMode === 'express' || (selectedOrder as any).deliveryMode === 'express'
+                          ? '🚀 Express (15-30 Mins)'
+                          : selectedOrder.fulfillment?.deliveryMode === 'same_day' || (selectedOrder as any).deliveryMode === 'same_day'
+                            ? '⚡ Same Day Slot'
+                            : '📦 Standard Delivery'}
+                      </span>
+                      <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border ${selectedOrder.shippingCharge === 0
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        }`}>
+                        {selectedOrder.shippingCharge === 0 ? 'Delivery: FREE' : `Delivery Fee: ₹${selectedOrder.shippingCharge}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                        🚚 Dispatch Provider
+                      </span>
+                      <span className="font-extrabold text-white block">
+                        {selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery
+                          ? 'Store Rider / Direct Fleet'
+                          : selectedOrder.fulfillment?.type === 'pickup' || selectedOrder.deliveryType === 'pickup'
+                            ? 'Customer Direct Pickup'
+                            : 'ApexBee Assigned Courier'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {selectedOrder.shippingCharge > 0 && (selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery)
+                          ? '✓ Delivery fee credited to Store'
+                          : selectedOrder.shippingCharge > 0
+                            ? 'Platform delivery fee'
+                            : 'Free delivery applied'}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                        🕒 Scheduled Slot / ETA
+                      </span>
+                      <span className="font-extrabold text-amber-300 block">
+                        {selectedOrder.deliverySlot || selectedOrder.preOrderTimeSlot || (selectedOrder.fulfillment?.pickupSlot ? `${selectedOrder.fulfillment.pickupSlot.date} • ${selectedOrder.fulfillment.pickupSlot.time}` : 'Standard Delivery Window')}
+                      </span>
+                      {selectedOrder.slotExtended && (
+                        <span className="text-[10px] text-amber-400 block font-semibold">
+                          ⏳ Extended: {selectedOrder.slotExtendedUntil ? new Date(selectedOrder.slotExtendedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Extended'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                        👤 Delivery Handler / Phone
+                      </span>
+                      <span className="font-extrabold text-white block truncate">
+                        {selectedOrder.assignedDeliveryAgent || (selectedOrder as any).deliveryAgentName || (selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery ? (profile?.ownerName || 'Store Personnel') : 'Awaiting Rider Assignment')}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-mono block">
+                        {selectedOrder.assignedDeliveryAgentPhone || (selectedOrder as any).deliveryAgentPhone || (selectedOrder.deliveryType === 'self_delivery' || isVendorSelfDelivery ? (profile?.phone || '') : '')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl bg-slate-950/80 p-4.5 flex flex-col gap-2 text-xs shadow-xl">
                     <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-heading">
@@ -933,6 +1316,48 @@ export const Orders: React.FC = () => {
                   );
                 })()}
 
+                {/* Delivery Time Slot & Extension Notice */}
+                {(selectedOrder.deliverySlot || selectedOrder.preOrderTimeSlot || selectedOrder.slotExtended) && (
+                  <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-3 text-xs shadow-xl border border-blue-500/30">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🕒</span>
+                        <div>
+                          <span className="font-extrabold text-blue-400 uppercase tracking-wider text-[11px] block">
+                            Promised Delivery Slot
+                          </span>
+                          <span className="text-white font-bold text-sm">
+                            {selectedOrder.deliverySlot || selectedOrder.preOrderTimeSlot || "Standard Delivery Slot"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {selectedStatus !== "Delivered" && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSlotModal(selectedOrder)}
+                          className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition"
+                        >
+                          ⏳ Extend Slot &amp; Notify Customer
+                        </button>
+                      )}
+                    </div>
+
+                    {selectedOrder.slotExtended && (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-amber-300 space-y-1">
+                        <span className="font-black text-[11px] block">
+                          ⏳ Slot Extended Until: {selectedOrder.slotExtendedUntil ? new Date(selectedOrder.slotExtendedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Extended'}
+                        </span>
+                        {selectedOrder.slotExtensionReason && (
+                          <p className="text-[10px] text-amber-200">
+                            Reason: {selectedOrder.slotExtensionReason}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Secure OTP Verification confirmation input */}
                 {selectedStatus !== 'New' && selectedStatus !== 'Delivered' && (
                   <div className="rounded-2xl bg-slate-950/80 p-4.5 space-y-3 text-xs shadow-xl">
@@ -1094,84 +1519,204 @@ export const Orders: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="border-t border-border/40 pt-4 flex flex-col gap-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground font-semibold">₹{selectedOrder.subtotal}</span>
-                  </div>
+                {/* 🧾 COMPLETE CALCULATIONS & BILL BREAKDOWN */}
+                {(() => {
+                  const summary = (selectedOrder as any).orderSummary || {};
+                  const calcMrp = (selectedOrder.items || []).reduce((sum, it: any) => {
+                    const orig = it.originalPrice || it.price || 0;
+                    return sum + (orig * (it.quantity || 1));
+                  }, 0);
+                  const totalMrp = Number(summary.mrp || summary.totalMrp || (calcMrp > selectedOrder.subtotal ? calcMrp : selectedOrder.subtotal));
+                  const mrpDiscount = Number(summary.discount || summary.mrpDiscount || Math.max(0, totalMrp - selectedOrder.subtotal));
+                  const subtotal = Number(selectedOrder.subtotal || summary.subtotal || 0);
 
-                  {/* GST Tax Breakdown */}
-                  {(() => {
-                    const gstPct = (selectedOrder as any).gstPercent || (selectedOrder as any).gstRate || (selectedOrder as any).taxPercent || 5;
-                    const gstVal = (selectedOrder as any).gstAmount || Math.round(selectedOrder.subtotal * (gstPct / 100));
-                    return (
-                      <div className="flex justify-between text-slate-300">
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <span>🧾 GST ({gstPct}% Tax Included)</span>
+                  const cgstVal = summary.cgst != null ? Number(summary.cgst) : (summary.tax != null ? Math.round((Number(summary.tax) / 2) * 100) / 100 : null);
+                  const sgstVal = summary.sgst != null ? Number(summary.sgst) : (summary.tax != null ? Math.round((Number(summary.tax) / 2) * 100) / 100 : null);
+                  const totalTax = (cgstVal != null && sgstVal != null)
+                    ? Math.round((cgstVal + sgstVal) * 100) / 100
+                    : Number(summary.tax || (selectedOrder as any).gstAmount || 0);
+
+                  // Calculate exact GST percentages
+                  let cgstPct = '14';
+                  let sgstPct = '14';
+                  if (subtotal > 0 && cgstVal != null && cgstVal > 0) {
+                    const calculated = Math.round((cgstVal / subtotal) * 100);
+                    cgstPct = String(calculated);
+                    sgstPct = String(calculated);
+                  } else if ((selectedOrder as any).gstRate || (selectedOrder as any).gstPercent) {
+                    const r = Number((selectedOrder as any).gstRate || (selectedOrder as any).gstPercent);
+                    cgstPct = (r / 2).toFixed(1).replace(/\.0$/, '');
+                    sgstPct = (r / 2).toFixed(1).replace(/\.0$/, '');
+                  }
+
+                  const shippingCharge = Number(selectedOrder.shippingCharge ?? summary.shipping ?? 0);
+                  const packingCharge = Number(selectedOrder.packingCharge ?? summary.packing ?? 0);
+                  const platformFee = Number(summary.platformFee ?? 0);
+                  const couponDiscount = Number((selectedOrder as any).couponDiscount || summary.couponDiscount || (selectedOrder as any).discount || 0);
+                  const couponCode = (selectedOrder as any).couponCode || (selectedOrder as any).coupon || summary.couponCode || '';
+                  const walletUsed = Number(summary.walletDeduction ?? 0);
+                  const rewardsUsed = Number(summary.rewardsDeduction ?? 0);
+                  const grandTotal = Number(selectedOrder.totalAmount || summary.grandTotal || 0);
+
+                  const { payout, commission, avgRate, isApexBeeCommissionModel, isSelfDelivered, vendorDeliveryFee } = getOrderPayout(selectedOrder);
+
+                  return (
+                    <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-4.5 space-y-3 text-xs shadow-xl">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <span className="font-extrabold text-amber-400 uppercase tracking-wider text-[11px] font-heading flex items-center gap-1.5">
+                          <span>🧾</span> Complete Order Calculations &amp; Tax Breakdown
                         </span>
-                        <span className="font-mono text-amber-400 text-[11px]">₹{gstVal}</span>
+                        <Badge variant="outline" className="text-[10px] text-slate-300 border-slate-700">
+                          {selectedOrder.paymentMethod || 'COD'} • {selectedOrder.paymentStatus || 'Pending'}
+                        </Badge>
                       </div>
-                    );
-                  })()}
 
-                  {selectedOrder.shippingCharge > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shipping / Delivery Charge</span>
-                      <span className="text-foreground">₹{selectedOrder.shippingCharge}</span>
-                    </div>
-                  )}
+                      <div className="space-y-2">
+                        {totalMrp > subtotal && (
+                          <div className="flex justify-between text-slate-400">
+                            <span>Total Items MRP</span>
+                            <span className="line-through font-mono">₹{totalMrp.toFixed(2)}</span>
+                          </div>
+                        )}
 
-                  {selectedOrder.packingCharge > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Packing Charge</span>
-                      <span className="text-foreground">₹{selectedOrder.packingCharge}</span>
-                    </div>
-                  )}
+                        {mrpDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-400 font-bold">
+                            <span>Discount on MRP</span>
+                            <span className="font-mono">-₹{mrpDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
 
-                  {/* Applied Coupon / Discount Breakdown - ONLY IF ACTUALLY APPLIED */}
-                  {(((selectedOrder as any).couponCode || (selectedOrder as any).coupon) && ((selectedOrder as any).couponDiscount > 0 || selectedOrder.discount > 0)) && (
-                    <div className="flex justify-between items-center text-emerald-400 font-extrabold bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20 my-1">
-                      <span className="flex items-center gap-1.5">
-                        <span>🎟️ Coupon Applied:</span>
-                        <span className="font-mono bg-emerald-950 px-2 py-0.5 rounded text-amber-400 border border-emerald-800 text-[11px]">
-                          {(selectedOrder as any).couponCode || (selectedOrder as any).coupon}
-                        </span>
-                      </span>
-                      <span className="text-emerald-300 font-mono font-black text-sm">
-                        -₹{(selectedOrder as any).couponDiscount || selectedOrder.discount}
-                      </span>
-                    </div>
-                  )}
+                        <div className="flex justify-between text-white font-semibold">
+                          <span>Items Subtotal (Price After Discount)</span>
+                          <span className="font-mono">₹{subtotal.toFixed(2)}</span>
+                        </div>
 
-                  <div className="flex justify-between font-extrabold text-sm border-t border-border/30 pt-2 text-foreground">
-                    <span>Total Customer Price</span>
-                    <span>₹{selectedOrder.totalAmount}</span>
-                  </div>
-
-                  {(() => {
-                    const { payout, commission, avgRate, isApexBeeCommissionModel } = getOrderPayout(selectedOrder);
-
-                    return (
-                      <div className="mt-2 bg-secondary/30 border border-border/60 rounded-xl p-3 flex flex-col gap-1.5 text-left">
-                        <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                          Settlement &amp; Earnings Sheet
-                        </span>
-
-                        {isApexBeeCommissionModel ? (
-                          <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-                            <span>ApexBee Commission ({avgRate}%)</span>
-                            <span className="text-destructive font-semibold">
-                              -₹{commission}
-                            </span>
+                        {/* CGST & SGST Split */}
+                        {(cgstVal != null && cgstVal > 0) || (sgstVal != null && sgstVal > 0) ? (
+                          <div className="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800/80 space-y-1.5 my-1">
+                            <div className="flex justify-between text-slate-300">
+                              <span className="flex items-center gap-1.5 text-[11px]">
+                                <span>🏛️ Central GST (CGST {cgstPct}%)</span>
+                              </span>
+                              <span className="font-mono text-amber-400 font-bold">₹{cgstVal?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-300">
+                              <span className="flex items-center gap-1.5 text-[11px]">
+                                <span>🏢 State GST (SGST {sgstPct}%)</span>
+                              </span>
+                              <span className="font-mono text-amber-400 font-bold">₹{sgstVal?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-400 text-[10px] pt-1 border-t border-slate-800">
+                              <span>Total GST Tax Amount</span>
+                              <span className="font-mono font-bold text-slate-300">₹{totalTax.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ) : totalTax > 0 ? (
+                          <div className="flex justify-between text-slate-300">
+                            <span>Government Taxes &amp; GST</span>
+                            <span className="font-mono text-amber-400">₹{totalTax.toFixed(2)}</span>
                           </div>
                         ) : null}
 
-                        <div className="flex justify-between items-center text-xs font-black text-indigo-600 dark:text-indigo-400 border-t border-border/30 pt-1.5 mt-0.5">
-                          <span>Net Vendor Earnings</span>
-                          <span>₹{payout}</span>
+                        {/* Delivery / Shipping Charge */}
+                        <div className="flex justify-between items-center text-slate-200">
+                          <span className="flex items-center gap-1">
+                            <span>🚚 Delivery / Shipping Charge</span>
+                            <span className="text-[10px] text-slate-400">
+                              ({isSelfDelivered ? 'Store Self-Delivery' : selectedOrder.isSelfPickup ? 'Counter Pickup' : 'Platform Delivery'})
+                            </span>
+                          </span>
+                          <span className={`font-mono font-bold ${shippingCharge === 0 ? 'text-emerald-400' : 'text-white'}`}>
+                            {shippingCharge === 0 ? 'FREE' : `₹${shippingCharge.toFixed(2)}`}
+                          </span>
                         </div>
 
-                        <div className="flex gap-2 mt-2 pt-2 border-t border-border/30">
+                        {packingCharge > 0 && (
+                          <div className="flex justify-between text-slate-300">
+                            <span>📦 Packaging &amp; Handling Charge</span>
+                            <span className="font-mono text-white">₹{packingCharge.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {platformFee > 0 && (
+                          <div className="flex justify-between text-slate-300">
+                            <span>⚡ Platform Fee</span>
+                            <span className="font-mono text-white">₹{platformFee.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {couponDiscount > 0 && (
+                          <div className="flex justify-between items-center text-emerald-400 font-bold bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+                            <span className="flex items-center gap-1.5">
+                              <span>🎟️ Coupon Discount {couponCode ? `(${couponCode})` : ''}</span>
+                            </span>
+                            <span className="font-mono">-₹{couponDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {walletUsed > 0 && (
+                          <div className="flex justify-between text-emerald-400">
+                            <span>ApexBee Wallet Credit Used</span>
+                            <span className="font-mono">-₹{walletUsed.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {rewardsUsed > 0 && (
+                          <div className="flex justify-between text-emerald-400">
+                            <span>Reward Points Redeemed</span>
+                            <span className="font-mono">-₹{rewardsUsed.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between font-black text-sm border-t border-slate-700/80 pt-2.5 text-white">
+                          <span>Total Customer Price (Grand Total)</span>
+                          <span className="font-mono text-amber-400 text-base">₹{grandTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {/* Settlement & Net Vendor Payout Card */}
+                      <div className="mt-3 bg-gradient-to-br from-slate-900 to-indigo-950/60 border border-indigo-500/30 rounded-xl p-3.5 flex flex-col gap-2 text-left">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-wider">
+                            💰 Vendor Settlement &amp; Net Earnings Sheet
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            Auto-credited to Wallet upon Delivery
+                          </span>
+                        </div>
+
+                        <div className="space-y-1 text-[11px] text-slate-300 pt-1">
+                          <div className="flex justify-between">
+                            <span>Customer Order Value</span>
+                            <span className="font-mono">₹{grandTotal.toFixed(2)}</span>
+                          </div>
+
+                          {isApexBeeCommissionModel ? (
+                            <div className="flex justify-between text-rose-400 font-medium">
+                              <span>ApexBee Platform Commission ({avgRate}%)</span>
+                              <span className="font-mono">-₹{commission.toFixed(2)}</span>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between text-slate-400">
+                              <span>ApexBee Platform Commission</span>
+                              <span className="font-mono text-emerald-400">₹0.00 (Zero Commission)</span>
+                            </div>
+                          )}
+
+                          {isSelfDelivered && vendorDeliveryFee > 0 && (
+                            <div className="flex justify-between text-emerald-400 font-medium">
+                              <span>Store Self-Delivery Fee Credit</span>
+                              <span className="font-mono">+₹{vendorDeliveryFee.toFixed(2)}</span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center text-sm font-black text-emerald-400 border-t border-indigo-500/30 pt-2 mt-1">
+                            <span>Net Vendor Payout</span>
+                            <span className="font-mono text-base text-emerald-300">₹{payout.toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-indigo-500/20">
                           <Button
                             onClick={() => handleDownloadInvoice(selectedOrder.id, selectedOrder.id)}
                             disabled={downloadingPdf !== null}
@@ -1188,9 +1733,9 @@ export const Orders: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                    );
-                  })()}
-                </div>
+                    </div>
+                  );
+                })()}
 
                 {selectedStatus === 'New' && (
                   <div className="border border-border/80 bg-muted/20 p-4 rounded-xl">
@@ -1236,60 +1781,133 @@ export const Orders: React.FC = () => {
                   </div>
                 )}
 
-                {selectedStatus !== 'Delivered' && selectedStatus !== 'Returned' && (
-                  <form
-                    onSubmit={(e) => handleAssignSubmit(e, selectedOrder.id)}
-                    className="border border-slate-800 bg-slate-950/90 p-4.5 rounded-2xl flex flex-col gap-3.5 shadow-xl text-white"
-                  >
-                    <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
-                      <Truck className="h-4.5 w-4.5 text-amber-400" /> Assign Delivery Agent
-                    </span>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      <Select
-                        label="Select Agent Type"
-                        value={selectedAgentType}
-                        onChange={(e) => setSelectedAgentType(e.target.value as AgentType)}
-                        className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
-                        options={[
-                          { value: 'Platform', label: 'Platform Delivery Agent' },
-                          { value: 'Vendor', label: 'Vendor Delivery Agent' },
-                          { value: 'Independent', label: 'Independent Delivery Partner' },
-                        ]}
-                      />
-
-                      <Select
-                        label="Available Executive"
-                        value={selectedAgentId}
-                        onChange={(e) => setSelectedAgentId(e.target.value)}
-                        className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
-                        options={[
-                          { value: '', label: '-- Choose Agent --' },
-                          ...(
-                            (deliveryAgents.filter((a) => a.type === selectedAgentType).length > 0
-                              ? deliveryAgents.filter((a) => a.type === selectedAgentType)
-                              : deliveryAgents
-                            ).map((a) => ({
-                              value: a.id || (a as any)._id,
-                              label: `${a.name} (${a.status || 'Active'}) - ${a.phone}`,
-                            }))
-                          ),
-                        ]}
-                      />
+                {/* Store Self-Delivery Section */}
+                {(isVendorSelfDelivery || selectedOrder.deliveryType === 'self_delivery') && (
+                  <div className="border border-emerald-500/40 bg-slate-950/95 p-4.5 rounded-2xl flex flex-col gap-3.5 shadow-xl text-white">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                        <span>🛵</span> Store Self-Delivery Station
+                      </span>
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+                        {selectedOrder.deliveryStatus === 'Delivered'
+                          ? '✓ Delivered'
+                          : selectedOrder.deliveryStatus === 'Shipped'
+                            ? '🛵 Out for Delivery'
+                            : 'Self-Delivery Active'}
+                      </Badge>
                     </div>
 
-                    <Button
-                      type="submit"
-                      disabled={!selectedAgentId || actionLoading === `assign-${selectedOrder.id}`}
-                      className="w-full mt-2 h-11 bg-[#F5B800] hover:bg-[#e0a800] text-[#171717] font-black text-sm rounded-xl shadow-md shadow-amber-500/30 transition-all cursor-pointer border-0 disabled:opacity-50 disabled:bg-slate-800 disabled:text-slate-500 flex items-center justify-center gap-2"
-                    >
-                      {actionLoading === `assign-${selectedOrder.id}` ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        'Assign Agent & Handover Package'
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="font-bold text-slate-400 block text-[10px] uppercase">Delivery Handler</span>
+                        <span className="font-extrabold text-white block mt-0.5">
+                          {selectedOrder.assignedDeliveryAgent || (selectedOrder as any).deliveryAgentName || profile?.ownerName || 'Store Delivery Personnel'}
+                        </span>
+                      </div>
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="font-bold text-slate-400 block text-[10px] uppercase">Store Phone</span>
+                        <span className="font-extrabold text-emerald-300 font-mono block mt-0.5">
+                          {profile?.phone || profile?.whatsappNumber || 'Store Contact'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Self Delivery Quick Triggers */}
+                    <div className="flex gap-2">
+                      {selectedStatus !== 'Shipped' && selectedStatus !== 'Delivered' && (
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setSelfDeliveryModalOrder(selectedOrder);
+                            setSelfDeliveryStaffName(profile?.ownerName || '');
+                            setSelfDeliveryStaffPhone(profile?.phone || profile?.whatsappNumber || '');
+                          }}
+                          className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer border-0"
+                        >
+                          🛵 Dispatch for Store Self-Delivery
+                        </Button>
                       )}
-                    </Button>
-                  </form>
+
+                      {selectedStatus === 'Shipped' && (
+                        <Button
+                          type="button"
+                          onClick={() => setSelfDeliveryCompleteOrder(selectedOrder)}
+                          className="flex-1 h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer border-0"
+                        >
+                          ✅ Mark as Delivered by Store
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Delivery Boy Assignment: BLOCKED for Store Self-Delivery Orders */}
+                {selectedStatus !== 'Delivered' && selectedStatus !== 'Returned' && (
+                  (isVendorSelfDelivery || selectedOrder.deliveryType === 'self_delivery' || profile?.isSelfDelivery) ? (
+                    <div className="border border-amber-500/30 bg-amber-500/10 p-4 rounded-2xl flex items-start gap-3 text-amber-200">
+                      <span className="text-xl">🛵</span>
+                      <div>
+                        <span className="font-extrabold text-xs text-amber-300 block">Store Self-Delivery Active</span>
+                        <p className="text-[11px] text-amber-200/90 mt-0.5 leading-relaxed font-medium">
+                          You have enabled Store Self-Delivery for this order. Platform delivery boys cannot accept or be assigned to this order. Please use the <strong>Store Self-Delivery Station</strong> above to dispatch and deliver with your own in-house staff.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={(e) => handleAssignSubmit(e, selectedOrder.id)}
+                      className="border border-slate-800 bg-slate-950/90 p-4.5 rounded-2xl flex flex-col gap-3.5 shadow-xl text-white"
+                    >
+                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5 font-heading">
+                        <Truck className="h-4.5 w-4.5 text-amber-400" /> Assign Delivery Agent
+                      </span>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <Select
+                          label="Select Agent Type"
+                          value={selectedAgentType}
+                          onChange={(e) => setSelectedAgentType(e.target.value as AgentType)}
+                          className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
+                          options={[
+                            { value: 'Platform', label: 'Platform Delivery Agent' },
+                            { value: 'Vendor', label: 'Vendor Delivery Agent' },
+                            { value: 'Independent', label: 'Independent Delivery Partner' },
+                          ]}
+                        />
+
+                        <Select
+                          label="Available Executive"
+                          value={selectedAgentId}
+                          onChange={(e) => setSelectedAgentId(e.target.value)}
+                          className="bg-black text-white border-neutral-700 dark:bg-black dark:text-white"
+                          options={[
+                            { value: '', label: '-- Choose Agent --' },
+                            ...(
+                              (deliveryAgents.filter((a) => a.type === selectedAgentType).length > 0
+                                ? deliveryAgents.filter((a) => a.type === selectedAgentType)
+                                : deliveryAgents
+                              ).map((a) => ({
+                                value: a.id || (a as any)._id,
+                                label: `${a.name} (${a.status || 'Active'}) - ${a.phone}`,
+                              }))
+                            ),
+                          ]}
+                        />
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={!selectedAgentId || actionLoading === `assign-${selectedOrder.id}`}
+                        className="w-full mt-2 h-11 bg-[#F5B800] hover:bg-[#e0a800] text-[#171717] font-black text-sm rounded-xl shadow-md shadow-amber-500/30 transition-all cursor-pointer border-0 disabled:opacity-50 disabled:bg-slate-800 disabled:text-slate-500 flex items-center justify-center gap-2"
+                      >
+                        {actionLoading === `assign-${selectedOrder.id}` ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Assign Agent & Handover Package'
+                        )}
+                      </Button>
+                    </form>
+                  )
                 )}
 
                 {selectedStatus === 'Shipped' && (
@@ -1920,6 +2538,276 @@ export const Orders: React.FC = () => {
                 Start {selectedPrepTime} Min Timer 🚀
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELIVERY SLOT EXTENSION MODAL */}
+      {slotModalOpen && slotOrderTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-white">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-amber-400">
+                  Extend Delivery Slot &amp; Notify Customer
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Order #{slotOrderTarget.id || slotOrderTarget.orderNumber}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSlotModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200">
+              Orders must be delivered within the promised slot. If a slot is missed without an extension, the system automatically transitions the status to <strong>Failed to Deliver</strong>.
+            </div>
+
+            <form onSubmit={handleConfirmSlotExtension} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 mb-2">Select Extension Window:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { mins: 30, label: "+30 Mins" },
+                    { mins: 60, label: "+1 Hour" },
+                    { mins: 120, label: "+2 Hours" }
+                  ].map((opt) => (
+                    <button
+                      key={opt.mins}
+                      type="button"
+                      onClick={() => setSlotExtensionMinutes(opt.mins)}
+                      className={`py-2 px-3 rounded-xl font-bold border transition ${slotExtensionMinutes === opt.mins
+                          ? "bg-amber-400 text-slate-950 border-amber-400"
+                          : "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800"
+                        }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1.5">Custom Slot / Shift:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 08:00 AM - 09:00 AM"
+                  value={slotCustomSlot}
+                  onChange={(e) => setSlotCustomSlot(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1.5">Reason for Extension (Customer Notice):</label>
+                <textarea
+                  rows={3}
+                  required
+                  minLength={5}
+                  value={slotExtensionReason}
+                  onChange={(e) => setSlotExtensionReason(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSlotModalOpen(false)}
+                  disabled={isSubmittingSlotExt}
+                  className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingSlotExt}
+                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-md"
+                >
+                  {isSubmittingSlotExt ? "Saving..." : "Confirm Extension"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🛵 SELF-DELIVERY DISPATCH MODAL */}
+      {selfDeliveryModalOrder && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-emerald-500/40 rounded-3xl p-6 max-w-md w-full text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-black text-emerald-400 font-heading flex items-center gap-2">
+                <span>🛵</span> Dispatch Store Self-Delivery
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelfDeliveryModalOrder(null)}
+                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleDispatchSelfDelivery} className="space-y-4">
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Order ID:</span>
+                  <span className="font-mono text-emerald-300 font-black">#{selfDeliveryModalOrder.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Customer:</span>
+                  <span className="text-white font-bold">{selfDeliveryModalOrder.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Delivery Address:</span>
+                  <span className="text-slate-300 text-right max-w-[200px] truncate">{selfDeliveryModalOrder.deliveryAddress}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Delivery Staff / Driver Name *
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. Ramesh (Store Staff) or Self"
+                  value={selfDeliveryStaffName}
+                  onChange={(e) => setSelfDeliveryStaffName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white text-xs focus:ring-1 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Staff Contact Phone *
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. +91 9876543210"
+                  value={selfDeliveryStaffPhone}
+                  onChange={(e) => setSelfDeliveryStaffPhone(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white text-xs font-mono focus:ring-1 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Vehicle / Dispatch Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Store Two-Wheeler / Hand Delivery"
+                  value={selfDeliveryNotes}
+                  onChange={(e) => setSelfDeliveryNotes(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white text-xs focus:ring-1 focus:ring-emerald-400"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelfDeliveryModalOrder(null)}
+                  disabled={isSubmittingSelfDelivery}
+                  className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingSelfDelivery}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5"
+                >
+                  {isSubmittingSelfDelivery ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "🛵 Mark Out for Delivery"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ SELF-DELIVERY COMPLETION MODAL */}
+      {selfDeliveryCompleteOrder && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-emerald-500/40 rounded-3xl p-6 max-w-md w-full text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-black text-emerald-400 font-heading flex items-center gap-2">
+                <span>✅</span> Confirm Delivery Handover
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelfDeliveryCompleteOrder(null)}
+                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSelfDelivered} className="space-y-4">
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Order ID:</span>
+                  <span className="font-mono text-emerald-300 font-black">#{selfDeliveryCompleteOrder.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Customer:</span>
+                  <span className="text-white font-bold">{selfDeliveryCompleteOrder.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Total Payable:</span>
+                  <span className="text-amber-400 font-black">₹{selfDeliveryCompleteOrder.totalAmount} ({selfDeliveryCompleteOrder.paymentMethod || 'Prepaid'})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-bold">Address:</span>
+                  <span className="text-slate-300 text-right max-w-[200px] truncate">{selfDeliveryCompleteOrder.deliveryAddress}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Customer Delivery OTP (Optional if verified in person)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="Enter 4 or 6-digit OTP from customer"
+                  value={selfDeliveryOtp}
+                  onChange={(e) => setSelfDeliveryOtp(e.target.value.replace(/\D/g, ''))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white text-center font-mono font-bold tracking-widest text-sm focus:ring-1 focus:ring-emerald-400"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Verify customer received items in good condition before completing.
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelfDeliveryCompleteOrder(null)}
+                  disabled={isSubmittingDeliveryComplete}
+                  className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingDeliveryComplete}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5"
+                >
+                  {isSubmittingDeliveryComplete ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "✓ Confirm Order Delivered"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

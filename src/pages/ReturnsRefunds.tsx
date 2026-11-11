@@ -1,3 +1,5 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { orderInBusiness } from '../services/businessPortal';
 import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -18,7 +20,9 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import type { Order } from '../types';
 
 export const ReturnsRefunds: React.FC = () => {
-  const { orders, approveReturn, rejectReturn } = useVendor();
+  const { orders: allOrders, approveReturn, rejectReturn } = useVendor();
+  const {productIds}=useBusinessWorkspace();
+  const orders=allOrders.filter(order=>orderInBusiness(order,productIds));
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);

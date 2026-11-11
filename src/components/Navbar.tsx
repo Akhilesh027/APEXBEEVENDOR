@@ -1,13 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
-import { Search, LogOut, User, Settings, Store, PhoneCall, ShieldCheck } from 'lucide-react';
+import { LogOut, User, Store, PhoneCall, ShieldCheck, Menu, PanelLeftClose, PanelLeftOpen, ShoppingBag } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  menuOpen: boolean;
+  openMenu: () => void;
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ menuOpen, openMenu, sidebarOpen, toggleSidebar }) => {
   const { profile, logout, setCurrentPage } = useVendor();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
 
   const getAuthUser = () => {
@@ -20,18 +26,23 @@ export const Navbar: React.FC = () => {
   };
 
   const loggedInUser = getAuthUser();
-  const userRoles = Array.isArray(loggedInUser?.roles) ? loggedInUser.roles : [];
-  const rolesList = userRoles.map((r: string) => r.toLowerCase());
-  if (loggedInUser && !rolesList.includes('customer')) {
+  const rawRoles = Array.isArray(loggedInUser?.roles)
+    ? loggedInUser.roles
+    : (loggedInUser?.role ? [loggedInUser.role] : []);
+  const rolesList = rawRoles.map((r: string) => String(r).toLowerCase().trim());
+  if (!rolesList.includes('customer')) {
     rolesList.unshift('customer');
   }
 
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const customerPortalUrl = import.meta.env.VITE_FRONTEND_URL || import.meta.env.VITE_CUSTOMER_PORTAL_URL || (isLocalhost ? 'http://localhost:5173' : 'https://apexbee.in');
+
   const PORTAL_LINKS: Record<string, { label: string; url: string }> = {
-    customer: { label: 'Customer Portal', url: 'https://apexbee.in' },
-    admin: { label: 'Admin Panel', url: 'http://localhost:5173/admin' },
-    vendor: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
-    wholesaler: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
-    manufacturer: { label: 'Vendor Portal', url: 'https://apexbeevendor.apexbee.in/' },
+    customer: { label: 'User / Customer Portal', url: customerPortalUrl },
+    admin: { label: 'Admin Panel', url: isLocalhost ? 'http://localhost:5173/admin' : 'https://apexbee.in/admin' },
+    vendor: { label: 'Vendor Portal', url: isLocalhost ? 'http://localhost:5174' : 'https://apexbeevendor.apexbee.in/' },
+    wholesaler: { label: 'Vendor Portal', url: isLocalhost ? 'http://localhost:5174' : 'https://apexbeevendor.apexbee.in/' },
+    manufacturer: { label: 'Vendor Portal', url: isLocalhost ? 'http://localhost:5174' : 'https://apexbeevendor.apexbee.in/' },
     franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
     state_franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
     district_franchise: { label: 'Franchise Management', url: 'https://franchser.apexbee.in/' },
@@ -52,9 +63,26 @@ export const Navbar: React.FC = () => {
     })
     .filter(Boolean);
 
-  const handleSwitchPortal = (role: string, url: string) => {
+  const portalsToSwitch = availablePortals.filter((p: any) => p && p.role !== 'vendor');
+
+  const handleSwitchPortal = (role: string, targetUrl: string) => {
     localStorage.setItem('activeRole', role);
-    window.location.href = url;
+    try {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const urlObj = new URL(targetUrl, window.location.origin);
+      if (token && urlObj.origin !== window.location.origin) {
+        urlObj.searchParams.set('auth_token', token);
+        if (userStr) {
+          urlObj.searchParams.set('auth_user', encodeURIComponent(userStr));
+        }
+        window.location.href = urlObj.toString();
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    window.location.href = targetUrl;
   };
 
   const getInitials = (name: string) => {
@@ -80,29 +108,45 @@ export const Navbar: React.FC = () => {
   const isLive = (profile.marketplaceStatus as string) === 'Live' || profile.marketplaceStatus === 'Approved';
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-blue-950/95 backdrop-blur-md px-4 md:px-6 h-16 flex items-center justify-between shadow-xl">
-      {/* Search Bar */}
-      <div className="relative w-48 md:w-80 flex items-center">
-        <Search className="absolute left-3 h-4 w-4 text-blue-300 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search products, orders, transactions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-blue-900/40 text-slate-100 rounded-xl pl-9 pr-4 py-1.5 text-xs md:text-sm focus:outline-none focus:bg-blue-900/80 focus:ring-2 focus:ring-amber-400/30 transition-all placeholder:text-blue-300/70 font-medium"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 text-xs text-blue-300 hover:text-amber-400 cursor-pointer font-bold"
-          >
-            Clear
-          </button>
-        )}
+    <header className="pos-header relative z-30 flex h-16 shrink-0 items-center justify-between gap-2 px-3 sm:px-5 xl:px-7">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <button type="button" className="pos-icon-button lg:hidden" aria-label="Open navigation" aria-controls="vendor-sidebar" aria-expanded={menuOpen} onClick={openMenu}>
+          <Menu size={20} aria-hidden="true" />
+        </button>
+        <button type="button" className="pos-icon-button pos-desktop-toggle" aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+          title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'} aria-controls="vendor-sidebar" aria-expanded={sidebarOpen} onClick={toggleSidebar}>
+          {sidebarOpen ? <PanelLeftClose size={20} aria-hidden="true" /> : <PanelLeftOpen size={20} aria-hidden="true" />}
+        </button>
+        <div className="min-w-0">
+          <p className="pos-eyebrow hidden sm:block">Vendor workspace</p>
+          <p className="truncate font-heading text-base font-bold text-white">{profile.businessName || 'ApexBee Vendor'}</p>
+        </div>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+        {/* Quick Link to Customer / User Portal */}
+        <button
+          type="button"
+          onClick={() => handleSwitchPortal('customer', customerPortalUrl)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-900/60 hover:bg-blue-800 text-amber-300 hover:text-amber-200 font-extrabold text-xs transition border border-blue-700/50 cursor-pointer shadow-sm"
+          title="Switch to User / Customer Shopping Portal"
+        >
+          <ShoppingBag size={14} className="text-amber-400" />
+          <span>User Portal</span>
+        </button>
+
+        {/* Quick Counter POS Access Button */}
+        <button
+          type="button"
+          onClick={() => setCurrentPage('pos')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition shadow-sm cursor-pointer"
+          title="Open Counter POS Terminal"
+        >
+          <span>🧾</span>
+          <span className="hidden sm:inline">Counter POS</span>
+        </button>
+
         {/* Prominent Shop Status Toggle (ONLINE / OFFLINE) */}
         <button
           onClick={() => {
@@ -111,16 +155,14 @@ export const Navbar: React.FC = () => {
             window.dispatchEvent(new Event('storage'));
             alert(`Shop Status changed to: ${next === 'Live' ? 'SHOP ONLINE (Taking Customer Orders)' : 'SHOP OFFLINE (Shop Closed)'}`);
           }}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full font-black text-xs transition-all shadow-md cursor-pointer ${
-            isLive
+          className={`pos-status flex items-center gap-1.5 px-2.5 py-1.5 rounded-full font-bold transition-colors cursor-pointer ${isLive
               ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
               : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
-          }`}
+            }`}
           title="Tap to turn your shop Online or Offline"
         >
-          <span className={`h-2.5 w-2.5 rounded-full ${
-            isLive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-          }`} />
+          <span className={`h-2.5 w-2.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+            }`} />
           <span className="font-heading">
             {isLive ? 'SHOP OPEN' : 'SHOP CLOSED'}
           </span>
@@ -143,6 +185,8 @@ export const Navbar: React.FC = () => {
         {/* User Profile Menu */}
         <div className="relative" ref={menuRef}>
           <button
+            aria-label="Account menu"
+            aria-expanded={showProfileMenu}
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2.5 text-left hover:bg-blue-900/50 p-1.5 rounded-xl transition-all cursor-pointer border border-transparent hover:border-blue-700/40"
           >
@@ -204,23 +248,20 @@ export const Navbar: React.FC = () => {
 
                 <div className="h-px bg-blue-900 my-1" />
 
-                {availablePortals.length > 1 && (
+                {portalsToSwitch.length > 0 && (
                   <>
                     <p className="text-[10px] uppercase font-black text-blue-400 tracking-wider px-3 py-1">
                       Switch Portal
                     </p>
-                    {availablePortals.map((portal: any, idx: number) => {
-                      if (portal.role === 'vendor') return null;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => handleSwitchPortal(portal.role, portal.url)}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold text-amber-300 hover:bg-blue-900/60 rounded-lg transition-colors text-left cursor-pointer w-full"
-                        >
-                          🔄 {portal.label}
-                        </button>
-                      );
-                    })}
+                    {portalsToSwitch.map((portal: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSwitchPortal(portal.role, portal.url)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold text-amber-300 hover:bg-blue-900/60 rounded-lg transition-colors text-left cursor-pointer w-full"
+                      >
+                        🔄 {portal.label}
+                      </button>
+                    ))}
                     <div className="h-px bg-blue-900 my-1" />
                   </>
                 )}

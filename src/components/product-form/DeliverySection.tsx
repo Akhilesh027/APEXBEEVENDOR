@@ -40,7 +40,7 @@ export const DeliverySection: React.FC<DeliverySectionProps> = ({ policy, onChan
   };
 
   return (
-    <div className="p-5 border border-blue-900/60 rounded-2xl bg-slate-950/80 space-y-5 shadow-xl">
+    <div className="product-editor-card space-y-5">
       <div className="flex items-center justify-between border-b border-blue-900/40 pb-3">
         <h4 className="font-extrabold font-heading text-amber-400 text-sm uppercase tracking-wider flex items-center gap-2">
           <span>🚚</span> Delivery Scope & Fulfillment Rules

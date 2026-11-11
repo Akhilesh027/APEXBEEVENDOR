@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { mapVendorOrder } from '../services/vendorOrder';
 import type {
   VendorProfile,
   Product,
@@ -361,6 +362,9 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             kycStatus: newKycStatus,
             kycProgress: progress,
             registeredDate: new Date(v.createdAt).toISOString().split('T')[0],
+            hasGst: v.hasGst !== undefined ? v.hasGst : (!!v.gstNumber),
+            gstPricingMode: v.gstPricingMode || 'inclusive',
+            categoryParameters: v.categoryParameters || {},
             gstNumber: v.gstNumber || '',
             panNumber: v.panNumber || '',
             aadhaarNumber: v.aadhaarNumber || '',
@@ -368,6 +372,9 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             documents: enrichedDocs,
             referralCode: v.referralCode || '',
             liveStatus: v.liveStatus,
+            deliveryMode: v.deliveryMode || 'platform_delivery',
+            isSelfDelivery: v.deliveryMode === 'self_delivery' || !!v.isSelfDelivery,
+            isSelfPickup: !!v.isSelfPickup,
             deliveryRadiusKm: v.deliveryRadiusKm,
             minOrder: v.minOrder,
             deliveryCharge: v.deliveryCharge,
@@ -437,92 +444,13 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (ordersRes.ok) {
         const ordersData = await ordersRes.json();
         const list = ordersData.orders || [];
-        const mapped = list.map((order: any) => {
-          const timeline = (order.timeline || []).map((t: any) => ({
-            status: t.status === 'Placed' ? 'New' : t.status as any,
-            timestamp: t.date || new Date().toISOString(),
-            description: t.note || ''
-          }));
-
-          const subtotal = order.orderSummary?.subtotal || order.totalAmount || 0;
-          const discount = order.orderSummary?.discount || 0;
-          const shippingCharge = order.orderSummary?.shipping || 0;
-          const packingCharge = order.orderSummary?.packing || 0;
-          const totalAmount = order.orderSummary?.total || order.totalAmount || 0;
-
-          const paymentMethod = order.paymentDetails?.method === 'upi' ? 'UPI' :
-            order.paymentDetails?.method === 'cod' ? 'COD' :
-              order.paymentDetails?.method === 'wallet' ? 'Card' : 'COD';
-
-          const paymentStatus =
-            order.paymentStatus === 'Paid' ||
-              order.paymentStatus === 'Payment Verified' ||
-              order.paymentDetails?.status === 'completed' ||
-              order.isPaid === true ||
-              order.orderStatus === 'Delivered' ||
-              order.deliveryStatus === 'Delivered'
-              ? 'Paid'
-              : order.paymentStatus === 'Refunded'
-                ? 'Refunded'
-                : 'Pending';
-
-          let deliveryStatus: any = 'New';
-          if (order.orderStatus === 'Placed' || order.orderStatus === 'placed' || order.orderStatus === 'pending_payment') deliveryStatus = 'New';
-          else if (['Accepted', 'Assigned', 'assigned'].includes(order.orderStatus)) deliveryStatus = 'Accepted';
-          else if (['Reached Vendor', 'Pickup OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Vendor';
-          else if (['Picked Up', 'Shipped', 'Out for Delivery'].includes(order.orderStatus)) deliveryStatus = 'Shipped';
-          else if (['Reached Customer', 'Delivery OTP Verified'].includes(order.orderStatus)) deliveryStatus = 'Reached Customer';
-          else if (['Confirmed', 'confirmed', 'preparing', 'Preparing', 'Processing', 'processing'].includes(order.orderStatus)) deliveryStatus = 'Processing';
-          else if (['Packed', 'packed'].includes(order.orderStatus)) deliveryStatus = 'Packed';
-          else if (['Delivered', 'delivered'].includes(order.orderStatus)) deliveryStatus = 'Delivered';
-          else if (['Returned', 'returned'].includes(order.orderStatus)) deliveryStatus = 'Returned';
-          else if (order.orderStatus === 'Payment Verified') deliveryStatus = 'Processing';
-          else deliveryStatus = order.orderStatus || 'New';
-
-          return {
-            id: order.orderNumber || order._id,
-            _id: order._id,
-            customerName: order.shippingAddress?.name || order.customerId?.name || 'Customer',
-            customerPhone: order.shippingAddress?.phone || order.customerId?.phone || '',
-            deliveryAddress: order.shippingAddress ? `${order.shippingAddress.address}, ${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.pincode}` : 'No address',
-            items: (order.orderItems || order.items || []).map((it: any) => ({
-              productId: it.productId,
-              productName: it.name || it.productName || 'Product',
-              sku: it.sku || '',
-              quantity: it.quantity || 1,
-              price: it.price || 0,
-              image: it.image || '/placeholder.png'
-            })),
-            subtotal,
-            shippingCharge,
-            packingCharge,
-            discount,
-            totalAmount,
-            paymentMethod,
-            paymentStatus,
-            deliveryStatus,
-            orderDate: order.createdAt || new Date().toISOString(),
-            timeline,
-            assignedDeliveryAgent: order.assignedDeliveryAgent || '',
-            assignedDeliveryAgentType: order.assignedDeliveryAgentType || 'Platform',
-            returnReason: order.returnReason || '',
-            customerNotes: order.customerNotes || '',
-            refundStatus: order.refundStatus || 'None',
-            isScheduledSubscription: order.isScheduledSubscription || false,
-            scheduleDetails: order.scheduleDetails || null,
-            fulfillment: order.fulfillment || null,
-            isSelfPickup: order.isSelfPickup || order.fulfillment?.type === 'pickup' || order.deliveryType === 'pickup' || false,
-            deliveryType: order.deliveryType || null,
-            pickupVerification: order.pickupVerification || null,
-            deliveryDetails: order.deliveryDetails || null
-          };
-        });
+        const mapped = list.map(mapVendorOrder);
         setOrders(mapped);
       }
 
       // Fetch vendor subscriptions
       try {
-        const subsRes = await fetch(`https://server.apexbee.in/api/local-shop/subscriptions/vendor/${userId}`, {
+        const subsRes = await fetch(`${API_URL}/local-shop/subscriptions/vendor/${userId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         let fetchedSubs: any[] = [];
@@ -531,40 +459,6 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (subsData.success && Array.isArray(subsData.subscriptions)) {
             fetchedSubs = subsData.subscriptions;
           }
-        }
-        if (fetchedSubs.length === 0) {
-          fetchedSubs = [
-            {
-              _id: 'sub-assigned-101',
-              id: 'SUB-A101',
-              productName: 'Fresh Organic Farm Milk (1 Litre)',
-              customerName: 'Srinivas Rao',
-              customerPhone: '9876543210',
-              address: 'Flat 302, Green Park Apartments, LB Nagar, Hyderabad',
-              deliverySlot: 'Morning Shift (6:00 AM - 8:00 AM)',
-              frequency: 'Daily',
-              status: 'active',
-              quantity: 2,
-              startDate: '2026-08-01',
-              assignedDeliveryAgent: 'Ramesh Kumar (APX-DP-702)',
-              deliveryAgentType: 'Platform'
-            },
-            {
-              _id: 'sub-assigned-102',
-              id: 'SUB-A102',
-              productName: 'Devotional Pooja Flowers & Fresh Garland Basket',
-              customerName: 'Priya Sharma',
-              customerPhone: '9876543211',
-              address: 'Plot 58, Road #3, Nagole, Hyderabad - 500068',
-              deliverySlot: 'Morning Shift (7:00 AM - 9:00 AM)',
-              frequency: 'Daily',
-              status: 'active',
-              quantity: 1,
-              startDate: '2026-08-01',
-              assignedDeliveryAgent: 'Ramesh Kumar (APX-DP-702)',
-              deliveryAgentType: 'Platform'
-            }
-          ];
         }
         setVendorSubscriptions(fetchedSubs);
       } catch (err) {
@@ -625,17 +519,17 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           packingCharges: p.packingCharges || 0,
           status: p.status || (p.moderationStatus === 'pending' ? 'Pending Review' : p.moderationStatus === 'approved' ? 'Approved' : 'Pending Review'),
           adminPricing: p.adminPricing || null,
-          platformFeePercent: Number(p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? 25),
+          platformFeePercent: Number(p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? 0),
           vendorCommissionPercent: Number(p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0),
           distributedFrom: p.adminPricing?.distributedFrom || 'platform_fee',
           commissionRate: Number(
             (p.adminPricing?.distributedFrom === 'apexbee_commission')
               ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
               : (p.adminPricing?.distributedFrom === 'both')
-                ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+                ? ((p.adminPricing?.platformFeePercent ?? 0) + (p.adminPricing?.vendorCommissionPercent ?? 0))
                 : (p.adminPricing?.distributedFrom === 'none')
                   ? 0
-                  : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? (typeof p.commissionRate === 'number' ? p.commissionRate : 25))
+                  : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? (typeof p.commissionRate === 'number' ? p.commissionRate : 0))
           ),
           variants: p.variants || [],
           isVariantProduct: p.isVariantProduct || false
@@ -736,6 +630,7 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               type: nType,
               timestamp: n.createdAt || new Date().toISOString(),
               isRead: n.status === 'read' || n.isRead || false
+              , eventCode: n.eventCode || '', deepLink: n.deepLink || '',
             };
           });
           setNotifications(nlist);
@@ -902,6 +797,28 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
+    // Check if auth params are passed in URL (SSO / portal switcher)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('auth_token') || params.get('token');
+      const urlUserStr = params.get('auth_user') || params.get('user');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        if (urlUserStr) {
+          try {
+            const parsedUser = JSON.parse(decodeURIComponent(urlUserStr));
+            localStorage.setItem('user', JSON.stringify(parsedUser));
+          } catch { }
+        }
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('auth_token');
+        cleanUrl.searchParams.delete('token');
+        cleanUrl.searchParams.delete('auth_user');
+        cleanUrl.searchParams.delete('user');
+        window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+      }
+    } catch { }
+
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (token && user) {
@@ -1023,10 +940,16 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updated.email !== undefined) payload.email = updated.email;
       if (updated.phone !== undefined) payload.mobile = updated.phone;
       if (updated.address !== undefined) payload.address = updated.address;
+      if (updated.hasGst !== undefined) payload.hasGst = updated.hasGst;
+      if (updated.gstPricingMode !== undefined) payload.gstPricingMode = updated.gstPricingMode;
+      if (updated.categoryParameters !== undefined) payload.categoryParameters = updated.categoryParameters;
       if (updated.gstNumber !== undefined) payload.gstNumber = updated.gstNumber;
       if (updated.panNumber !== undefined) payload.panNumber = updated.panNumber;
       if (updated.bankAccounts !== undefined) payload.bankAccounts = updated.bankAccounts;
       if (updated.liveStatus !== undefined) payload.liveStatus = updated.liveStatus;
+      if (updated.deliveryMode !== undefined) payload.deliveryMode = updated.deliveryMode;
+      if (updated.isSelfDelivery !== undefined) payload.isSelfDelivery = updated.isSelfDelivery;
+      if (updated.isSelfPickup !== undefined) payload.isSelfPickup = updated.isSelfPickup;
       if (updated.deliveryRadiusKm !== undefined) payload.deliveryRadiusKm = updated.deliveryRadiusKm;
       if (updated.minOrder !== undefined) payload.minOrder = updated.minOrder;
       if (updated.deliveryCharge !== undefined) payload.deliveryCharge = updated.deliveryCharge;
@@ -2437,17 +2360,11 @@ export const VendorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Computations for KPI cards
   const stats = statsState || (() => {
-    // Wallet calculation
-    // Start with a base of 38420, add all Completed Order Earnings, Referral Bonuses, deduct completed withdrawals/refunds
+    // Wallet calculation derived directly from actual ledger transactions
     let base = 0;
     transactions.forEach(t => {
-      // Don't calculate the initial list again as they are already counted in the baseline,
-      // only count transactions added dynamically (which don't match the hardcoded initial list IDs)
-      const initialIds = ["TXN-88029", "TXN-87910", "TXN-87401", "TXN-87320"];
-      if (!initialIds.includes(t.id) && t.status === 'Completed') {
+      if (t.status === 'Completed' || t.status === 'Pending') {
         base += t.amount;
-      } else if (!initialIds.includes(t.id) && t.status === 'Pending') {
-        base += t.amount; // Withdrawals are negative, so this deducts it from the display balance immediately
       }
     });
 

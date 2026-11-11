@@ -25,8 +25,10 @@ export const WalletPage: React.FC = () => {
   const [orderAmount, setOrderAmount] = useState('1000');
 
   const calcResults = React.useMemo(() => {
-    const isZeroCommModel = products.every((p: any) => !p.commissionRate || p.commissionRate === 0);
-    const commRate = isZeroCommModel ? 0 : 5;
+    const activeRates = products.map((p: any) => p.commissionRate ?? p.platformFeePercent ?? 0).filter((r: number) => r > 0);
+    const avgRate = activeRates.length > 0 ? Math.round(activeRates.reduce((a: number, b: number) => a + b, 0) / activeRates.length) : 0;
+    const isZeroCommModel = avgRate === 0;
+    const commRate = avgRate;
     const parsedAmt = parseFloat(orderAmount || '0');
     const commAmt = Math.round(parsedAmt * (commRate / 100));
     const gstAmt = Math.round(commAmt * 0.18);
@@ -57,8 +59,16 @@ export const WalletPage: React.FC = () => {
     return transactions.filter(t => (t.description || '').toLowerCase().includes('referral') || (t.description || '').toLowerCase().includes('bonus')).reduce((sum, t) => sum + t.amount, 0);
   }, [transactions]);
 
-  // Derive today's expected settlement
-  const todayEarnings = Math.round(pendingBal * 0.4);
+  // Derive today's expected settlement from real delivered orders today
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEarnings = React.useMemo(() => {
+    return orders
+      .filter(o => {
+        const d = o.deliveredAt ? new Date(o.deliveredAt).toISOString().split('T')[0] : (o.orderDate ? new Date(o.orderDate).toISOString().split('T')[0] : '');
+        return d === todayStr && (o.deliveryStatus === 'Delivered' || o.orderStatus === 'Delivered' || o.orderStatus === 'Completed');
+      })
+      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  }, [orders, todayStr]);
   const processingWithdrawal = withdrawals
     .filter(w => w.status === 'Pending' || w.status === 'Approved')
     .reduce((sum, w) => sum + w.amount, 0);
@@ -214,16 +224,16 @@ export const WalletPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Instant Withdraw Eligibility Card (PDF Page 3) */}
+              {/* Instant Withdraw Eligibility Card */}
               <Card className="glass border-primary/20 bg-primary/[0.01]">
                 <CardContent className="p-4 flex flex-col gap-2 text-xs">
                   <span className="font-extrabold text-foreground text-sm">Instant Withdraw Eligibility</span>
                   <div className="flex justify-between items-center font-bold mt-1 text-muted-foreground">
                     <span>Available Today</span>
-                    <span className="text-emerald-500 font-black text-sm">₹{(bal - 500 > 0 ? bal - 500 : 0).toLocaleString()}</span>
+                    <span className="text-emerald-500 font-black text-sm">₹{bal.toLocaleString()}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    * Eligible amount factors in daily rolling reserves and bank settlement timings. Minimum required balance is ₹500.
+                    * Eligible amount equals your available wallet balance ready for transfer to your verified bank account.
                   </p>
                 </CardContent>
               </Card>
@@ -410,7 +420,7 @@ export const WalletPage: React.FC = () => {
                   <p className="text-[10px] text-muted-foreground leading-normal">
                     {calcResults.isZeroCommModel
                       ? '* Platform Direct Model Active: 0% Platform Commission — 100% Sales Payout to Vendor.'
-                      : '* Standard platform fee is 5.0% of customer checkouts. GST is 18.0% of the platform commission fee itself.'}
+                      : `* Platform fee is ${calcResults.commRate}% based on your product listings. GST is 18.0% of the platform commission fee.`}
                   </p>
                 </div>
 
@@ -499,7 +509,7 @@ export const WalletPage: React.FC = () => {
                 </div>
                 <div className="border-t border-border/30 pt-2 flex flex-col gap-0.5 text-[10px]">
                   <span>Holder Name: {bank.accountHolderName || profile.ownerName}</span>
-                  <span>IFSC Code: {bank.ifscCode || "IFSC000213"}</span>
+                  <span>IFSC Code: {bank.ifscCode || "Not Provided"}</span>
                   <span className="text-emerald-500 font-bold mt-1">✓ Connected &amp; active</span>
                 </div>
                 <div className="flex gap-2 justify-end mt-1 border-t border-border/20 pt-2">

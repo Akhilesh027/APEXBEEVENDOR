@@ -1,3 +1,5 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { businessId } from '../services/businessPortal';
 import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -21,7 +23,10 @@ import {
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 
 export const ReviewsRatings: React.FC = () => {
-  const { reviews: contextReviews, products, submitReviewReply } = useVendor();
+  const { reviews: allReviews, products: allProducts, submitReviewReply } = useVendor();
+  const {productIds}=useBusinessWorkspace();
+  const contextReviews=useMemo(()=>productIds?allReviews.filter(review=>productIds.includes(businessId(review.productId))):allReviews,[allReviews,productIds]);
+  const products=useMemo(()=>productIds?allProducts.filter(product=>productIds.includes(product.id)):allProducts,[allProducts,productIds]);
   const [activeTab, setActiveTab] = useState<'product' | 'store' | 'analytics'>('product');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -38,11 +43,11 @@ export const ReviewsRatings: React.FC = () => {
 
   const ratingDistribution = useMemo(() => {
     return [
-      { stars: '5 Stars', count: contextReviews.filter(r => r.rating === 5).length || 12, fill: '#10b981' },
-      { stars: '4 Stars', count: contextReviews.filter(r => r.rating === 4).length || 6, fill: '#34d399' },
-      { stars: '3 Stars', count: contextReviews.filter(r => r.rating === 3).length || 2, fill: '#f59e0b' },
+      { stars: '5 Stars', count: contextReviews.filter(r => r.rating === 5).length, fill: '#10b981' },
+      { stars: '4 Stars', count: contextReviews.filter(r => r.rating === 4).length, fill: '#34d399' },
+      { stars: '3 Stars', count: contextReviews.filter(r => r.rating === 3).length, fill: '#f59e0b' },
       { stars: '2 Stars', count: contextReviews.filter(r => r.rating === 2).length || 0, fill: '#fbbf24' },
-      { stars: '1 Star',  count: contextReviews.filter(r => r.rating === 1).length || 1, fill: '#ef4444' },
+      { stars: '1 Star',  count: contextReviews.filter(r => r.rating === 1).length, fill: '#ef4444' },
     ];
   }, [contextReviews]);
 

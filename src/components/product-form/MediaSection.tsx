@@ -69,11 +69,11 @@ export const MediaSection: React.FC<MediaSectionProps> = ({
   };
 
   return (
-    <div className="p-6 border border-blue-900/60 rounded-2xl bg-slate-950/80 space-y-6 shadow-xl">
+    <div className="product-editor-card space-y-5">
       <div className="flex flex-wrap justify-between items-center gap-3 border-b border-blue-900/40 pb-4">
         <div>
-          <h4 className="font-extrabold font-heading text-amber-400 text-sm uppercase tracking-wider flex items-center gap-2">
-            <span>📸</span> Step 3: Product Media & Description
+          <h4 className="font-heading text-base font-bold text-white">
+            Photos &amp; description
           </h4>
           <p className="text-xs text-blue-300 mt-0.5">
             Upload main cover photo, additional gallery images, and product description.
@@ -122,16 +122,17 @@ export const MediaSection: React.FC<MediaSectionProps> = ({
               </button>
             </div>
           ) : (
-            <div
+            <button
+              type="button"
               onClick={() => thumbnailInputRef.current?.click()}
-              className="h-48 rounded-2xl border-2 border-dashed border-blue-900/80 bg-slate-900/60 hover:bg-slate-900 hover:border-amber-400/60 flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all group"
+              className="flex min-h-36 w-full flex-col items-center justify-center rounded-xl border border-dashed border-input bg-background p-4 text-center transition-colors hover:border-primary cursor-pointer"
             >
-              <div className="h-12 w-12 rounded-2xl bg-amber-400/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Upload size={22} />
-              </div>
-              <p className="text-xs font-bold text-white">Click to Upload Main Cover Image</p>
-              <p className="text-[10px] text-blue-300 mt-1">PNG, JPG, WebP up to 25MB (Auto-compressed)</p>
-            </div>
+              </span>
+              <span className="text-xs font-bold text-white">Upload cover image</span>
+              <span className="mt-1 text-[11px] text-muted-foreground">PNG, JPG or WebP</span>
+            </button>
           )}
         </div>
 
@@ -151,16 +152,17 @@ export const MediaSection: React.FC<MediaSectionProps> = ({
             className="hidden"
           />
 
-          <div
+          <button
+            type="button"
             onClick={() => galleryInputRef.current?.click()}
-            className="h-48 rounded-2xl border-2 border-dashed border-blue-900/80 bg-slate-900/60 hover:bg-slate-900 hover:border-amber-400/60 flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all group"
+            className="flex min-h-36 w-full flex-col items-center justify-center rounded-xl border border-dashed border-input bg-background p-4 text-center transition-colors hover:border-primary cursor-pointer"
           >
-            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+            <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <ImageIcon size={22} />
-            </div>
-            <p className="text-xs font-bold text-white">Click to Select Gallery Photos</p>
-            <p className="text-[10px] text-blue-300 mt-1">Select multiple photos at once</p>
-          </div>
+            </span>
+            <span className="text-xs font-bold text-white">Add gallery photos</span>
+            <span className="mt-1 text-[11px] text-muted-foreground">Select multiple photos at once</span>
+          </button>
         </div>
       </div>
 

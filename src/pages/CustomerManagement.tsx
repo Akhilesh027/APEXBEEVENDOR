@@ -1,5 +1,8 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { businessId, orderInBusiness } from '../services/businessPortal';
 import React, { useState, useMemo } from 'react';
 import { useVendor } from '../context/VendorContext';
+import { DairyOperationsCard } from '../components/DairyOperationsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -16,7 +19,10 @@ import {
 } from 'lucide-react';
 
 export const CustomerManagement: React.FC = () => {
-  const { profile, orders = [], vendorSubscriptions = [], getCustomerNote, updateCustomerNote } = useVendor();
+  const { profile, orders: allOrders = [], vendorSubscriptions: allSubscriptions = [], getCustomerNote, updateCustomerNote } = useVendor();
+  const {productIds}=useBusinessWorkspace();
+  const orders=useMemo(()=>allOrders.filter(order=>orderInBusiness(order,productIds)),[allOrders,productIds]);
+  const vendorSubscriptions=useMemo(()=>productIds?allSubscriptions.filter((sub:any)=>productIds.includes(businessId(sub.productId))):allSubscriptions,[allSubscriptions,productIds]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -137,13 +143,15 @@ export const CustomerManagement: React.FC = () => {
   };
 
   // Profile's matching subscription
-  const customerSubscription = useMemo(() => {
-    if (!selectedCustomer) return null;
-    return vendorSubscriptions.find(s => s.userId === selectedCustomer.userId);
+  const customerSubscriptions = useMemo(() => {
+    if (!selectedCustomer?.userId) return [];
+    return vendorSubscriptions.filter(s => String(s.userId?._id || s.userId) === String(selectedCustomer.userId));
   }, [selectedCustomer, vendorSubscriptions]);
+  const customerSubscription = customerSubscriptions[0] || null;
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-foreground text-left relative">
+      <DairyOperationsCard mode="customers" />
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
@@ -388,17 +396,17 @@ export const CustomerManagement: React.FC = () => {
               {/* Tab 3: Subscriptions */}
               {profileTab === 'subscriptions' && (
                 <div className="flex flex-col gap-3">
-                  {!customerSubscription ? (
+                  {!customerSubscriptions.length ? (
                     <p className="text-xs text-muted-foreground text-center py-6">No active subscriptions registered.</p>
-                  ) : (
-                    <div className="p-3 bg-secondary/35 border border-border rounded-xl flex items-center justify-between text-xs text-left">
+                  ) : customerSubscriptions.map(subscription => (
+                    <div key={subscription._id || subscription.id} className="p-3 bg-secondary/35 border border-border rounded-xl flex items-center justify-between text-xs text-left">
                       <div className="flex flex-col gap-1">
-                        <span className="font-bold text-foreground">{customerSubscription.productName}</span>
-                        <span className="text-[10px] text-muted-foreground capitalize">Frequency: {customerSubscription.frequency} • Qty: {customerSubscription.quantity} units</span>
+                        <span className="font-bold text-foreground">{subscription.productName}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize">Frequency: {subscription.frequency} • Qty: {subscription.quantity} units</span>
                       </div>
-                      <Badge variant={customerSubscription.status === 'active' ? 'success' : 'secondary'}>{customerSubscription.status}</Badge>
+                      <Badge variant={subscription.status === 'active' ? 'success' : 'secondary'}>{subscription.status}</Badge>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
 

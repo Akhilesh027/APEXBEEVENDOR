@@ -1,5 +1,8 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { orderInBusiness } from '../services/businessPortal';
 import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
+import { DairyOperationsCard } from '../components/DairyOperationsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -8,7 +11,9 @@ import { Truck, Navigation, Star, Phone, CheckCircle, User, Clock, TrendingUp, S
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 export const Delivery: React.FC = () => {
-  const { deliveryAgents, orders } = useVendor();
+  const { deliveryAgents, orders: allOrders } = useVendor();
+  const { productIds, selected } = useBusinessWorkspace();
+  const orders = allOrders.filter(order => orderInBusiness(order, productIds));
 
   const activeDeliveries = orders.filter(o => o.deliveryStatus === 'Shipped' || o.deliveryStatus === 'Processing' || o.deliveryStatus === 'Packed');
 
@@ -106,11 +111,12 @@ export const Delivery: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-left text-foreground">
+      <DairyOperationsCard mode="delivery" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5 text-left">
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <Truck className="h-6 w-6 text-primary animate-pulse" /> Hyperlocal Dispatch & Logistics
+            <Truck className="h-6 w-6 text-primary animate-pulse" /> {selected?.kind === 'flowers' ? 'Flower Deliveries & Pickup' : 'Hyperlocal Dispatch & Logistics'}
           </h1>
           <p className="text-xs text-muted-foreground font-semibold">Track active dispatches, configure fallback couriers, and inspect live delivery zones.</p>
         </div>

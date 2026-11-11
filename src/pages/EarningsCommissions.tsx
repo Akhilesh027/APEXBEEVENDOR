@@ -46,10 +46,10 @@ export const EarningsCommissions: React.FC = () => {
         p.adminPricing?.distributedFrom === 'apexbee_commission'
           ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
           : (p.adminPricing?.distributedFrom === 'both')
-          ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+          ? ((p.adminPricing?.platformFeePercent ?? 0) + (p.adminPricing?.vendorCommissionPercent ?? 0))
           : (p.adminPricing?.distributedFrom === 'none')
           ? 0
-          : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 25)
+          : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 0)
       );
       return acc + r;
     }, 0);
@@ -76,10 +76,10 @@ export const EarningsCommissions: React.FC = () => {
         const oItems = o.items || [];
         const itemComm = oItems.reduce((iSum: number, item: any) => {
           const prod = products.find(p => p.id === item.productId || (p as any)._id === item.productId);
-          const r = prod?.commissionRate ?? 25;
+          const r = prod?.adminPricing?.platformFeePercent ?? prod?.platformCommissionPercent ?? prod?.commissionRate ?? 0;
           return iSum + Math.round((item.price || 0) * (item.quantity || 1) * (r / 100));
         }, 0);
-        return sum + (itemComm > 0 ? itemComm : Math.round((o.totalAmount || 0) * 0.25));
+        return sum + itemComm;
       }, 0);
       result.push({ name, earnings: Math.max(0, gross - commission), commission });
     }
@@ -93,10 +93,10 @@ export const EarningsCommissions: React.FC = () => {
       p.adminPricing?.distributedFrom === 'apexbee_commission'
         ? (p.adminPricing?.vendorCommissionPercent ?? p.vendorCommissionPercent ?? 0)
         : (p.adminPricing?.distributedFrom === 'both')
-        ? ((p.adminPricing?.platformFeePercent ?? 25) + (p.adminPricing?.vendorCommissionPercent ?? 0))
+        ? ((p.adminPricing?.platformFeePercent ?? 0) + (p.adminPricing?.vendorCommissionPercent ?? 0))
         : (p.adminPricing?.distributedFrom === 'none')
         ? 0
-        : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 25)
+        : (p.adminPricing?.platformFeePercent ?? p.platformCommissionPercent ?? p.platformFeePercent ?? p.commissionRate ?? 0)
     );
     const shipping = Number(p.shippingCharges || 0);
     const packing = Number(p.packingCharges || 0);

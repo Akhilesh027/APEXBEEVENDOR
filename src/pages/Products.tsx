@@ -10,12 +10,33 @@ import {
   Wand2,
   ImageIcon,
   Power,
+  Eye,
+  Tag,
+  Truck,
+  ShieldCheck,
+  Layers,
+  Store,
+  Percent,
+  Calendar,
+  DollarSign,
+  Info,
+  Clock,
+  Sparkles,
+  ChevronRight,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
+  FileText,
+  Droplets,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { useVendor } from '../context/VendorContext';
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { ProductEditor } from '../components/product-form/ProductEditor';
 import { MediaSection } from '../components/product-form/MediaSection';
 import { DeliverySection } from '../components/product-form/DeliverySection';
+import { DairyProductFields, emptyDairyProduct, readDairyProduct, dairyProductError } from '../components/product-form/DairyProductFields';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://server.apexbee.in';
 
@@ -104,8 +125,18 @@ export const ProductManagement: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [showPricingView, setShowPricingView] = useState(false);
+  const [viewModalImage, setViewModalImage] = useState<string>('');
+  const [viewModalTab, setViewModalTab] = useState<'all' | 'pricing' | 'variants' | 'logistics'>('all');
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [formStep, setFormStep] = useState<number>(1);
+
+  const openViewModal = (product: any) => {
+    setSelectedProduct(product);
+    const mainImg = getImageUrl(product.thumbnail || product.images?.[0]);
+    setViewModalImage(mainImg);
+    setViewModalTab('all');
+    setShowPricingView(true);
+  };
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
@@ -147,9 +178,12 @@ export const ProductManagement: React.FC = () => {
     isLocalDelivery: true,
     isPanIndia: false,
     minimumOrderQuantity: '1',
+    gstRate: '0',
+    gstPricingMode: 'inclusive',
   });
 
   const [attributeValues, setAttributeValues] = useState<any>({});
+  const [dairyDetails, setDairyDetails] = useState({ ...emptyDairyProduct });
   const [variants, setVariants] = useState<any[]>([]);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
@@ -158,6 +192,26 @@ export const ProductManagement: React.FC = () => {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const { profile, currentPage, setCurrentPage } = useVendor();
+  const { selected: selectedBusiness, productIds, workspaces } = useBusinessWorkspace();
+
+  useEffect(() => {
+    if (showForm && !editingProduct && selectedBusiness) {
+      setForm(previous => ({ ...previous, categoryId: selectedBusiness.categoryId, subCategoryId: selectedBusiness.id, childCategoryId: '' }));
+    }
+  }, [showForm, editingProduct, selectedBusiness?.id]);
+
+  // Inherit default GST settings from vendor business profile
+  useEffect(() => {
+    if (showForm && !editingProduct && profile) {
+      const defaultGstRate = profile.hasGst ? String(profile.categoryParameters?.gstRate ?? 5) : '0';
+      const defaultGstMode = profile.gstPricingMode || 'inclusive';
+      setForm(prev => ({
+        ...prev,
+        gstRate: prev.gstRate === '0' || !prev.gstRate ? defaultGstRate : prev.gstRate,
+        gstPricingMode: prev.gstPricingMode || defaultGstMode
+      }));
+    }
+  }, [showForm, editingProduct, profile?.hasGst, profile?.gstPricingMode, profile?.categoryParameters?.gstRate]);
 
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -317,6 +371,7 @@ export const ProductManagement: React.FC = () => {
 
   const availableCategories = useMemo(() => {
     if (!categories.length) return [];
+    if (selectedBusiness?.kind === 'flowers') return categories.filter(category => category._id === selectedBusiness.categoryId);
     if (!vendorCategoryFilters.hasRestrictions && vendorApprovedSubs.length === 0) {
       return categories;
     }
@@ -392,7 +447,7 @@ export const ProductManagement: React.FC = () => {
     }
 
     return vendorCategoryFilters.hasRestrictions ? filtered : categories;
-  }, [categories, vendorCategoryFilters, vendorApprovedSubs]);
+  }, [categories, vendorCategoryFilters, vendorApprovedSubs, selectedBusiness?.kind, selectedBusiness?.categoryId]);
 
   // Auto-select category based on Vendor's business categories
   useEffect(() => {
@@ -416,6 +471,7 @@ export const ProductManagement: React.FC = () => {
   const rawSubCategories = selectedCategory?.children || [];
 
   const subCategories = useMemo(() => {
+    if (selectedBusiness?.kind === 'flowers') return rawSubCategories.filter((subcategory: any) => subcategory._id === selectedBusiness.id);
     if (!vendorApprovedSubs.length) return rawSubCategories;
     const filtered = rawSubCategories.filter((sub: any) => {
       const sName = String(sub.name || '').trim().toLowerCase();
@@ -431,7 +487,7 @@ export const ProductManagement: React.FC = () => {
       });
     });
     return filtered.length > 0 ? filtered : rawSubCategories;
-  }, [rawSubCategories, vendorApprovedSubs]);
+  }, [rawSubCategories, vendorApprovedSubs, selectedBusiness?.kind, selectedBusiness?.id]);
 
   // Auto-select subcategory when subCategories list updates
   useEffect(() => {
@@ -460,19 +516,18 @@ export const ProductManagement: React.FC = () => {
     [subCategories, form.subCategoryId]
   );
 
-  const childCategories = selectedSubCategory?.children || [];
+  const dailyNeedsProfile = workspaces.find(workspace => workspace.id === form.subCategoryId)?.dailyNeedsProfile;
+  const isFlowerProduct = workspaces.some(workspace => workspace.id === form.subCategoryId && workspace.kind === 'flowers');
+  const flowerFractionalStock = isFlowerProduct && ['Kg', 'Grams', 'Garland Length (Meters)'].includes(attributeValues.selling_unit);
+  const childCategories = selectedSubCategory?.children;
+  const isDairyProduct = ['daily-needs', 'daily needs'].includes(String(selectedCategory?.slug || selectedCategory?.name || '').toLowerCase()) &&
+    ['milk', 'milk-and-dairy', 'milk-dairy', 'milk and dairy', 'milk & dairy'].includes(String(selectedSubCategory?.slug || selectedSubCategory?.name || '').toLowerCase());
 
   const finalSelectedCategory = useMemo(() => {
-    if (form.childCategoryId) {
-      return childCategories.find((cat: any) => cat._id === form.childCategoryId);
-    }
-
-    if (form.subCategoryId) return selectedSubCategory;
-
-    return selectedCategory;
+    const child = childCategories?.find((cat: any) => cat._id === form.childCategoryId);
+    return child || selectedSubCategory || selectedCategory;
   }, [
     form.childCategoryId,
-    form.subCategoryId,
     selectedCategory,
     selectedSubCategory,
     childCategories,
@@ -503,9 +558,12 @@ export const ProductManagement: React.FC = () => {
     return () => { isMounted = false; };
   }, [finalSelectedCategory?._id]);
 
-  const categoryAttributes = loadedAttributes.length > 0
+  const rawCategoryAttributes = loadedAttributes.length > 0
     ? loadedAttributes
     : (finalSelectedCategory?.attributes || []);
+  const dedicatedFields = isDairyProduct ? ['milk_type', 'fat_percentage', 'volume', 'expiry_date']
+    : dailyNeedsProfile ? ['unit', 'stock_unit', 'pack_size', 'stock_source'] : [];
+  const categoryAttributes = rawCategoryAttributes.filter((attribute: any) => !dedicatedFields.includes(attribute.key));
 
   const categoryBrands =
     finalSelectedCategory?.brands ||
@@ -573,6 +631,8 @@ export const ProductManagement: React.FC = () => {
 
   useEffect(() => {
     if (!finalSelectedCategory) return;
+    const savedCategoryId = editingProduct?.categoryId?._id || editingProduct?.categoryId;
+    if (editingProduct && String(savedCategoryId) === String(finalSelectedCategory._id)) return;
 
     const initialAttrs: any = {};
 
@@ -592,6 +652,7 @@ export const ProductManagement: React.FC = () => {
   }, [finalSelectedCategory?._id]);
 
   const resetForm = () => {
+    setErrorMsg('');
     setForm({
       name: '',
       description: '',
@@ -626,6 +687,7 @@ export const ProductManagement: React.FC = () => {
     });
 
     setAttributeValues({});
+    setDairyDetails({ ...emptyDairyProduct });
     setVariants([]);
     setThumbnail(null);
     setThumbnailPreview('');
@@ -672,9 +734,12 @@ export const ProductManagement: React.FC = () => {
       isLocalDelivery: product.isLocalDelivery !== undefined ? !!product.isLocalDelivery : (product.deliveryScope === 'local' || product.deliveryScope === 'both' || !product.deliveryScope),
       isPanIndia: product.isPanIndia !== undefined ? !!product.isPanIndia : (product.deliveryScope === 'pan_india' || product.deliveryScope === 'both'),
       minimumOrderQuantity: String(product.minimumOrderQuantity ?? product.moq ?? product.wholesaleRules?.minOrderQty ?? 1),
+      gstRate: product.gstRate !== undefined ? String(product.gstRate) : '0',
+      gstPricingMode: product.gstPricingMode || 'inclusive',
     });
 
     setAttributeValues(product.attributes || {});
+    setDairyDetails(readDairyProduct(product));
     setVariants(product.variants || []);
     setThumbnailPreview(getImageUrl(product.thumbnail || product.images?.[0]) || '');
     setShowForm(true);
@@ -790,6 +855,13 @@ export const ProductManagement: React.FC = () => {
       setFormStep(2);
       return;
     }
+    if (isDairyProduct) {
+      const message = dairyProductError(dairyDetails);
+      if (message || !Number.isInteger(Number(form.stock)) || Number(form.stock) < 0 || form.stock === '' || Number(form.baseSellingPrice) > Number(form.baseMrp)) {
+        setErrorMsg(message || 'Enter available packs as a whole number of zero or more, and keep selling price at or below MRP.');
+        setFormStep(2); return;
+      }
+    }
 
     try {
       setSaving(true);
@@ -812,6 +884,7 @@ export const ProductManagement: React.FC = () => {
       fd.append('sellerType', form.sellerType);
       fd.append('sellerId', user.id || user._id);
       fd.append('isStoreProduct', String(form.isStoreProduct));
+      fd.append('isSubscriptionAvailable', String(form.isSubscriptionAvailable));
       fd.append('isPreOrder', String(form.isPreOrder));
       fd.append('preOrderType', form.preOrderType || 'ADVANCE_NOTICE');
       fd.append('preOrderLeadTimeDays', String(Number(form.preOrderLeadTimeDays) || 1));
@@ -830,7 +903,10 @@ export const ProductManagement: React.FC = () => {
       fd.append('isPanIndia', String(form.isPanIndia));
       fd.append('minimumOrderQuantity', String(Number(form.minimumOrderQuantity) || 1));
       fd.append('moq', String(Number(form.minimumOrderQuantity) || 1));
+      fd.append('gstRate', String(Number(form.gstRate) || 0));
+      fd.append('gstPricingMode', form.gstPricingMode || 'inclusive');
       fd.append('attributes', JSON.stringify(attributeValues));
+      if (isDairyProduct) fd.append('dairyDetails', JSON.stringify(dairyDetails));
       fd.append('variants', JSON.stringify(variants));
 
       if (thumbnail) fd.append('thumbnail', thumbnail);
@@ -1013,6 +1089,7 @@ export const ProductManagement: React.FC = () => {
   const [subFilter, setSubFilter] = useState('All Pending');
 
   const filteredProducts = products.filter((product) => {
+    if (productIds && !productIds.includes(String(product._id || product.id))) return false;
     const matchSearch =
       product.name?.toLowerCase().includes(search.toLowerCase()) ||
       product.sku?.toLowerCase().includes(search.toLowerCase());
@@ -1044,10 +1121,11 @@ export const ProductManagement: React.FC = () => {
     : 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="pos-page space-y-5">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-foreground">
+          <p className="pos-eyebrow mb-1">Catalog</p>
+          <h1 className="pos-page-title">
             Product Management
           </h1>
           <p className="text-xs text-muted-foreground">
@@ -1070,7 +1148,7 @@ export const ProductManagement: React.FC = () => {
         </div>
       )}
 
-      {errorMsg && (
+      {errorMsg && !showForm && (
         <div className="p-3 rounded-xl bg-rose-500/10 text-rose-600 text-xs font-bold border border-rose-500/20">
           {errorMsg}
         </div>
@@ -1147,23 +1225,45 @@ export const ProductManagement: React.FC = () => {
 
             <tbody className="divide-y divide-border">
               {filteredProducts.map((product) => (
-                <tr key={product._id} className="hover:bg-secondary/20">
+                <tr key={product._id} className="hover:bg-secondary/20 transition-colors">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      {getImageUrl(product.thumbnail || product.images?.[0]) ? (
-                        <img
-                          src={getImageUrl(product.thumbnail || product.images?.[0])}
-                          alt={product.name}
-                          className="w-10 h-10 rounded-lg object-cover border"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                          <Package size={16} />
-                        </div>
-                      )}
+                      <div
+                        onClick={() => openViewModal(product)}
+                        className="cursor-pointer group relative shrink-0"
+                        title="Click to view all product details"
+                      >
+                        {getImageUrl(product.thumbnail || product.images?.[0]) ? (
+                          <img
+                            src={getImageUrl(product.thumbnail || product.images?.[0])}
+                            alt={product.name}
+                            className="w-11 h-11 rounded-xl object-cover border border-border group-hover:border-primary transition-all shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center border border-border">
+                            <Package size={18} className="text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="absolute inset-0 bg-black/30 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <Eye size={14} className="text-white" />
+                        </span>
+                      </div>
 
                       <div>
-                        <p className="font-bold text-foreground">{product.name}</p>
+                        <p
+                          onClick={() => openViewModal(product)}
+                          className="font-extrabold text-foreground cursor-pointer hover:text-primary transition-colors text-sm line-clamp-1"
+                          title="Click to view all product details"
+                        >
+                          {product.name}
+                        </p>
+                        {product.dairyDetails?.dairyType && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {product.dairyDetails.dairyType} · {product.dairyDetails.packSize} {product.dairyDetails.packUnit}
+                            {product.dairyDetails.fatPercentage !== undefined ? ` · ${product.dairyDetails.fatPercentage}% fat` : ''}
+                            <span className="block text-[10px]">Expiry: {product.dairyDetails.expiryDate}</span>
+                          </p>
+                        )}
                         <p className="text-[10px] text-muted-foreground">
                           {product.brand || 'No Brand'}
                         </p>
@@ -1175,7 +1275,7 @@ export const ProductManagement: React.FC = () => {
                             </span>
                           )}
                           {product.isSubscriptionAvailable && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-600 text-[9px] font-extrabold uppercase tracking-wide">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 text-[9px] font-extrabold uppercase tracking-wide">
                               🔁 Subscription
                             </span>
                           )}
@@ -1185,11 +1285,11 @@ export const ProductManagement: React.FC = () => {
                             </span>
                           )}
                           {product.isActive !== false && (product.status === 'Live' || product.status === 'Approved') ? (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-extrabold uppercase tracking-wide">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[9px] font-extrabold uppercase tracking-wide">
                               ✅ Visible in Store
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[9px] font-extrabold uppercase tracking-wide">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[9px] font-extrabold uppercase tracking-wide">
                               🚫 Hidden from Store
                             </span>
                           )}
@@ -1214,23 +1314,29 @@ export const ProductManagement: React.FC = () => {
 
                   <td className="p-3">
                     <div>MRP: ₹{product.baseMrp}</div>
-                    <div>Selling: ₹{product.baseSellingPrice}</div>
+                    <div className="font-semibold text-amber-500">Selling: ₹{product.baseSellingPrice}</div>
+                    {product.gstRate !== undefined && Number(product.gstRate) > 0 && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        <span className="font-bold text-emerald-400">{product.gstRate}% GST</span>
+                        <span className="text-[9px] text-slate-400 ml-1">
+                          (CGST {(Number(product.gstRate) / 2).toFixed(1)}% + SGST {(Number(product.gstRate) / 2).toFixed(1)}%)
+                        </span>
+                        <span className="ml-1 text-[9px] font-semibold text-amber-400">
+                          [{product.gstPricingMode === 'exclusive' ? 'Excl.' : 'Incl.'}]
+                        </span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="p-3">
-                    {product.adminPricing ? (
-                      <button
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setShowPricingView(true);
-                        }}
-                        className="text-primary font-bold underline"
-                      >
-                        View Pricing
-                      </button>
-                    ) : (
-                      <span className="text-muted-foreground">Not configured</span>
-                    )}
+                    <button
+                      onClick={() => openViewModal(product)}
+                      className="text-primary font-bold underline hover:text-primary/80 transition-colors text-xs inline-flex items-center gap-1 cursor-pointer"
+                      title="Click to inspect all product specifications, pricing, and fulfillment"
+                    >
+                      <Eye size={12} />
+                      <span>{product.adminPricing ? 'View Pricing & Specs' : 'View Full Details'}</span>
+                    </button>
                   </td>
 
                   {/* Store Status ON/OFF Button - Only show after Admin approved and Vendor approved */}
@@ -1290,10 +1396,7 @@ export const ProductManagement: React.FC = () => {
                           <div className="inline-flex flex-col items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedProduct(product);
-                                setShowPricingView(true);
-                              }}
+                              onClick={() => openViewModal(product)}
                               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/40 hover:border-indigo-400 transition-all cursor-pointer shadow-xs active:scale-95"
                               title="Admin approved! Review and accept pricing to enable Store Status (ON/OFF)"
                             >
@@ -1370,17 +1473,27 @@ export const ProductManagement: React.FC = () => {
                   </td>
 
                   <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-1.5">
+                      <button
+                        onClick={() => openViewModal(product)}
+                        className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition cursor-pointer"
+                        title="View Complete Product Details & Specs"
+                      >
+                        <Eye size={14} />
+                      </button>
+
                       <button
                         onClick={() => openEdit(product)}
-                        className="p-2 rounded-lg bg-secondary text-foreground"
+                        className="p-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition cursor-pointer"
+                        title="Edit Product"
                       >
                         <Edit size={14} />
                       </button>
 
                       <button
                         onClick={() => handleDelete(product._id)}
-                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500"
+                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition cursor-pointer"
+                        title="Delete Product"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1419,968 +1532,1392 @@ export const ProductManagement: React.FC = () => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center p-3 md:p-6">
-          <div className="bg-slate-900 text-slate-100 rounded-3xl border-none w-[96vw] max-w-[1550px] p-6 h-[94vh] overflow-hidden flex flex-col shadow-2xl">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-4 gap-4 bg-slate-950/50 p-4 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-amber-400 text-blue-950 flex items-center justify-center font-black text-xl shadow-md">
-                  📦
+        <ProductEditor
+          step={formStep}
+          editing={Boolean(editingProduct)}
+          saving={saving}
+          error={errorMsg}
+          workspace={selectedBusiness?.name}
+          onStep={setFormStep}
+          onClose={resetForm}
+          onSave={handleSaveProduct}
+          preview={
+            <div className="space-y-3">
+              <p className="pos-eyebrow">Customer preview</p>
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="relative flex h-36 items-center justify-center overflow-hidden bg-background sm:h-44">
+                  {previewImage ? (
+                    <img
+                      src={previewImage}
+                      alt={form.name}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
+                      <ImageIcon size={28} aria-hidden="true" />
+                      <span>No cover photo yet</span>
+                    </div>
+                  )}
+                  {form.discountPercent && (
+                    <span className="absolute top-3 left-3 bg-amber-400 text-blue-950 font-black text-[10px] px-2.5 py-1 rounded-full uppercase shadow-md">
+                      {form.discountPercent}% OFF
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <h2 className="text-lg font-extrabold font-heading text-white flex items-center gap-2">
-                    {editingProduct ? 'Edit Store Item' : 'Create & List New Product'}
-                  </h2>
-                  <p className="text-xs text-blue-300">Complete 3 easy steps to publish your product to local customers.</p>
+
+                <div className="p-4 space-y-3">
+                  <span className="text-[10px] uppercase tracking-widest font-black text-amber-400">
+                    {form.brand || 'Local Brand'}
+                  </span>
+
+                  <h3 className="font-extrabold text-base text-white line-clamp-2">
+                    {form.name || 'Product name'}
+                  </h3>
+
+                  <p className="text-xs text-blue-200 line-clamp-2">
+                    {form.description || 'Your product description will appear here.'}
+                  </p>
+
+                  <div className="flex items-baseline gap-2 pt-1">
+                    <span className="text-2xl font-black text-white font-heading">
+                      ₹{form.baseSellingPrice || 0}
+                    </span>
+                    {Number(form.baseMrp) > Number(form.baseSellingPrice) && (
+                      <span className="text-xs text-slate-400 line-through">
+                        MRP ₹{form.baseMrp}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 text-xs border-t border-slate-800">
+                    <div className="bg-slate-950/80 rounded-xl p-2.5">
+                      <p className="text-[10px] uppercase text-blue-300 font-bold">SKU Code</p>
+                      <b className="break-all font-mono text-white text-xs">{form.sku || 'Pending'}</b>
+                    </div>
+
+                    <div className="bg-slate-950/80 rounded-xl p-2.5">
+                      <p className="text-[10px] uppercase text-blue-300 font-bold">In Stock</p>
+                      <b className="text-emerald-400 text-xs">{form.stock || 0} units</b>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* 🚀 Step Wizard Navigation Tabs */}
-              <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl shadow-inner">
-                <button
-                  type="button"
-                  onClick={() => setFormStep(1)}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${formStep === 1
-                    ? 'bg-amber-400 text-blue-950 shadow-md'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-900'
-                    }`}
-                >
-                  1. Title & Categories
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormStep(2)}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${formStep === 2
-                    ? 'bg-amber-400 text-blue-950 shadow-md'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-900'
-                    }`}
-                >
-                  2. Pricing & Attributes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormStep(3)}
-                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${formStep === 3
-                    ? 'bg-amber-400 text-blue-950 shadow-md'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-900'
-                    }`}
-                >
-                  3. Media & Delivery
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="text-xs font-extrabold px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer shadow-sm"
-                >
-                  ✕ Close
-                </button>
               </div>
             </div>
+          }
+        >
+          {formStep === 1 && (
+            <div className="space-y-5">
+              {/* Basic Details */}
+              <div className="product-editor-card space-y-4">
+                <h3>Product name &amp; SKU</h3>
 
-            {errorMsg && (
-              <div className="mb-4 p-4 rounded-2xl bg-rose-500/15 text-rose-300 text-xs font-extrabold flex items-center gap-2 shadow-md">
-                <span>⚠️</span> {errorMsg}
-              </div>
-            )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-1">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="product-name" className="text-xs font-extrabold text-white">
+                        Product Name <span className="text-amber-400">*</span>
+                      </label>
+                      {/* Icon-Only AI Title Enhancer */}
+                      <button
+                        type="button"
+                        onClick={handleGenerateAiDetails}
+                        disabled={aiLoading}
+                        title="✨ Generate AI Enhanced Product Title"
+                        className="h-7 w-7 rounded-xl bg-amber-400 text-blue-950 flex items-center justify-center font-black hover:bg-amber-500 transition-all cursor-pointer shadow-md shrink-0"
+                      >
+                        <Wand2 className={`h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+                    <input
+                      id="product-name"
+                      value={form.name}
+                      placeholder="e.g. Fresh Organic Sunflower Oil 1L"
+                      onChange={(e) =>
+                        setForm({ ...form, name: e.target.value, sku: '' })
+                      }
+                      className="w-full p-3 text-sm font-medium rounded-xl border border-blue-900/60 bg-slate-900 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-amber-400/40 outline-none"
+                      required
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[0.7fr_1.3fr] gap-6 flex-1 overflow-hidden">
-              {/* Left Column: Live Customer Mobile App Preview */}
-              <div className="overflow-y-auto rounded-2xl p-4 bg-slate-950/80 space-y-4 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                    📱 Live Customer App Preview
-                  </span>
-                  <span className="text-[10px] text-blue-300 bg-blue-900/40 px-2 py-0.5 rounded-full font-semibold">
-                    Step {formStep} of 3
-                  </span>
-                </div>
-
-                <div className="rounded-2xl bg-slate-900 border border-blue-800/40 overflow-hidden shadow-xl">
-                  <div className="h-56 bg-slate-950 flex items-center justify-center relative overflow-hidden group">
-                    {previewImage ? (
-                      <img
-                        src={previewImage}
-                        alt={form.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  <div>
+                    <label htmlFor="product-sku" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Auto SKU Identifier
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="product-sku"
+                        value={form.sku}
+                        readOnly
+                        className="w-full p-3 text-sm rounded-xl border border-blue-900/60 bg-slate-900/60 font-mono text-amber-300 font-bold"
+                        required
                       />
-                    ) : (
-                      <div className="text-slate-400 flex flex-col items-center gap-2 text-xs">
-                        <ImageIcon size={36} className="text-blue-400" />
-                        <span className="font-semibold text-slate-300">Upload Thumbnail Photo</span>
-                        <span className="text-[10px] text-slate-500">Preview will appear live here</span>
-                      </div>
-                    )}
-                    {form.discountPercent && (
-                      <span className="absolute top-3 left-3 bg-amber-400 text-blue-950 font-black text-[10px] px-2.5 py-1 rounded-full uppercase shadow-md">
-                        {form.discountPercent}% OFF
-                      </span>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            sku: makeSku(form.name, finalSelectedCategory?.name),
+                          })
+                        }
+                        className="px-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-blue-950 font-black transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-md"
+                        title="Generate SKU"
+                      >
+                        <Wand2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="p-4 space-y-3">
-                    <span className="text-[10px] uppercase tracking-widest font-black text-amber-400">
-                      {form.brand || 'Local Brand'}
-                    </span>
-
-                    <h3 className="font-extrabold text-base text-white line-clamp-2">
-                      {form.name || 'Sample Product Title'}
-                    </h3>
-
-                    <p className="text-xs text-blue-200 line-clamp-2">
-                      {form.description || 'Add product description to inform local customers about quality, weight, or usage.'}
-                    </p>
-
-                    <div className="flex items-baseline gap-2 pt-1">
-                      <span className="text-2xl font-black text-white font-heading">
-                        ₹{form.baseSellingPrice || 0}
-                      </span>
-                      {Number(form.baseMrp) > Number(form.baseSellingPrice) && (
-                        <span className="text-xs text-slate-400 line-through">
-                          MRP ₹{form.baseMrp}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 text-xs border-t border-slate-800">
-                      <div className="bg-slate-950/80 rounded-xl p-2.5">
-                        <p className="text-[10px] uppercase text-blue-300 font-bold">SKU Code</p>
-                        <b className="font-mono text-white text-xs">{form.sku || 'APEX-SKU-PENDING'}</b>
-                      </div>
-
-                      <div className="bg-slate-950/80 rounded-xl p-2.5">
-                        <p className="text-[10px] uppercase text-blue-300 font-bold">In Stock</p>
-                        <b className="text-emerald-400 text-xs">{form.stock || 0} units</b>
-                      </div>
-                    </div>
+                  <div>
+                    <label htmlFor="product-seller-type" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Seller Role / Type
+                    </label>
+                    <select
+                      id="product-seller-type"
+                      value={form.sellerType}
+                      onChange={(e) =>
+                        setForm({ ...form, sellerType: e.target.value })
+                      }
+                      className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                    >
+                      <option value="vendor">Vendor (Retail Seller)</option>
+                      <option value="manufacturer">Manufacturer (Brand Owner)</option>
+                      <option value="wholesaler">Wholesaler (Bulk Supplier)</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
-              <form
-                onSubmit={(e) => e.preventDefault()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                  }
-                }}
-                className="space-y-6 overflow-y-auto pr-2 text-sm flex flex-col justify-between"
-              >
-                {/* 📌 STEP 1: TITLE & CATEGORY SELECTION */}
-                {formStep === 1 && (
-                  <div className="space-y-5">
-                    {/* Basic Details */}
-                    <div className="rounded-2xl border-none bg-slate-950/80 p-5 space-y-4 shadow-xl">
-                      <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 pb-2.5 flex items-center gap-2">
-                        <span>📝</span> Step 1: Product Name & SKU
-                      </h3>
+              {/* Category Tabs */}
+              <div className="product-editor-card space-y-4">
+                <h3>Category &amp; subcategory</h3>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-1">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-xs font-extrabold text-white">
-                              Product Name <span className="text-amber-400">*</span>
-                            </label>
-                            {/* Icon-Only AI Title Enhancer */}
+                <div className="space-y-4">
+                  {/* 🔘 Clickable Main Category Tabs for Approved Categories */}
+                  {availableCategories.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                          Main Category <span className="text-amber-400">*</span>
+                          {availableCategories.length > 1 ? (
+                            <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded-full">
+                              {availableCategories.length} Categories Permitted
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                              1 Category Permitted
+                            </span>
+                          )}
+                        </label>
+                        {availableCategories.length > 1 && (
+                          <span className="text-[10px] text-blue-300">Tap chip to switch</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {availableCategories.map((cat) => {
+                          const isSelected = form.categoryId === cat._id;
+                          return (
                             <button
-                              type="button"
-                              onClick={handleGenerateAiDetails}
-                              disabled={aiLoading}
-                              title="✨ Generate AI Enhanced Product Title"
-                              className="h-7 w-7 rounded-xl bg-amber-400 text-blue-950 flex items-center justify-center font-black hover:bg-amber-500 transition-all cursor-pointer shadow-md shrink-0"
-                            >
-                              <Wand2 className={`h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
-                            </button>
-                          </div>
-                          <input
-                            value={form.name}
-                            placeholder="e.g. Fresh Organic Sunflower Oil 1L"
-                            onChange={(e) =>
-                              setForm({ ...form, name: e.target.value, sku: '' })
-                            }
-                            className="w-full p-3 text-sm font-medium rounded-xl border border-blue-900/60 bg-slate-900 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-amber-400/40 outline-none"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Auto SKU Identifier
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              value={form.sku}
-                              readOnly
-                              className="w-full p-3 text-sm rounded-xl border border-blue-900/60 bg-slate-900/60 font-mono text-amber-300 font-bold"
-                              required
-                            />
-                            <button
+                              key={cat._id}
                               type="button"
                               onClick={() =>
                                 setForm({
                                   ...form,
-                                  sku: makeSku(form.name, finalSelectedCategory?.name),
+                                  categoryId: cat._id,
+                                  subCategoryId: '',
+                                  childCategoryId: '',
                                 })
                               }
-                              className="px-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-blue-950 font-black transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-md"
-                              title="Generate SKU"
+                              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${isSelected
+                                ? 'bg-amber-400 text-blue-950 ring-2 ring-amber-400/50 scale-105'
+                                : 'bg-slate-900 text-slate-200 border border-blue-900/60 hover:bg-slate-800'
+                                }`}
                             >
-                              <Wand2 size={16} />
+                              <span>{isSelected ? "✓" : "📁"}</span>
+                              <span>{cat.name}</span>
                             </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Seller Role / Type
-                          </label>
-                          <select
-                            value={form.sellerType}
-                            onChange={(e) =>
-                              setForm({ ...form, sellerType: e.target.value })
-                            }
-                            className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
-                          >
-                            <option value="vendor">Vendor (Retail Seller)</option>
-                            <option value="manufacturer">Manufacturer (Brand Owner)</option>
-                            <option value="wholesaler">Wholesaler (Bulk Supplier)</option>
-                          </select>
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
+                  )}
 
-                    {/* Category Tabs */}
-                    <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
-                      <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 border-b border-blue-900/40 pb-2.5 flex items-center gap-2">
-                        <span>🏷️</span> Category & Sub-Category Selection
-                      </h3>
-
-                      <div className="space-y-4">
-                        {/* 🔘 Clickable Main Category Tabs for Approved Categories */}
-                        {availableCategories.length > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <label className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                                Main Category <span className="text-amber-400">*</span>
-                                {availableCategories.length > 1 ? (
-                                  <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-2 py-0.5 rounded-full">
-                                    {availableCategories.length} Categories Permitted
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
-                                    1 Category Permitted
-                                  </span>
-                                )}
-                              </label>
-                              {availableCategories.length > 1 && (
-                                <span className="text-[10px] text-blue-300">Tap chip to switch</span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {availableCategories.map((cat) => {
-                                const isSelected = form.categoryId === cat._id;
-                                return (
-                                  <button
-                                    key={cat._id}
-                                    type="button"
-                                    onClick={() =>
-                                      setForm({
-                                        ...form,
-                                        categoryId: cat._id,
-                                        subCategoryId: '',
-                                        childCategoryId: '',
-                                      })
-                                    }
-                                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${isSelected
-                                      ? 'bg-amber-400 text-blue-950 ring-2 ring-amber-400/50 scale-105'
-                                      : 'bg-slate-900 text-slate-200 border border-blue-900/60 hover:bg-slate-800'
-                                      }`}
-                                  >
-                                    <span>{isSelected ? "✓" : "📁"}</span>
-                                    <span>{cat.name}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Category Selection {availableCategories.length > 1 ? "(or select from dropdown)" : ""}
-                          </label>
-                          <select
-                            value={form.categoryId}
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                categoryId: e.target.value,
-                                subCategoryId: '',
-                                childCategoryId: '',
-                              })
-                            }
-                            disabled={availableCategories.length <= 1}
-                            className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none disabled:opacity-75"
-                            required
-                          >
-                            {availableCategories.length > 1 && (
-                              <option value="">-- Select Category --</option>
-                            )}
-                            {availableCategories.map((cat) => (
-                              <option key={cat._id} value={cat._id}>
-                                {cat.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* 🔘 Clickable Sub-Category Tabs */}
-                        {subCategories.length > 0 && (
-                          <div>
-                            <label className="block mb-2 text-xs font-extrabold text-white">
-                              Select Sub-Category (Tap to select)
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {subCategories.map((sub: any) => {
-                                const isSelected = form.subCategoryId === sub._id;
-                                return (
-                                  <button
-                                    key={sub._id}
-                                    type="button"
-                                    onClick={() =>
-                                      setForm({
-                                        ...form,
-                                        subCategoryId: sub._id,
-                                        childCategoryId: '',
-                                      })
-                                    }
-                                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md ${isSelected
-                                      ? 'bg-amber-400 text-blue-950 ring-2 ring-amber-400/50 scale-105'
-                                      : 'bg-slate-900 text-slate-200 border border-blue-900/60 hover:bg-slate-800'
-                                      }`}
-                                  >
-                                    {sub.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 🔘 Clickable Child-Category Tabs */}
-                        {childCategories.length > 0 && (
-                          <div>
-                            <label className="block mb-2 text-xs font-extrabold text-white">
-                              Select Child-Category (Tap to select)
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {childCategories.map((child: any) => {
-                                const isSelected = form.childCategoryId === child._id;
-                                return (
-                                  <button
-                                    key={child._id}
-                                    type="button"
-                                    onClick={() =>
-                                      setForm({ ...form, childCategoryId: child._id })
-                                    }
-                                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected
-                                      ? 'bg-blue-600 text-white font-extrabold ring-2 ring-blue-500/50 scale-105'
-                                      : 'bg-slate-900 text-slate-300 border border-blue-900/40 hover:bg-slate-800'
-                                      }`}
-                                  >
-                                    {child.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Product Brand
-                          </label>
-                          <select
-                            value={form.brand}
-                            onChange={(e) =>
-                              setForm({ ...form, brand: e.target.value })
-                            }
-                            className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
-                          >
-                            <option value="">-- Select Brand --</option>
-                            {categoryBrands.map((brand: string) => (
-                              <option key={brand} value={brand}>
-                                {brand}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block mb-1.5 text-xs font-extrabold text-white">
+                      Category Selection {availableCategories.length > 1 ? "(or select from dropdown)" : ""}
+                    </label>
+                    <select
+                      value={form.categoryId}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          categoryId: e.target.value,
+                          subCategoryId: '',
+                          childCategoryId: '',
+                        })
+                      }
+                      disabled={availableCategories.length <= 1}
+                      className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none disabled:opacity-75"
+                      required
+                    >
+                      {availableCategories.length > 1 && (
+                        <option value="">-- Select Category --</option>
+                      )}
+                      {availableCategories.map((cat) => (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
 
-                {/* 💰 STEP 2: PRICING, STOCK & ATTRIBUTES */}
-                {formStep === 2 && (
-                  <div className="space-y-5">
-                    {/* Base Pricing & Inventory */}
-                    <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
-                      <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 border-b border-blue-900/40 pb-2.5 flex items-center gap-2">
-                        <span>💰</span> Step 2: Base Pricing & Stock Controls
-                      </h3>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Base MRP (₹) <span className="text-amber-400">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={form.baseMrp}
-                            onChange={(e) => {
-                              const mrp = Number(e.target.value);
-                              const disc = Number(form.discountPercent || 0);
-                              const sp = mrp > 0 ? Math.round(mrp - (mrp * disc) / 100) : 0;
-                              setForm({ ...form, baseMrp: e.target.value, baseSellingPrice: String(sp) });
-                            }}
-                            placeholder="e.g. 500"
-                            className="w-full p-3 text-sm font-black rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Discount (%)
-                          </label>
-                          <input
-                            type="number"
-                            value={form.discountPercent}
-                            onChange={(e) => {
-                              const disc = Number(e.target.value);
-                              const mrp = Number(form.baseMrp || 0);
-                              const sp = mrp > 0 ? Math.round(mrp - (mrp * disc) / 100) : 0;
-                              setForm({ ...form, discountPercent: e.target.value, baseSellingPrice: String(sp) });
-                            }}
-                            placeholder="e.g. 10"
-                            className="w-full p-3 text-sm font-bold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Selling Price (₹) <span className="text-amber-400">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={form.baseSellingPrice}
-                            onChange={(e) => setForm({ ...form, baseSellingPrice: e.target.value })}
-                            placeholder="e.g. 450"
-                            className="w-full p-3 text-sm font-black text-amber-300 rounded-xl border border-blue-900/60 bg-slate-900 focus:ring-2 focus:ring-amber-400/40 outline-none"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Available Stock Units <span className="text-amber-400">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={form.stock}
-                            onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                            placeholder="e.g. 50"
-                            className="w-full p-3 text-sm font-bold text-emerald-400 rounded-xl border border-blue-900/60 bg-slate-900 focus:ring-2 focus:ring-amber-400/40 outline-none"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block mb-1.5 text-xs font-extrabold text-white">
-                            Minimum Order Quantity (MOQ)
-                          </label>
-                          <input
-                            type="number"
-                            value={form.minimumOrderQuantity}
-                            onChange={(e) => setForm({ ...form, minimumOrderQuantity: e.target.value })}
-                            placeholder="1"
-                            className="w-full p-3 text-sm font-bold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
-                          />
-                        </div>
+                  {/* 🔘 Clickable Sub-Category Tabs */}
+                  {subCategories.length > 0 && (
+                    <div>
+                      <label className="block mb-2 text-xs font-extrabold text-white">
+                        Select Sub-Category (Tap to select)
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {subCategories.map((sub: any) => {
+                          const isSelected = form.subCategoryId === sub._id;
+                          return (
+                            <button
+                              key={sub._id}
+                              type="button"
+                              aria-pressed={isSelected}
+                              onClick={() =>
+                                setForm({
+                                  ...form,
+                                  subCategoryId: sub._id,
+                                  childCategoryId: isSelected ? form.childCategoryId : '',
+                                })
+                              }
+                              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md ${isSelected
+                                ? 'bg-amber-400 text-blue-950 ring-2 ring-amber-400/50 scale-105'
+                                : 'bg-slate-900 text-slate-200 border border-blue-900/60 hover:bg-slate-800'
+                                }`}
+                            >
+                              {sub.name}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
+                  )}
 
-                    {/* Category Specifications & Attributes */}
-                    {categoryAttributes.length > 0 && (
-                      <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
-                        <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 border-b border-blue-900/40 pb-2.5 flex items-center gap-2">
-                          <span>⚙️</span> Category Specifications & Attributes
-                        </h3>
+                  {/* 🔘 Clickable Child-Category Tabs */}
+                  {childCategories?.length > 0 && (
+                    <fieldset className="min-w-0">
+                      <legend className="mb-2 text-xs font-bold text-white">Child category <span className="font-medium text-muted-foreground">(optional)</span></legend>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" aria-pressed={!form.childCategoryId}
+                          className="pos-action"
+                          onClick={() => setForm(previous => ({ ...previous, childCategoryId: '' }))}>
+                          No child category
+                        </button>
+                        {childCategories.map((child: any) => {
+                          const isSelected = form.childCategoryId === child._id;
+                          return (
+                            <button
+                              key={child._id}
+                              type="button"
+                              aria-pressed={isSelected}
+                              onClick={() =>
+                                setForm({ ...form, childCategoryId: child._id })
+                              }
+                              className="pos-action"
+                            >
+                              {child.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+                  )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {categoryAttributes.map((attr: any) => (
-                            <div key={attr._id || attr.name} className="space-y-1.5 p-3.5 rounded-xl border border-blue-900/40 bg-slate-900">
-                              <div className="flex items-center justify-between mb-1">
-                                <label className="text-xs font-extrabold text-white">
-                                  {attr.name} {attr.unit ? `(${attr.unit})` : ''}
-                                </label>
-                                {attr.isVariant && (
-                                  <span className="text-[10px] font-black text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-                                    Variant Attribute
-                                  </span>
-                                )}
-                              </div>
+                  <div>
+                    <label className="block mb-1.5 text-xs font-extrabold text-white">
+                      Product Brand
+                    </label>
+                    <select
+                      value={form.brand}
+                      onChange={(e) =>
+                        setForm({ ...form, brand: e.target.value })
+                      }
+                      className="w-full p-3 text-sm font-semibold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                    >
+                      <option value="">-- Select Brand --</option>
+                      {categoryBrands.map((brand: string) => (
+                        <option key={brand} value={brand}>
+                          {brand}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                              {attr.options?.length ? (
-                                attr.isVariant || attr.type === 'multiselect' ? (
-                                  <MultiSelectOptions
-                                    attr={attr}
-                                    selectedValues={attributeValues[attr.key || attr.name] || attributeValues[attr.name]}
-                                    onChange={(values: string[]) =>
-                                      setAttributeValues({
-                                        ...attributeValues,
-                                        [attr.key || attr.name]: values,
-                                        [attr.name]: values,
-                                      })
-                                    }
-                                  />
-                                ) : (
-                                  <select
-                                    value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const updated = { ...attributeValues };
-                                      if (attr.key) updated[attr.key] = val;
-                                      if (attr.name) updated[attr.name] = val;
-                                      setAttributeValues(updated);
-                                    }}
-                                    className="w-full p-3 text-xs font-semibold rounded-xl border border-blue-900/60 bg-slate-950 text-white outline-none"
-                                  >
-                                    <option value="">Select {attr.name}</option>
-                                    {attr.options.map((opt: string) => (
-                                      <option key={opt} value={opt}>
-                                        {opt}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )
-                              ) : (
-                                <input
-                                  type={attr.type === 'number' ? 'number' : 'text'}
-                                  value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const updated = { ...attributeValues };
-                                    if (attr.key) updated[attr.key] = val;
-                                    if (attr.name) updated[attr.name] = val;
-                                    setAttributeValues(updated);
-                                  }}
-                                  className="w-full p-3 text-xs font-medium rounded-xl border border-blue-900/60 bg-slate-950 text-white outline-none"
-                                  placeholder={attr.placeholder || `Enter ${attr.name}`}
-                                />
-                              )}
-                            </div>
+          {/* 💰 STEP 2: PRICING, STOCK & ATTRIBUTES */}
+          {formStep === 2 && (
+            <div className="space-y-5">
+              {/* Base Pricing & Inventory */}
+              <div className="product-editor-card space-y-4">
+                <h3>Base pricing &amp; inventory</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="product-mrp" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Base MRP (₹) <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      id="product-mrp"
+                      type="number"
+                      value={form.baseMrp}
+                      onChange={(e) => {
+                        const mrp = Number(e.target.value);
+                        const disc = Number(form.discountPercent || 0);
+                        const sp = mrp > 0 ? Math.round(mrp - (mrp * disc) / 100) : 0;
+                        setForm({ ...form, baseMrp: e.target.value, baseSellingPrice: String(sp) });
+                      }}
+                      placeholder="e.g. 500"
+                      className="w-full p-3 text-sm font-black rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="product-discount" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Discount (%)
+                    </label>
+                    <input
+                      id="product-discount"
+                      type="number"
+                      value={form.discountPercent}
+                      onChange={(e) => {
+                        const disc = Number(e.target.value);
+                        const mrp = Number(form.baseMrp || 0);
+                        const sp = mrp > 0 ? Math.round(mrp - (mrp * disc) / 100) : 0;
+                        setForm({ ...form, discountPercent: e.target.value, baseSellingPrice: String(sp) });
+                      }}
+                      placeholder="e.g. 10"
+                      className="w-full p-3 text-sm font-bold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="product-selling-price" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Selling Price (₹) <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      id="product-selling-price"
+                      type="number"
+                      value={form.baseSellingPrice}
+                      onChange={(e) => setForm({ ...form, baseSellingPrice: e.target.value })}
+                      placeholder="e.g. 450"
+                      className="w-full p-3 text-sm font-black text-amber-300 rounded-xl border border-blue-900/60 bg-slate-900 focus:ring-2 focus:ring-amber-400/40 outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label htmlFor="product-stock" className="block mb-1.5 text-xs font-extrabold text-white">
+                      Available Stock Units <span className="text-amber-400">*</span>
+                    </label>
+                    <input
+                      id="product-stock"
+                      type="number"
+                      readOnly={!!editingProduct?.batchTrackingEnabled}
+                      step={flowerFractionalStock || ['kg', 'g'].includes(attributeValues.stock_unit || attributeValues.unit) ? 0.001 : 1}
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      placeholder="e.g. 50"
+                      className="w-full p-3 text-sm font-bold text-emerald-400 rounded-xl border border-blue-900/60 bg-slate-900 focus:ring-2 focus:ring-amber-400/40 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1.5 text-xs font-extrabold text-white">
+                      Minimum Order Quantity (MOQ)
+                    </label>
+                    <input
+                      type="number"
+                      value={form.minimumOrderQuantity}
+                      onChange={(e) => setForm({ ...form, minimumOrderQuantity: e.target.value })}
+                      placeholder="1"
+                      className="w-full p-3 text-sm font-bold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 🏛️ GST Settings per Product (Req 02) */}
+                <div className="mt-4 pt-4 border-t border-blue-900/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                      🏛️ Product GST Settings (CGST &amp; SGST)
+                    </h4>
+                    <span className="text-[10px] text-slate-400">Enter custom GST % (auto-split 50/50)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="product-gst-rate" className="block mb-1.5 text-xs font-extrabold text-white flex items-center justify-between">
+                        <span>Enter GST Rate (%) <span className="text-amber-400">*</span></span>
+                        {Number(form.gstRate || 0) > 0 && (
+                          <span className="text-[10.5px] font-bold text-amber-300">
+                            CGST {(Number(form.gstRate) / 2).toFixed(1)}% + SGST {(Number(form.gstRate) / 2).toFixed(1)}%
+                          </span>
+                        )}
+                      </label>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input
+                            id="product-gst-rate"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={form.gstRate}
+                            onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
+                            placeholder="e.g. 18 or 5"
+                            className="w-full p-3 text-sm font-black rounded-xl border border-blue-900/60 bg-slate-900 text-amber-300 focus:ring-2 focus:ring-amber-400/40 outline-none pr-10"
+                            required
+                          />
+                          <span className="absolute right-3.5 top-3 text-xs font-bold text-slate-400">%</span>
+                        </div>
+
+                        {/* Quick preset chips for vendor convenience */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <span className="text-[10px] text-slate-400 font-semibold mr-1">Quick Slabs:</span>
+                          {['0', '3', '5', '12', '18', '28'].map((slab) => (
+                            <button
+                              type="button"
+                              key={slab}
+                              onClick={() => setForm({ ...form, gstRate: slab })}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer border ${String(form.gstRate) === slab
+                                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-xs scale-105'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                                }`}
+                            >
+                              {slab}%
+                            </button>
                           ))}
                         </div>
                       </div>
-                    )}
+                    </div>
 
-                    {/* Product Variants Matrix Builder */}
-                    <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
-                      <div className="flex flex-wrap justify-between items-center gap-3 border-b border-blue-900/40 pb-3">
-                        <div>
-                          <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                            <span>📦</span> Product Variants & Stock Matrix
-                            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-900/60 text-amber-300 border border-amber-400/30 font-black">
-                              {variants.length} Variant{variants.length !== 1 ? 's' : ''}
+                    <div>
+                      <label htmlFor="product-gst-mode" className="block mb-1.5 text-xs font-extrabold text-white">
+                        GST Pricing Mode
+                      </label>
+                      <select
+                        id="product-gst-mode"
+                        value={form.gstPricingMode}
+                        onChange={(e) => setForm({ ...form, gstPricingMode: e.target.value as any })}
+                        className="w-full p-3 text-sm font-bold rounded-xl border border-blue-900/60 bg-slate-900 text-white focus:ring-2 focus:ring-amber-400/40 outline-none"
+                      >
+                        <option value="inclusive">Inclusive (GST included in Selling Price)</option>
+                        <option value="exclusive">Exclusive (GST added on top of Selling Price)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* CGST & SGST calculation preview */}
+                  {Number(form.baseSellingPrice || 0) > 0 && (
+                    <div className="mt-3 p-3.5 rounded-xl bg-slate-900/95 border border-blue-800/40 text-xs space-y-2">
+                      {(() => {
+                        const sp = Number(form.baseSellingPrice || 0);
+                        const rate = Number(form.gstRate || 0);
+                        const halfRate = rate / 2;
+
+                        if (form.gstPricingMode === 'exclusive') {
+                          const totalGstAmt = (sp * rate) / 100;
+                          const cgstAmt = totalGstAmt / 2;
+                          const sgstAmt = totalGstAmt / 2;
+                          const total = sp + totalGstAmt;
+                          return (
+                            <div>
+                              <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-800 text-slate-300">
+                                <span>Base Price: <strong className="text-white">₹{sp.toFixed(2)}</strong></span>
+                                <span>Total GST ({rate}%): <strong className="text-amber-400">₹{totalGstAmt.toFixed(2)}</strong></span>
+                                <span>Customer Pays: <strong className="text-emerald-400 font-extrabold text-sm">₹{total.toFixed(2)}</strong></span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-4 pt-1.5 text-[11px] text-amber-300">
+                                <span className="bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-md">
+                                  🏛️ <strong>CGST ({halfRate.toFixed(1)}%):</strong> ₹{cgstAmt.toFixed(2)}
+                                </span>
+                                <span className="bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-md">
+                                  🏛️ <strong>SGST ({halfRate.toFixed(1)}%):</strong> ₹{sgstAmt.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          const base = rate > 0 ? sp / (1 + rate / 100) : sp;
+                          const totalGstAmt = sp - base;
+                          const cgstAmt = totalGstAmt / 2;
+                          const sgstAmt = totalGstAmt / 2;
+                          return (
+                            <div>
+                              <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-slate-800 text-slate-300">
+                                <span>Customer Pays: <strong className="text-emerald-400 font-extrabold text-sm">₹{sp.toFixed(2)}</strong> (Tax Inclusive)</span>
+                                <span>Net Base Price: <strong className="text-white">₹{base.toFixed(2)}</strong></span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-4 pt-1.5 text-[11px] text-emerald-300">
+                                <span className="bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-md">
+                                  🏛️ <strong>CGST ({halfRate.toFixed(1)}%):</strong> ₹{cgstAmt.toFixed(2)}
+                                </span>
+                                <span className="bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-md">
+                                  🏛️ <strong>SGST ({halfRate.toFixed(1)}%):</strong> ₹{sgstAmt.toFixed(2)}
+                                </span>
+                                <span className="text-slate-400">
+                                  (Total Tax Included: ₹{totalGstAmt.toFixed(2)})
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {isDairyProduct && <DairyProductFields value={dairyDetails} onChange={setDairyDetails} />}
+              {isFlowerProduct && <p className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">Choose a selling unit in Category Specifications. Use Flower Stock &amp; Wastage to receive fresh batches and record their use-by dates.</p>}
+              {dailyNeedsProfile && <section className="space-y-3 rounded-xl border border-blue-900/60 bg-slate-950 p-4">
+                <h3 className="font-bold text-amber-300">{dailyNeedsProfile === 'produce' ? 'Produce details' : dailyNeedsProfile === 'grocery' ? 'Grocery pack details' : 'Organic product details'}</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm">Sellable unit<select className="mt-1 block w-full rounded-lg border border-blue-900 bg-slate-900 p-2" disabled={Number(editingProduct?.stock) > 0} value={attributeValues.stock_unit || attributeValues.unit || ''} onChange={e => setAttributeValues({ ...attributeValues, stock_unit: e.target.value })}>
+                    <option value="">Default sellable units</option><option value="pack">Pack</option><option value="piece">Piece</option>
+                    {dailyNeedsProfile === 'produce' && <><option value="kg">Kilogram</option><option value="g">Gram</option></>}
+                    {!!(attributeValues.stock_unit || attributeValues.unit) && !['pack', 'piece', 'kg', 'g'].includes(attributeValues.stock_unit || attributeValues.unit) && <option value={attributeValues.stock_unit || attributeValues.unit}>{attributeValues.stock_unit || attributeValues.unit}</option>}
+                  </select></label>
+                  <label className="text-sm">Pack weight or size<input className="mt-1 block w-full rounded-lg border border-blue-900 bg-slate-900 p-2" maxLength={80} placeholder="For example, 500 g" value={attributeValues.pack_size || ''} onChange={e => setAttributeValues({ ...attributeValues, pack_size: e.target.value })} /></label>
+                  <label className="text-sm">{dailyNeedsProfile === 'produce' ? 'Farm or source' : 'Supplier or source'}<input className="mt-1 block w-full rounded-lg border border-blue-900 bg-slate-900 p-2" maxLength={120} value={attributeValues.stock_source || ''} onChange={e => setAttributeValues({ ...attributeValues, stock_source: e.target.value })} /></label>
+                </div>
+                <p className="text-xs text-slate-400">Stock and the listed selling price use the selected unit. {editingProduct?.batchTrackingEnabled && 'Use batch receipts and wastage to adjust this product’s stock.'}</p>
+              </section>}
+              {/* Category Specifications & Attributes */}
+              {categoryAttributes.length > 0 && (
+                <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
+                  <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 border-b border-blue-900/40 pb-2.5 flex items-center gap-2">
+                    <span>⚙️</span> Category Specifications & Attributes
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {categoryAttributes.map((attr: any) => (
+                      <div key={attr._id || attr.name} className="space-y-1.5 p-3.5 rounded-xl border border-blue-900/40 bg-slate-900">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-extrabold text-white">
+                            {attr.name} {attr.unit ? `(${attr.unit})` : ''}
+                          </label>
+                          {attr.isVariant && (
+                            <span className="text-[10px] font-black text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                              Variant Attribute
                             </span>
-                          </h3>
-                          <p className="text-xs text-blue-300 mt-1">
-                            Add size/weight/color variants with individual SKU prices or click Auto-Generate.
-                          </p>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={generateVariants}
-                            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-                          >
-                            <Wand2 size={14} /> Auto-Generate
-                          </button>
+                        {attr.options?.length ? (
+                          attr.isVariant || attr.type === 'multiselect' ? (
+                            <MultiSelectOptions
+                              attr={attr}
+                              selectedValues={attributeValues[attr.key || attr.name] || attributeValues[attr.name]}
+                              onChange={(values: string[]) =>
+                                setAttributeValues({
+                                  ...attributeValues,
+                                  [attr.key || attr.name]: values,
+                                  [attr.name]: values,
+                                })
+                              }
+                            />
+                          ) : (
+                            <select
+                              value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...attributeValues };
+                                if (attr.key) updated[attr.key] = val;
+                                if (attr.name) updated[attr.name] = val;
+                                setAttributeValues(updated);
+                              }}
+                              className="w-full p-3 text-xs font-semibold rounded-xl border border-blue-900/60 bg-slate-950 text-white outline-none"
+                            >
+                              <option value="">Select {attr.name}</option>
+                              {attr.options.map((opt: string) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          )
+                        ) : (
+                          <input
+                            type={attr.type === 'number' ? 'number' : 'text'}
+                            value={attributeValues[attr.key || attr.name] || attributeValues[attr.name] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = { ...attributeValues };
+                              if (attr.key) updated[attr.key] = val;
+                              if (attr.name) updated[attr.name] = val;
+                              setAttributeValues(updated);
+                            }}
+                            className="w-full p-3 text-xs font-medium rounded-xl border border-blue-900/60 bg-slate-950 text-white outline-none"
+                            placeholder={attr.placeholder || `Enter ${attr.name}`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                          <button
-                            type="button"
-                            onClick={addManualVariant}
-                            className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-blue-950 font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
-                          >
-                            <Plus size={14} /> Add Custom Variant
-                          </button>
+              {/* Product Variants Matrix Builder */}
+              <div className="rounded-2xl border border-blue-900/60 bg-slate-950/80 p-5 space-y-4 shadow-xl">
+                <div className="flex flex-wrap justify-between items-center gap-3 border-b border-blue-900/40 pb-3">
+                  <div>
+                    <h3 className="text-sm font-extrabold font-heading uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                      <span>📦</span> Product Variants & Stock Matrix
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-900/60 text-amber-300 border border-amber-400/30 font-black">
+                        {variants.length} Variant{variants.length !== 1 ? 's' : ''}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-blue-300 mt-1">
+                      Add size/weight/color variants with individual SKU prices or click Auto-Generate.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={generateVariants}
+                      className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <Wand2 size={14} /> Auto-Generate
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={addManualVariant}
+                      className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-blue-950 font-black text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <Plus size={14} /> Add Custom Variant
+                    </button>
+                  </div>
+                </div>
+
+                {variants.length > 0 ? (
+                  <div className="border border-blue-900/40 rounded-2xl overflow-hidden bg-slate-900">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-950 border-b border-blue-900/60 text-blue-300">
+                        <tr>
+                          <th className="p-3 text-left font-extrabold">SKU Code</th>
+                          <th className="p-3 text-left font-extrabold">Variant Specs</th>
+                          <th className="p-3 text-center font-extrabold">MRP (₹)</th>
+                          <th className="p-3 text-center font-extrabold">Discount %</th>
+                          <th className="p-3 text-center font-extrabold">Selling Price (₹)</th>
+                          <th className="p-3 text-center font-extrabold">Stock</th>
+                          <th className="p-3 text-center font-extrabold">Action</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-blue-900/40">
+                        {variants.map((variant, index) => (
+                          <tr key={index} className="hover:bg-slate-850 transition">
+                            <td className="p-3">
+                              <input
+                                type="text"
+                                value={variant.sku}
+                                onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                                className="w-full p-2 border border-blue-900/60 rounded-xl text-xs font-mono bg-slate-950 text-amber-300 font-bold"
+                              />
+                            </td>
+
+                            <td className="p-3">
+                              <span className="font-bold text-white block">
+                                {Object.entries(variant.attributes || {})
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join(', ') || 'Standard Variant'}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                value={variant.mrp}
+                                onChange={(e) => updateVariant(index, 'mrp', e.target.value)}
+                                className="w-20 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 text-white font-bold"
+                              />
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                value={variant.discountPercent || 0}
+                                onChange={(e) => updateVariant(index, 'discountPercent', e.target.value)}
+                                className="w-16 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 text-emerald-400 font-bold"
+                              />
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                value={variant.sellingPrice}
+                                onChange={(e) => updateVariant(index, 'sellingPrice', e.target.value)}
+                                className="w-20 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 font-black text-amber-300"
+                              />
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <input
+                                type="number"
+                                value={variant.stock}
+                                onChange={(e) => updateVariant(index, 'stock', e.target.value)}
+                                className="w-16 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 font-bold text-emerald-400"
+                              />
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeVariant(index)}
+                                className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 transition cursor-pointer"
+                                title="Delete Variant"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 border border-dashed border-blue-900/60 rounded-2xl bg-slate-900">
+                    <Package size={28} className="mx-auto text-blue-400 mb-2" />
+                    <p className="text-xs text-white font-bold">No product variants created yet.</p>
+                    <p className="text-[10px] text-blue-300 mt-1">Click "Auto-Generate" or "Add Custom Variant" above to add size/weight/color options.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 📸 STEP 3: MEDIA & DELIVERY RULES */}
+          {formStep === 3 && (
+            <div className="space-y-5">
+              <MediaSection
+                thumbnailPreview={thumbnailPreview}
+                imagePreviews={images.map(img => typeof img === 'string' ? img : URL.createObjectURL(img))}
+                description={form.description}
+                aiLoading={aiLoading}
+                onThumbnailSelect={(file, preview) => {
+                  setThumbnail(file);
+                  setThumbnailPreview(preview);
+                }}
+                onImagesSelect={(files) => {
+                  setImages(files);
+                }}
+                onDescriptionChange={(desc) => setForm({ ...form, description: desc })}
+                onGenerateAiDetails={handleGenerateAiDetails}
+              />
+
+              <DeliverySection
+                policy={{
+                  homeDelivery: form.isLocalDelivery,
+                  storePickup: form.isSelfPickup,
+                  sameDay: false,
+                  scheduled: form.isSubscriptionAvailable,
+                  fragile: false,
+                  isPanIndia: form.isPanIndia,
+                  isLocalDelivery: form.isLocalDelivery,
+                  isSubscriptionAvailable: form.isSubscriptionAvailable,
+                  isPreOrder: form.isPreOrder,
+                  preOrderType: form.preOrderType,
+                  preOrderLeadTimeDays: form.preOrderLeadTimeDays,
+                  preOrderLeadTimeHours: form.preOrderLeadTimeHours,
+                  preOrderDailyCutoffTime: form.preOrderDailyCutoffTime,
+                  preOrderAllowTimeSlot: form.preOrderAllowTimeSlot,
+                  preOrderAllowCustomMessage: form.preOrderAllowCustomMessage,
+                  preOrderCustomMessageLabel: form.preOrderCustomMessageLabel,
+                  preOrderReleaseDate: form.preOrderReleaseDate,
+                  preOrderMessage: form.preOrderMessage,
+                  preOrderLimit: form.preOrderLimit,
+                }}
+                onChange={(policy) => {
+                  const isLocal = policy.homeDelivery ?? policy.isLocalDelivery ?? true;
+                  const isPan = policy.isPanIndia ?? false;
+                  const calcScope = isLocal && isPan ? 'both' : isPan ? 'pan_india' : 'local';
+
+                  setForm({
+                    ...form,
+                    isLocalDelivery: isLocal,
+                    isPanIndia: isPan,
+                    deliveryScope: calcScope,
+                    isSelfPickup: policy.storePickup,
+                    isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled,
+                    isPreOrder: !!policy.isPreOrder,
+                    preOrderType: policy.preOrderType !== undefined ? policy.preOrderType : form.preOrderType,
+                    preOrderLeadTimeDays: policy.preOrderLeadTimeDays !== undefined ? policy.preOrderLeadTimeDays : form.preOrderLeadTimeDays,
+                    preOrderLeadTimeHours: policy.preOrderLeadTimeHours !== undefined ? policy.preOrderLeadTimeHours : form.preOrderLeadTimeHours,
+                    preOrderDailyCutoffTime: policy.preOrderDailyCutoffTime !== undefined ? policy.preOrderDailyCutoffTime : form.preOrderDailyCutoffTime,
+                    preOrderAllowTimeSlot: policy.preOrderAllowTimeSlot !== undefined ? policy.preOrderAllowTimeSlot : form.preOrderAllowTimeSlot,
+                    preOrderAllowCustomMessage: policy.preOrderAllowCustomMessage !== undefined ? policy.preOrderAllowCustomMessage : form.preOrderAllowCustomMessage,
+                    preOrderCustomMessageLabel: policy.preOrderCustomMessageLabel !== undefined ? policy.preOrderCustomMessageLabel : form.preOrderCustomMessageLabel,
+                    preOrderReleaseDate: policy.preOrderReleaseDate !== undefined ? policy.preOrderReleaseDate : form.preOrderReleaseDate,
+                    preOrderMessage: policy.preOrderMessage !== undefined ? policy.preOrderMessage : form.preOrderMessage,
+                    preOrderLimit: policy.preOrderLimit !== undefined ? policy.preOrderLimit : form.preOrderLimit,
+                  });
+                }}
+              />
+            </div>
+          )}
+
+        </ProductEditor>
+      )}
+
+      {showPricingView && selectedProduct && (() => {
+        const allImages = Array.from(
+          new Set(
+            [
+              selectedProduct.thumbnail,
+              ...(Array.isArray(selectedProduct.images) ? selectedProduct.images : []),
+            ].filter(Boolean)
+          )
+        );
+
+        const activeImg = viewModalImage || getImageUrl(allImages[0]) || '';
+        const distFrom =
+          selectedProduct.adminPricing?.distributedFrom ||
+          (Number(selectedProduct.adminPricing?.vendorCommissionPercent) > 0 && !Number(selectedProduct.adminPricing?.platformFeeAmount)
+            ? 'apexbee_commission'
+            : 'platform_fee');
+
+        const commPercent = selectedProduct.adminPricing?.vendorCommissionPercent ?? selectedProduct.adminPricing?.platformFeePercent ?? 0;
+        const commAmount = selectedProduct.adminPricing?.vendorCommissionAmount ?? selectedProduct.adminPricing?.platformFeeAmount ?? 0;
+        const customerPrice = getCustomerSellingAmount(selectedProduct);
+        const sellerPayout = Number(selectedProduct.adminPricing?.finalSellerAmount || selectedProduct.baseSellingPrice || 0);
+        const gstRateVal = Number(selectedProduct.gstRate || 0);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="bg-slate-950 border border-blue-900/60 rounded-3xl max-w-5xl w-full my-auto shadow-2xl overflow-hidden relative text-white flex flex-col max-h-[92vh]">
+              {/* Header Bar */}
+              <div className="px-6 py-4 border-b border-blue-900/60 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-10 w-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center font-black text-xl shrink-0">
+                    📦
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base font-black font-heading tracking-wide text-white truncate max-w-md">
+                        {selectedProduct.name}
+                      </h2>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-950 text-blue-300 border border-blue-800/60">
+                        SKU: {selectedProduct.sku}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-300 flex items-center gap-1.5 mt-0.5">
+                      <span>{selectedProduct.brand || 'No Brand'}</span>
+                      <span>•</span>
+                      <span className="text-slate-400 truncate">
+                        {[
+                          selectedProduct.categoryId?.name,
+                          selectedProduct.subCategoryId?.name,
+                          selectedProduct.childCategoryId?.name,
+                        ]
+                          .filter(Boolean)
+                          .join(' > ') || 'General Catalog'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status Badges & Quick Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wide border shadow-xs ${selectedProduct.status === 'Live'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : selectedProduct.status === 'Awaiting Seller Approval'
+                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse'
+                          : selectedProduct.status === 'Rejected'
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      }`}
+                  >
+                    {selectedProduct.status}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPricingView(false);
+                      openEdit(selectedProduct);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 hover:text-white border border-blue-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                    title="Open in Product Editor"
+                  >
+                    <Edit size={13} />
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPricingView(false)}
+                    className="h-8 w-8 rounded-full bg-slate-900 border border-blue-900/60 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center font-black transition cursor-pointer"
+                    title="Close Modal"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="px-6 py-2 bg-slate-900/50 border-b border-blue-900/40 flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 text-xs font-extrabold">
+                {[
+                  { id: 'all', label: '🌐 All Specifications & Pricing' },
+                  { id: 'pricing', label: '💰 Pricing & Taxes' },
+                  { id: 'variants', label: `📦 Variants (${selectedProduct.variants?.length || 0}) & Stock` },
+                  { id: 'logistics', label: '🚚 Delivery & Pre-Order Rules' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setViewModalTab(tab.id as any)}
+                    className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${viewModalTab === tab.id
+                        ? 'bg-primary text-primary-foreground font-black shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Modal Body - Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-200">
+                {/* 1. Overview & Media Section */}
+                {(viewModalTab === 'all' || viewModalTab === 'pricing') && (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    {/* Visual Gallery - 5 cols */}
+                    <div className="md:col-span-5 space-y-3 bg-slate-900/80 p-4 rounded-2xl border border-blue-900/60">
+                      <div className="relative h-60 rounded-xl border border-blue-900/40 overflow-hidden bg-slate-950 flex items-center justify-center">
+                        {activeImg ? (
+                          <img
+                            src={activeImg}
+                            alt={selectedProduct.name}
+                            className="w-full h-full object-contain p-2"
+                          />
+                        ) : (
+                          <Package size={48} className="text-blue-400/60" />
+                        )}
+                        <span className="absolute top-2 left-2 bg-slate-950/80 backdrop-blur-xs text-amber-300 font-black text-[9px] px-2.5 py-0.5 rounded-full border border-amber-400/40 uppercase">
+                          {selectedProduct.brand || 'Merchant Product'}
+                        </span>
+                      </div>
+
+                      {/* Thumbnails Carousel */}
+                      {allImages.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto pb-1 pt-1 scrollbar-none">
+                          {allImages.map((imgUrl: string, idx: number) => {
+                            const fullUrl = getImageUrl(imgUrl);
+                            const isCurrent = activeImg === fullUrl;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setViewModalImage(fullUrl)}
+                                className={`h-12 w-12 rounded-lg border-2 overflow-hidden shrink-0 transition-all cursor-pointer p-0.5 bg-slate-950 ${isCurrent ? 'border-amber-400 scale-105 shadow-md ring-2 ring-amber-400/40' : 'border-blue-900/60 hover:border-blue-500 opacity-70 hover:opacity-100'
+                                  }`}
+                              >
+                                <img src={fullUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover rounded" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Storefront Visibility Status */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-blue-900/40 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-semibold">Storefront Status:</span>
+                        {selectedProduct.isActive !== false && (selectedProduct.status === 'Live' || selectedProduct.status === 'Approved') ? (
+                          <span className="text-emerald-400 font-extrabold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            Live on Storefront
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-extrabold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-slate-500" />
+                            Hidden / Turned Off
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Product Identity & Highlights - 7 cols */}
+                    <div className="md:col-span-7 space-y-4">
+                      {/* Net Seller Payout Banner */}
+                      <div className="p-4 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/60 to-slate-900 space-y-1 shadow-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                            <span>💵</span> Net Seller Payout (Direct Bank Deposit)
+                          </span>
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                            Per Unit Sold
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-3xl font-black text-emerald-400">
+                            ₹{sellerPayout.toFixed(2)}
+                          </p>
+                          <span className="text-xs text-emerald-200/80">
+                            (Net amount deposited directly to your bank account)
+                          </span>
                         </div>
                       </div>
 
-                      {variants.length > 0 ? (
-                        <div className="border border-blue-900/40 rounded-2xl overflow-hidden bg-slate-900">
-                          <table className="w-full text-xs">
-                            <thead className="bg-slate-950 border-b border-blue-900/60 text-blue-300">
-                              <tr>
-                                <th className="p-3 text-left font-extrabold">SKU Code</th>
-                                <th className="p-3 text-left font-extrabold">Variant Specs</th>
-                                <th className="p-3 text-center font-extrabold">MRP (₹)</th>
-                                <th className="p-3 text-center font-extrabold">Discount %</th>
-                                <th className="p-3 text-center font-extrabold">Selling Price (₹)</th>
-                                <th className="p-3 text-center font-extrabold">Stock</th>
-                                <th className="p-3 text-center font-extrabold">Action</th>
-                              </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-blue-900/40">
-                              {variants.map((variant, index) => (
-                                <tr key={index} className="hover:bg-slate-850 transition">
-                                  <td className="p-3">
-                                    <input
-                                      type="text"
-                                      value={variant.sku}
-                                      onChange={(e) => updateVariant(index, 'sku', e.target.value)}
-                                      className="w-full p-2 border border-blue-900/60 rounded-xl text-xs font-mono bg-slate-950 text-amber-300 font-bold"
-                                    />
-                                  </td>
-
-                                  <td className="p-3">
-                                    <span className="font-bold text-white block">
-                                      {Object.entries(variant.attributes || {})
-                                        .map(([k, v]) => `${k}: ${v}`)
-                                        .join(', ') || 'Standard Variant'}
-                                    </span>
-                                  </td>
-
-                                  <td className="p-3 text-center">
-                                    <input
-                                      type="number"
-                                      value={variant.mrp}
-                                      onChange={(e) => updateVariant(index, 'mrp', e.target.value)}
-                                      className="w-20 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 text-white font-bold"
-                                    />
-                                  </td>
-
-                                  <td className="p-3 text-center">
-                                    <input
-                                      type="number"
-                                      value={variant.discountPercent || 0}
-                                      onChange={(e) => updateVariant(index, 'discountPercent', e.target.value)}
-                                      className="w-16 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 text-emerald-400 font-bold"
-                                    />
-                                  </td>
-
-                                  <td className="p-3 text-center">
-                                    <input
-                                      type="number"
-                                      value={variant.sellingPrice}
-                                      onChange={(e) => updateVariant(index, 'sellingPrice', e.target.value)}
-                                      className="w-20 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 font-black text-amber-300"
-                                    />
-                                  </td>
-
-                                  <td className="p-3 text-center">
-                                    <input
-                                      type="number"
-                                      value={variant.stock}
-                                      onChange={(e) => updateVariant(index, 'stock', e.target.value)}
-                                      className="w-16 p-2 border border-blue-900/60 rounded-xl text-center bg-slate-950 font-bold text-emerald-400"
-                                    />
-                                  </td>
-
-                                  <td className="p-3 text-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => removeVariant(index)}
-                                      className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 transition cursor-pointer"
-                                      title="Delete Variant"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      {/* Financial Metrics Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                        <div className="p-3 rounded-xl border border-blue-900/60 bg-slate-900/80 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Retail MRP</span>
+                          <span className="text-sm font-black text-slate-200">
+                            ₹{Number(selectedProduct.adminPricing?.mrp || selectedProduct.baseMrp || 0).toFixed(2)}
+                          </span>
                         </div>
-                      ) : (
-                        <div className="text-center py-6 border border-dashed border-blue-900/60 rounded-2xl bg-slate-900">
-                          <Package size={28} className="mx-auto text-blue-400 mb-2" />
-                          <p className="text-xs text-white font-bold">No product variants created yet.</p>
-                          <p className="text-[10px] text-blue-300 mt-1">Click "Auto-Generate" or "Add Custom Variant" above to add size/weight/color options.</p>
+
+                        <div className="p-3 rounded-xl border border-blue-900/60 bg-slate-900/80 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Discount</span>
+                          <span className="text-sm font-black text-emerald-400">
+                            {selectedProduct.discountPercent || (Number(selectedProduct.baseMrp) > Number(selectedProduct.baseSellingPrice) ? Math.round(((Number(selectedProduct.baseMrp) - Number(selectedProduct.baseSellingPrice)) / Number(selectedProduct.baseMrp)) * 100) : 0)}% OFF
+                          </span>
+                        </div>
+
+                        <div className="p-3 rounded-xl border border-blue-900/60 bg-slate-900/80 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Base Selling Price</span>
+                          <span className="text-sm font-black text-amber-300">
+                            ₹{Number(selectedProduct.baseSellingPrice || 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="p-3 rounded-xl border border-blue-500/30 bg-blue-950/40 space-y-1">
+                          <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider block">Customer Price</span>
+                          <span className="text-sm font-black text-white">
+                            ₹{Number(customerPrice || selectedProduct.baseSellingPrice || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* GST Tax & Platform Fee Matrix */}
+                      <div className="p-4 rounded-2xl border border-blue-900/60 bg-slate-900/50 space-y-2.5 text-xs">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Taxes & Platform Fees Breakdown
+                        </span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="p-3 rounded-xl bg-slate-950 border border-blue-900/40 space-y-1">
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">🏛️ GST Specification</span>
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-white">{gstRateVal}% GST</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-400/10 text-amber-300 font-bold">
+                                {selectedProduct.gstPricingMode === 'exclusive' ? 'Price Exclusive' : 'Price Inclusive'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block">
+                              Split: CGST {(gstRateVal / 2).toFixed(1)}% + SGST {(gstRateVal / 2).toFixed(1)}%
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-slate-950 border border-blue-900/40 space-y-1">
+                            <span className="text-muted-foreground block text-[10px] uppercase font-bold">💼 ApexBee Platform Fee</span>
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-amber-300">₹{commAmount}</span>
+                              <span className="text-[10px] text-slate-400 font-bold">{commPercent}% Fee</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block">
+                              Handling: Shipping ₹{selectedProduct.adminPricing?.shippingCharge || 0} • Packing ₹{selectedProduct.adminPricing?.packingCharge || 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description Box */}
+                      {selectedProduct.description && (
+                        <div className="p-4 rounded-2xl border border-blue-900/40 bg-slate-900/40 space-y-1.5 text-xs">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                            📝 Product Description &amp; Highlights
+                          </span>
+                          <p className="text-slate-300 leading-relaxed max-h-28 overflow-y-auto whitespace-pre-wrap font-medium">
+                            {selectedProduct.description}
+                          </p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* 📸 STEP 3: MEDIA & DELIVERY RULES */}
-                {formStep === 3 && (
-                  <div className="space-y-5">
-                    <MediaSection
-                      thumbnailPreview={thumbnailPreview}
-                      imagePreviews={images.map(img => typeof img === 'string' ? img : URL.createObjectURL(img))}
-                      description={form.description}
-                      aiLoading={aiLoading}
-                      onThumbnailSelect={(file, preview) => {
-                        setThumbnail(file);
-                        setThumbnailPreview(preview);
-                      }}
-                      onImagesSelect={(files) => {
-                        setImages(files);
-                      }}
-                      onDescriptionChange={(desc) => setForm({ ...form, description: desc })}
-                      onGenerateAiDetails={handleGenerateAiDetails}
-                    />
+                {/* 2. Variants & Inventory Specifications */}
+                {(viewModalTab === 'all' || viewModalTab === 'variants') && (
+                  <div className="space-y-4 pt-2 border-t border-blue-900/40">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📦</span>
+                        <div>
+                          <h3 className="font-black text-sm text-white uppercase tracking-wider">
+                            Inventory &amp; Product Variants
+                          </h3>
+                          <p className="text-[11px] text-slate-400">
+                            Available stock levels, SKUs, and variant configurations.
+                          </p>
+                        </div>
+                      </div>
 
-                    <DeliverySection
-                      policy={{
-                        homeDelivery: form.isLocalDelivery,
-                        storePickup: form.isSelfPickup,
-                        sameDay: false,
-                        scheduled: form.isSubscriptionAvailable,
-                        fragile: false,
-                        isPanIndia: form.isPanIndia,
-                        isLocalDelivery: form.isLocalDelivery,
-                        isSubscriptionAvailable: form.isSubscriptionAvailable,
-                        isPreOrder: form.isPreOrder,
-                        preOrderType: form.preOrderType,
-                        preOrderLeadTimeDays: form.preOrderLeadTimeDays,
-                        preOrderLeadTimeHours: form.preOrderLeadTimeHours,
-                        preOrderDailyCutoffTime: form.preOrderDailyCutoffTime,
-                        preOrderAllowTimeSlot: form.preOrderAllowTimeSlot,
-                        preOrderAllowCustomMessage: form.preOrderAllowCustomMessage,
-                        preOrderCustomMessageLabel: form.preOrderCustomMessageLabel,
-                        preOrderReleaseDate: form.preOrderReleaseDate,
-                        preOrderMessage: form.preOrderMessage,
-                        preOrderLimit: form.preOrderLimit,
-                      }}
-                      onChange={(policy) => {
-                        const isLocal = policy.homeDelivery ?? policy.isLocalDelivery ?? true;
-                        const isPan = policy.isPanIndia ?? false;
-                        const calcScope = isLocal && isPan ? 'both' : isPan ? 'pan_india' : 'local';
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="bg-slate-900 px-3 py-1 rounded-xl border border-blue-900/60 font-bold">
+                          Total Stock: <strong className="text-emerald-400">{selectedProduct.stock || 0}</strong> units
+                        </span>
+                        <span className="bg-slate-900 px-3 py-1 rounded-xl border border-blue-900/60 font-bold">
+                          MOQ: <strong className="text-white">{selectedProduct.minimumOrderQuantity || 1}</strong>
+                        </span>
+                      </div>
+                    </div>
 
-                        setForm({
-                          ...form,
-                          isLocalDelivery: isLocal,
-                          isPanIndia: isPan,
-                          deliveryScope: calcScope,
-                          isSelfPickup: policy.storePickup,
-                          isSubscriptionAvailable: policy.isSubscriptionAvailable ?? policy.scheduled,
-                          isPreOrder: !!policy.isPreOrder,
-                          preOrderType: policy.preOrderType !== undefined ? policy.preOrderType : form.preOrderType,
-                          preOrderLeadTimeDays: policy.preOrderLeadTimeDays !== undefined ? policy.preOrderLeadTimeDays : form.preOrderLeadTimeDays,
-                          preOrderLeadTimeHours: policy.preOrderLeadTimeHours !== undefined ? policy.preOrderLeadTimeHours : form.preOrderLeadTimeHours,
-                          preOrderDailyCutoffTime: policy.preOrderDailyCutoffTime !== undefined ? policy.preOrderDailyCutoffTime : form.preOrderDailyCutoffTime,
-                          preOrderAllowTimeSlot: policy.preOrderAllowTimeSlot !== undefined ? policy.preOrderAllowTimeSlot : form.preOrderAllowTimeSlot,
-                          preOrderAllowCustomMessage: policy.preOrderAllowCustomMessage !== undefined ? policy.preOrderAllowCustomMessage : form.preOrderAllowCustomMessage,
-                          preOrderCustomMessageLabel: policy.preOrderCustomMessageLabel !== undefined ? policy.preOrderCustomMessageLabel : form.preOrderCustomMessageLabel,
-                          preOrderReleaseDate: policy.preOrderReleaseDate !== undefined ? policy.preOrderReleaseDate : form.preOrderReleaseDate,
-                          preOrderMessage: policy.preOrderMessage !== undefined ? policy.preOrderMessage : form.preOrderMessage,
-                          preOrderLimit: policy.preOrderLimit !== undefined ? policy.preOrderLimit : form.preOrderLimit,
-                        });
-                      }}
-                    />
+                    {selectedProduct.variants && selectedProduct.variants.length > 0 ? (
+                      <div className="border border-blue-900/60 rounded-2xl overflow-hidden bg-slate-900 shadow-sm">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-slate-950 text-slate-300 font-extrabold uppercase text-[10px] border-b border-blue-900/60">
+                            <tr>
+                              <th className="p-3">Variant / SKU</th>
+                              <th className="p-3">Attributes</th>
+                              <th className="p-3 text-right">MRP</th>
+                              <th className="p-3 text-right">Discount</th>
+                              <th className="p-3 text-right">Selling Price</th>
+                              <th className="p-3 text-center">Stock</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-blue-900/40">
+                            {selectedProduct.variants.map((v: any, vIdx: number) => {
+                              const attrEntries = v.attributes && typeof v.attributes === 'object' ? Object.entries(v.attributes) : [];
+                              return (
+                                <tr key={vIdx} className="hover:bg-slate-800/50">
+                                  <td className="p-3">
+                                    <span className="font-bold text-white block">{v.name || v.title || `Variant #${vIdx + 1}`}</span>
+                                    <span className="font-mono text-[10px] text-blue-300">{v.sku || selectedProduct.sku}</span>
+                                  </td>
+
+                                  <td className="p-3">
+                                    {attrEntries.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {attrEntries.map(([k, val]: any) => (
+                                          <span key={k} className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 text-[10px] font-semibold border border-blue-800/40">
+                                            {k}: {String(val)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 text-[10px]">Standard Variant</span>
+                                    )}
+                                  </td>
+
+                                  <td className="p-3 text-right font-mono text-slate-400 line-through">
+                                    ₹{Number(v.mrp || selectedProduct.baseMrp || 0).toFixed(2)}
+                                  </td>
+
+                                  <td className="p-3 text-right font-bold text-emerald-400">
+                                    {v.discountPercent || selectedProduct.discountPercent || 0}%
+                                  </td>
+
+                                  <td className="p-3 text-right font-mono font-black text-amber-300">
+                                    ₹{Number(v.sellingPrice || selectedProduct.baseSellingPrice || 0).toFixed(2)}
+                                  </td>
+
+                                  <td className="p-3 text-center font-bold">
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] ${Number(v.stock) > 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                                      }`}>
+                                      {v.stock || 0} in stock
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-xl border border-blue-900/40 bg-slate-900/40 text-center text-xs text-slate-400">
+                        This product does not have variants. Selling as a single SKU package with <strong>{selectedProduct.stock || 0}</strong> units in inventory.
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Bottom Step Navigation Bar */}
-                <div className="pt-6 border-t border-blue-900/60 flex items-center justify-between gap-4">
-                  {formStep > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setFormStep(formStep - 1)}
-                      className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer"
-                    >
-                      ← Back Step
-                    </button>
-                  ) : <div />}
+                {/* 3. Delivery, Fulfillment & Pre-Order Rules */}
+                {(viewModalTab === 'all' || viewModalTab === 'logistics') && (
+                  <div className="space-y-4 pt-2 border-t border-blue-900/40">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🚚</span>
+                      <div>
+                        <h3 className="font-black text-sm text-white uppercase tracking-wider">
+                          Delivery Logistics &amp; Fulfillment Policies
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          Configured distribution channels, local store pickup, subscriptions, and advance orders.
+                        </p>
+                      </div>
+                    </div>
 
-                  {formStep < 3 ? (
-                    <button
-                      type="button"
-                      onClick={() => setFormStep(formStep + 1)}
-                      className="px-8 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-blue-950 font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg transform hover:scale-105"
-                    >
-                      Next Step ➔
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSaveProduct}
-                      disabled={saving}
-                      className="px-8 py-3.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 disabled:opacity-50 text-blue-950 font-black text-sm uppercase tracking-wider rounded-xl shadow-xl transition-all cursor-pointer transform hover:scale-105 flex items-center gap-2"
-                    >
-                      {saving && <span className="w-4 h-4 border-2 border-blue-950 border-t-transparent rounded-full animate-spin" />}
-                      {saving ? 'Saving Product...' : 'Submit Product for Approval 🚀'}
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                      {/* Local Store Delivery */}
+                      <div className={`p-3.5 rounded-2xl border ${selectedProduct.isLocalDelivery ? 'border-emerald-500/40 bg-emerald-950/30' : 'border-slate-800 bg-slate-900/50'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-[11px]">🛵 Local Store Delivery</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${selectedProduct.isLocalDelivery ? 'bg-emerald-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
+                            {selectedProduct.isLocalDelivery ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">
+                          Hyperlocal delivery fulfilled directly to nearby customers within delivery radius.
+                        </p>
+                      </div>
 
-      {showPricingView && selectedProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-950 border border-blue-900/60 rounded-3xl max-w-4xl w-full p-6 space-y-6 shadow-2xl overflow-hidden relative text-white">
-            {/* Header Bar */}
-            <div className="flex justify-between items-center border-b border-blue-900/60 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center font-black">
-                  👑
-                </div>
-                <div>
-                  <h2 className="text-base font-black font-heading tracking-wide text-white">
-                    Admin Approval & Pricing Review
-                  </h2>
-                  <p className="text-xs text-blue-300">
-                    Review approved selling prices, platform fee breakdown & net payout.
-                  </p>
-                </div>
-              </div>
+                      {/* Pan India Delivery */}
+                      <div className={`p-3.5 rounded-2xl border ${selectedProduct.isPanIndia ? 'border-blue-500/40 bg-blue-950/30' : 'border-slate-800 bg-slate-900/50'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-[11px]">🚚 Pan-India Shipping</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${selectedProduct.isPanIndia ? 'bg-blue-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
+                            {selectedProduct.isPanIndia ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">
+                          Nationwide courier shipping fulfilled via Delhivery / Shadowfax integration.
+                        </p>
+                      </div>
 
-              <button
-                type="button"
-                onClick={() => setShowPricingView(false)}
-                className="h-8 w-8 rounded-full bg-slate-900 border border-blue-900/60 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center justify-center font-black transition cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+                      {/* In-Store Pickup */}
+                      <div className={`p-3.5 rounded-2xl border ${selectedProduct.isSelfPickup ? 'border-amber-400/40 bg-amber-950/30' : 'border-slate-800 bg-slate-900/50'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-[11px]">🏪 In-Store Self Pickup</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${selectedProduct.isSelfPickup ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
+                            {selectedProduct.isSelfPickup ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">
+                          Customers visit your storefront directly to collect package with OTP verification.
+                        </p>
+                      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Product Preview Card */}
-              <div className="rounded-2xl border border-blue-900/60 bg-slate-900 p-4 space-y-4 shadow-xl flex flex-col justify-between">
-                <div className="relative h-56 rounded-xl border border-blue-900/40 overflow-hidden bg-slate-950 flex items-center justify-center">
-                  {getImageUrl(selectedProduct.thumbnail || selectedProduct.images?.[0]) ? (
-                    <img
-                      src={getImageUrl(selectedProduct.thumbnail || selectedProduct.images?.[0])}
-                      alt={selectedProduct.name}
-                      className="w-full h-full object-contain p-2"
-                    />
-                  ) : (
-                    <Package size={42} className="text-blue-400/60" />
-                  )}
-                  <span className="absolute top-2 left-2 bg-emerald-500 text-slate-950 font-black text-[10px] px-3 py-1 rounded-full uppercase shadow-md border border-emerald-400">
-                    ✓ Admin Approved
-                  </span>
-                </div>
+                      {/* Recurring Subscription */}
+                      <div className={`p-3.5 rounded-2xl border ${selectedProduct.isSubscriptionAvailable ? 'border-purple-500/40 bg-purple-950/30' : 'border-slate-800 bg-slate-900/50'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-[11px]">🔁 Daily Subscriptions</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${selectedProduct.isSubscriptionAvailable ? 'bg-purple-400 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
+                            {selectedProduct.isSubscriptionAvailable ? 'ACTIVE' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-300">
+                          Daily/weekly repeated automated doorstep deliveries on schedule.
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
-                    {selectedProduct.brand || 'ApexBee Merchant'}
-                  </span>
+                    {/* Pre-Order Configuration Panel */}
+                    {selectedProduct.isPreOrder && (
+                      <div className="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-purple-300 uppercase tracking-wide flex items-center gap-1.5">
+                            <span>📅</span> Advance Pre-Order Configuration
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[10px]">
+                            {selectedProduct.preOrderType === 'ADVANCE_NOTICE' ? 'Advance Notice Required' : 'Fixed Calendar Release Date'}
+                          </span>
+                        </div>
 
-                  <h3 className="font-extrabold text-base text-white line-clamp-2">
-                    {selectedProduct.name}
-                  </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-slate-300">
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-purple-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Preparation Lead Time</span>
+                            <span className="font-extrabold text-white">
+                              {selectedProduct.preOrderLeadTimeDays || 2} Days ({selectedProduct.preOrderLeadTimeHours || 24} Hours)
+                            </span>
+                          </div>
 
-                  <p className="text-xs font-mono text-blue-300">
-                    SKU: {selectedProduct.sku}
-                  </p>
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-purple-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Daily Booking Cutoff</span>
+                            <span className="font-extrabold text-white">
+                              {selectedProduct.preOrderDailyCutoffTime || '18:00 (6:00 PM)'}
+                            </span>
+                          </div>
 
-                  <div className="flex items-center gap-3 pt-2">
-                    <span className="text-2xl font-black text-amber-300">
-                      ₹{selectedProduct.adminPricing?.sellingPrice || selectedProduct.baseSellingPrice || 0}
-                    </span>
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-purple-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Time Slot Selection</span>
+                            <span className="font-extrabold text-white">
+                              {selectedProduct.preOrderAllowTimeSlot ? 'Customer Selects Slot' : 'Standard Delivery Slot'}
+                            </span>
+                          </div>
+                        </div>
 
-                    {Number(selectedProduct.baseMrp) > 0 && (
-                      <span className="text-sm line-through text-slate-400 font-semibold">
-                        MRP ₹{selectedProduct.adminPricing?.mrp || selectedProduct.baseMrp}
-                      </span>
+                        {selectedProduct.preOrderAllowCustomMessage && (
+                          <div className="p-2.5 bg-slate-950/60 rounded-xl border border-purple-900/30 text-[11px]">
+                            <span className="text-purple-300 font-bold">Customer Custom Note Prompt: </span>
+                            <span className="italic text-slate-300">"{selectedProduct.preOrderCustomMessageLabel || 'Message / Special Instructions'}"</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Specialty Dairy / Food Specs */}
+                    {selectedProduct.dairyDetails && (selectedProduct.dairyDetails.dairyType || selectedProduct.dairyDetails.packSize) && (
+                      <div className="p-4 rounded-2xl border border-blue-500/30 bg-blue-950/20 space-y-2 text-xs">
+                        <span className="font-extrabold text-blue-300 uppercase tracking-wide flex items-center gap-1.5">
+                          <span>🥛</span> Dairy &amp; Perishable Product Specifications
+                        </span>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-slate-300">
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-blue-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Dairy Classification</span>
+                            <span className="font-extrabold text-white">{selectedProduct.dairyDetails.dairyType}</span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-blue-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Pack Size</span>
+                            <span className="font-extrabold text-white">
+                              {selectedProduct.dairyDetails.packSize} {selectedProduct.dairyDetails.packUnit}
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-blue-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Fat / Nutrition</span>
+                            <span className="font-extrabold text-white">
+                              {selectedProduct.dairyDetails.fatPercentage !== undefined ? `${selectedProduct.dairyDetails.fatPercentage}% Fat` : 'Standard'}
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-950 rounded-xl border border-blue-900/40">
+                            <span className="text-[10px] text-muted-foreground block uppercase font-bold">Expiry Date / Shelf</span>
+                            <span className="font-extrabold text-amber-300">
+                              {selectedProduct.dairyDetails.expiryDate || 'Fresh Daily'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* Financial Matrix Cards */}
-              <div className="space-y-3 flex flex-col justify-between">
-                <div className="p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950/40 space-y-1 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
-                      💵 Your Net Seller Payout
-                    </span>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                      Bank Deposit
-                    </span>
-                  </div>
-                  <p className="text-3xl font-black text-emerald-400">
-                    ₹{Number(selectedProduct.adminPricing?.finalSellerAmount || 0).toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-emerald-200/80">Direct credit per unit sold</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {(() => {
-                    const distFrom =
-                      selectedProduct.adminPricing?.distributedFrom ||
-                      (Number(selectedProduct.adminPricing?.vendorCommissionPercent) > 0 && !Number(selectedProduct.adminPricing?.platformFeeAmount)
-                        ? 'apexbee_commission'
-                        : 'platform_fee');
-
-                    const isApexBee = distFrom === 'apexbee_commission' || distFrom === 'vendor' || distFrom === 'vendor_commission';
-                    const isBoth = distFrom === 'both';
-
-                    if (!isApexBee && !isBoth) {
-                      // Platform fee is paid by customer -> don't show to vendor
-                      return null;
-                    }
-
-                    const commPercent = selectedProduct.adminPricing?.vendorCommissionPercent ?? selectedProduct.adminPricing?.platformFeePercent ?? 0;
-                    const commAmount = selectedProduct.adminPricing?.vendorCommissionAmount ?? selectedProduct.adminPricing?.platformFeeAmount ?? 0;
-
-                    return (
-                      <div className="p-3.5 rounded-2xl border border-amber-400/30 bg-amber-950/30 space-y-1">
-                        <span className="text-[11px] font-extrabold text-amber-300 block">
-                          ApexBee Commission ({commPercent}%)
-                        </span>
-                        <b className="text-base font-black text-white">
-                          ₹{commAmount}
-                        </b>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="p-3.5 rounded-2xl border border-blue-500/30 bg-blue-950/40 space-y-1">
-                    <span className="text-[11px] font-extrabold text-blue-300 block">
-                      Customer Price
-                    </span>
-                    <b className="text-base font-black text-white">
-                      ₹{customerSellingAmount}
-                    </b>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl border border-blue-900/60 bg-slate-900 space-y-1">
-                    <span className="text-[11px] font-bold text-blue-300 block">
-                      Shipping Fee
-                    </span>
-                    <b className="text-sm font-bold text-white">
-                      ₹{selectedProduct.adminPricing?.shippingCharge || 0}
-                    </b>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl border border-blue-900/60 bg-slate-900 space-y-1">
-                    <span className="text-[11px] font-bold text-blue-300 block">
-                      Packing Fee
-                    </span>
-                    <b className="text-sm font-bold text-white">
-                      ₹{selectedProduct.adminPricing?.packingCharge || 0}
-                    </b>
-                  </div>
-                </div>
-
+                {/* 4. Negotiation & Action Bar (When Awaiting Seller Approval) */}
                 {selectedProduct.status === 'Awaiting Seller Approval' && (
-                  <div className="space-y-3 pt-2">
+                  <div className="p-4 rounded-2xl border border-amber-400/40 bg-amber-950/20 space-y-3 pt-3">
+                    <div className="flex items-center gap-2 text-amber-300">
+                      <span className="text-base">⚠️</span>
+                      <span className="font-extrabold text-xs uppercase tracking-wide">
+                        Admin has submitted approved pricing. Please accept to publish live or submit a counter-offer.
+                      </span>
+                    </div>
+
                     <textarea
-                      placeholder="Enter counter-offer or note for Admin if negotiating..."
+                      placeholder="Enter counter-offer or note for Admin if negotiating pricing..."
                       value={negotiationMessage}
                       onChange={(e) => setNegotiationMessage(e.target.value)}
                       className="w-full p-3 rounded-xl border border-blue-900/60 bg-slate-900 text-white text-xs font-medium focus:ring-2 focus:ring-amber-400/40 outline-none"
@@ -2418,10 +2955,22 @@ export const ProductManagement: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 border-t border-blue-900/60 bg-slate-900/90 flex items-center justify-between text-xs text-slate-400 shrink-0">
+                <span>Product ID: <strong className="text-slate-300 font-mono">{selectedProduct._id}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setShowPricingView(false)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

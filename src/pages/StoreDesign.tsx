@@ -1,3 +1,4 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
 import React, { useState } from 'react';
 import { useVendor } from '../context/VendorContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -28,7 +29,9 @@ import {
 } from 'lucide-react';
 
 export const StoreDesign: React.FC = () => {
-  const { profile, storeDesign, products, updateProfile } = useVendor();
+  const { profile, storeDesign, products: allProducts, updateProfile } = useVendor();
+  const {productIds}=useBusinessWorkspace();
+  const products=productIds?allProducts.filter(product=>productIds.includes(product.id)):allProducts;
   const [activeTab, setActiveTab] = useState<'products' | 'branding' | 'category_config' | 'hours' | 'policies'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);

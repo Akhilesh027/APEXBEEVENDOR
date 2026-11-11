@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useVendor } from "../context/VendorContext";
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
+import { DairyOperationsCard } from '../components/DairyOperationsCard';
+import { NeedsAttention } from '../components/OperationalAlerts';
+import { isWaterBusiness } from '../services/businessPortal';
+import { BusinessWorkspaceHome } from './BusinessWorkspaceHome';
+import { DailyNeedsWorkspace } from './DailyNeedsWorkspace';
+import { WaterWorkspace } from './WaterWorkspace';
 import {
   Card,
   CardContent,
@@ -63,6 +70,7 @@ const formatCurrency = (amount?: number) =>
 
 export const Dashboard: React.FC = () => {
   const { stats, profile, notifications, setCurrentPage, orders, products } = useVendor();
+  const { selected } = useBusinessWorkspace();
 
   const [pendingInvoices, setPendingInvoices] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -395,8 +403,20 @@ export const Dashboard: React.FC = () => {
     );
   };
 
+  if (selected?.kind === 'flowers') return (
+    <div className="pos-dashboard mx-auto flex w-full max-w-[100rem] flex-col gap-5 p-3 sm:p-5 xl:p-7">
+      <header className="pos-dashboard-hero p-5 sm:p-6">
+        <p className="pos-eyebrow mb-2">Devotional · Flower shop</p>
+        <h1 className="pos-page-title">Flowers and Garlands Dashboard</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{profile.businessName}</p>
+      </header>
+      <NeedsAttention />
+      <DailyNeedsWorkspace key={selected.id} embedded />
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full">
+    <div className="pos-dashboard mx-auto flex w-full max-w-[100rem] flex-col gap-5 p-3 sm:p-5 xl:p-7">
       {/* Pending Admin Payment Link Alert Banner */}
       {pendingInvoices.length > 0 && (
         <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/25 via-orange-500/15 to-transparent border border-amber-500/40 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl text-left">
@@ -432,7 +452,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Enterprise Executive Dashboard Hero Banner */}
-      <div className="rounded-3xl bg-slate-900/90 p-6 md:p-8 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="pos-dashboard-hero relative flex flex-col justify-between gap-5 p-5 text-white sm:p-6 xl:flex-row xl:items-center">
         <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="bg-amber-400 text-blue-950 px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-md">
@@ -449,8 +469,9 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div>
+            <p className="pos-eyebrow mb-1.5">{selected?.categoryName || 'Store overview'}</p>
             <h1 className="text-2xl md:text-4xl font-black font-heading text-white tracking-tight">
-              {timeGreeting} <span className="text-amber-400">{profile.ownerName}</span> 👋
+              {selected ? <>{selected.name} <span className="text-amber-400">Dashboard</span></> : <>{timeGreeting} <span className="text-amber-400">{profile.ownerName}</span> 👋</>}
             </h1>
             <p className="text-blue-200 text-xs md:text-sm mt-1 flex items-center gap-2 flex-wrap">
               <span>{profile.businessName}</span>
@@ -466,10 +487,10 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Big Rupee Wallet & Sales Cards */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="bg-slate-950/80 px-6 py-4 rounded-2xl text-left min-w-[190px] shadow-xl">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="pos-hero-metric min-w-0 px-3 py-3 text-left sm:px-5">
             <span className="text-[11px] text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-              <Wallet className="h-4 w-4" /> Available Wallet
+              <Wallet className="h-4 w-4" /> {selected ? 'Store Wallet' : 'Available Wallet'}
             </span>
             <p className="text-2xl md:text-3xl font-black text-white mt-1 font-heading">
               {formatCurrency(stats.walletBalance)}
@@ -482,9 +503,9 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="bg-slate-950/80 px-6 py-4 rounded-2xl text-left min-w-[190px] shadow-xl">
+          <div className="pos-hero-metric min-w-0 px-3 py-3 text-left sm:px-5">
             <span className="text-[11px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-              <IndianRupee className="h-4 w-4" /> Gross Sales Today
+              <IndianRupee className="h-4 w-4" /> {selected ? 'Store Sales Today' : 'Gross Sales Today'}
             </span>
             <p className="text-2xl md:text-3xl font-black text-white mt-1 font-heading">
               {formatCurrency(todayRevenue)}
@@ -495,6 +516,21 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <NeedsAttention />
+
+      {selected && <>
+        <div className="pos-operations p-3 sm:p-5">
+          {selected.kind === 'dairy' ? <DairyOperationsCard key={selected.id} />
+            : isWaterBusiness(selected) ? <WaterWorkspace key={selected.id} embedded />
+              : selected.dailyNeedsProfile ? <DailyNeedsWorkspace key={selected.id} embedded />
+                : <BusinessWorkspaceHome key={selected.id} embedded />}
+        </div>
+        <div className="border-t border-border pt-4">
+          <h2 className="text-lg font-bold text-white">Store-wide overview</h2>
+          <p className="text-sm text-slate-400">Totals and activity across all of your approved businesses.</p>
+        </div>
+      </>}
 
       {/* 📊 4 Main Key Data Metric Cards (Directly After Greeting) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">

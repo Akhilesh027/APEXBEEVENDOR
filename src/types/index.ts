@@ -43,6 +43,9 @@ export interface VendorProfile {
   // New Live Shop Settings fields
   liveStatus?: "open" | "closed" | "busy" | "vacation" | "temporarily_closed" | "accepting_preorders";
   deliveryRadiusKm?: number;
+  deliveryMode?: 'self_delivery' | 'platform_delivery' | 'pickup_only';
+  isSelfDelivery?: boolean;
+  isSelfPickup?: boolean;
   minOrder?: number;
   deliveryCharge?: number;
   estimatedDeliveryMinutes?: number;
@@ -77,6 +80,9 @@ export interface VendorProfile {
   refundPolicy?: string;
   replacementPolicy?: string;
   verifiedBadge?: boolean;
+  hasGst?: boolean;
+  gstPricingMode?: 'inclusive' | 'exclusive';
+  categoryParameters?: Record<string, any>;
 }
 
 export interface ProductVariant {
@@ -116,6 +122,8 @@ export interface Product {
   lastUpdated?: string;
   isStoreProduct?: boolean;
   isSubscriptionAvailable?: boolean;
+  gstRate?: number; // GST rate percentage: 0, 5, 12, 18, 28
+  gstPricingMode?: 'inclusive' | 'exclusive'; // inclusive = included in price, exclusive = added on top
   badges?: string[];
   rating?: number;
 }
@@ -141,6 +149,8 @@ export interface Order {
   _id?: string;
   orderNumber?: string;
   orderStatus?: string;
+  estimatedDeliveryTime?: string;
+  estimatedDeliveryMinutes?: number;
   deliveredAt?: string;
   customerName: string;
   customerPhone: string;
@@ -173,6 +183,18 @@ export interface Order {
   pickupVerification?: any;
   deliveryDetails?: any;
   isSelfPickup?: boolean;
+  deliverySlot?: string;
+  preOrderTimeSlot?: string;
+  slotExtended?: boolean;
+  slotExtendedUntil?: string;
+  slotExtensionReason?: string;
+  slotMissed?: boolean;
+  orderSummary?: any;
+  couponCode?: string;
+  couponDiscount?: number;
+  assignedDeliveryAgentPhone?: string;
+  deliveryMode?: string;
+  commissionAmount?: number;
 }
 
 export interface DeliveryAgent {
@@ -221,6 +243,8 @@ export interface MarketplaceNotification {
   type: 'product' | 'order' | 'wallet' | 'kyc' | 'system';
   timestamp: string;
   isRead: boolean;
+  eventCode?: string;
+  deepLink?: string;
 }
 
 export interface RFQ {

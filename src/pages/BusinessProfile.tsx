@@ -170,6 +170,15 @@ export const BusinessProfile: React.FC = () => {
   const [longitude, setLongitude] = useState(profile.location?.coordinates?.[0]?.toString() || '');
 
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(profile.deliveryRadiusKm || 5);
+  const [deliveryMode, setDeliveryMode] = useState<'self_delivery' | 'platform_delivery' | 'pickup_only'>(
+    profile.deliveryMode || 'platform_delivery'
+  );
+  const [isSelfDelivery, setIsSelfDelivery] = useState<boolean>(
+    profile.deliveryMode === 'self_delivery' || !!profile.isSelfDelivery
+  );
+  const [isSelfPickup, setIsSelfPickup] = useState<boolean>(
+    profile.deliveryMode === 'pickup_only' || !!profile.isSelfPickup
+  );
   const [minOrder, setMinOrder] = useState(profile.minOrder || 100);
   const [deliveryCharge, setDeliveryCharge] = useState(profile.deliveryCharge || 20);
   const [estimatedDeliveryMinutes, setEstimatedDeliveryMinutes] = useState(profile.estimatedDeliveryMinutes || 30);
@@ -188,6 +197,10 @@ export const BusinessProfile: React.FC = () => {
     sunday: { open: '09:00', close: '21:00', enabled: false }
   });
 
+  const [hasGst, setHasGst] = useState<boolean>(profile.hasGst !== undefined ? profile.hasGst : (!!profile.gstNumber));
+  const [gstPricingMode, setGstPricingMode] = useState<'inclusive' | 'exclusive'>(profile.gstPricingMode || 'inclusive');
+  const [categoryGstRate, setCategoryGstRate] = useState<number>(profile.categoryParameters?.gstRate ?? 5);
+
   const [gstNumber, setGstNumber] = useState(profile.gstNumber || '');
   const [panNumber, setPanNumber] = useState(profile.panNumber || '');
   const [aadhaarNumber, setAadhaarNumber] = useState(profile.aadhaarNumber || '');
@@ -197,6 +210,18 @@ export const BusinessProfile: React.FC = () => {
   const [ownerContact, setOwnerContact] = useState(profile.ownerContact || '');
   const [managerContact, setManagerContact] = useState(profile.managerContact || '');
   const [deliveryManagerContact, setDeliveryManagerContact] = useState(profile.deliveryManagerContact || '');
+
+  // Category Switcher in Operational Parameters
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('');
+
+  // Electronics & Mobiles operational parameters
+  const [electronicsWarrantyMonths, setElectronicsWarrantyMonths] = useState<string>('12 Months');
+  const [imeiTrackingRequired, setImeiTrackingRequired] = useState<boolean>(true);
+  const [openBoxInspection, setOpenBoxInspection] = useState<boolean>(true);
+
+  // General Retail operational parameters
+  const [retailBulkDiscount, setRetailBulkDiscount] = useState<string>('5% over ₹2,000');
+  const [giftWrappingOffered, setGiftWrappingOffered] = useState<boolean>(true);
 
   // Category-specific operational states (Multi-Select Format States)
   const [foodSubcategories, setFoodSubcategories] = useState<string[]>(['Dine-In Family Restaurant']);
@@ -274,12 +299,17 @@ export const BusinessProfile: React.FC = () => {
       setLatitude(profile.location?.coordinates?.[1]?.toString() || '');
       setLongitude(profile.location?.coordinates?.[0]?.toString() || '');
       setDeliveryRadiusKm(profile.deliveryRadiusKm || 5);
+      setDeliveryMode(profile.deliveryMode || 'platform_delivery');
+      setIsSelfDelivery(profile.deliveryMode === 'self_delivery' || !!profile.isSelfDelivery);
+      setIsSelfPickup(profile.deliveryMode === 'pickup_only' || !!profile.isSelfPickup);
       setMinOrder(profile.minOrder || 100);
       setDeliveryCharge(profile.deliveryCharge || 20);
       setEstimatedDeliveryMinutes(profile.estimatedDeliveryMinutes || 30);
       setStoreTags(profile.storeTags || []);
       setStoreServices(profile.storeServices || []);
       setLiveStatus(profile.liveStatus || 'open');
+      setHasGst(profile.hasGst !== undefined ? profile.hasGst : (!!profile.gstNumber));
+      setGstPricingMode(profile.gstPricingMode || 'inclusive');
       setGstNumber(profile.gstNumber || '');
       setPanNumber(profile.panNumber || '');
       setAadhaarNumber(profile.aadhaarNumber || '');
@@ -288,6 +318,40 @@ export const BusinessProfile: React.FC = () => {
       setOwnerContact(profile.ownerContact || '');
       setManagerContact(profile.managerContact || '');
       setDeliveryManagerContact(profile.deliveryManagerContact || '');
+      if (profile.categoryParameters) {
+        if (profile.categoryParameters.gstRate !== undefined) setCategoryGstRate(profile.categoryParameters.gstRate);
+        if (profile.categoryParameters.foodPrepTime) setFoodPrepTime(profile.categoryParameters.foodPrepTime);
+        if (profile.categoryParameters.foodType) setFoodType(profile.categoryParameters.foodType);
+        if (profile.categoryParameters.packagingFee) setPackagingFee(profile.categoryParameters.packagingFee);
+        if (profile.categoryParameters.diningTables) setDiningTables(profile.categoryParameters.diningTables);
+        if (profile.categoryParameters.tableReservations !== undefined) setTableReservations(profile.categoryParameters.tableReservations);
+        if (profile.categoryParameters.cakePreorderHours) setCakePreorderHours(profile.categoryParameters.cakePreorderHours);
+        if (profile.categoryParameters.biryaniBatchTimes) setBiryaniBatchTimes(profile.categoryParameters.biryaniBatchTimes);
+        if (profile.categoryParameters.meatCutType) setMeatCutType(profile.categoryParameters.meatCutType);
+        if (profile.categoryParameters.expressDeliveryTime) setExpressDeliveryTime(profile.categoryParameters.expressDeliveryTime);
+        if (profile.categoryParameters.morningSlotActive !== undefined) setMorningSlotActive(profile.categoryParameters.morningSlotActive);
+        if (profile.categoryParameters.organicCertActive !== undefined) setOrganicCertActive(profile.categoryParameters.organicCertActive);
+        if (profile.categoryParameters.dairyColdStorage !== undefined) setDairyColdStorage(profile.categoryParameters.dairyColdStorage);
+        if (profile.categoryParameters.trialRoomAvailable !== undefined) setTrialRoomAvailable(profile.categoryParameters.trialRoomAvailable);
+        if (profile.categoryParameters.returnPolicyDays) setReturnPolicyDays(profile.categoryParameters.returnPolicyDays);
+        if (profile.categoryParameters.customStitchingOffered !== undefined) setCustomStitchingOffered(profile.categoryParameters.customStitchingOffered);
+        if (profile.categoryParameters.serviceRadiusKm) setServiceRadiusKm(profile.categoryParameters.serviceRadiusKm);
+        if (profile.categoryParameters.serviceRateType) setServiceRateType(profile.categoryParameters.serviceRateType);
+        if (profile.categoryParameters.emergencySupport !== undefined) setEmergencySupport(profile.categoryParameters.emergencySupport);
+        if (profile.categoryParameters.serviceWarrantyDays) setServiceWarrantyDays(profile.categoryParameters.serviceWarrantyDays);
+        if (profile.categoryParameters.templeDirectDelivery !== undefined) setTempleDirectDelivery(profile.categoryParameters.templeDirectDelivery);
+        if (profile.categoryParameters.panditLanguage) setPanditLanguage(profile.categoryParameters.panditLanguage);
+        if (profile.categoryParameters.electronicsWarrantyMonths) setElectronicsWarrantyMonths(profile.categoryParameters.electronicsWarrantyMonths);
+        if (profile.categoryParameters.imeiTrackingRequired !== undefined) setImeiTrackingRequired(profile.categoryParameters.imeiTrackingRequired);
+        if (profile.categoryParameters.openBoxInspection !== undefined) setOpenBoxInspection(profile.categoryParameters.openBoxInspection);
+        if (profile.categoryParameters.retailBulkDiscount) setRetailBulkDiscount(profile.categoryParameters.retailBulkDiscount);
+        if (profile.categoryParameters.giftWrappingOffered !== undefined) setGiftWrappingOffered(profile.categoryParameters.giftWrappingOffered);
+        if (Array.isArray(profile.categoryParameters.foodSubcategories)) setFoodSubcategories(profile.categoryParameters.foodSubcategories);
+        if (Array.isArray(profile.categoryParameters.grocerySubcategories)) setGrocerySubcategories(profile.categoryParameters.grocerySubcategories);
+        if (Array.isArray(profile.categoryParameters.fashionSubcategories)) setFashionSubcategories(profile.categoryParameters.fashionSubcategories);
+        if (Array.isArray(profile.categoryParameters.serviceSubcategories)) setServiceSubcategories(profile.categoryParameters.serviceSubcategories);
+        if (Array.isArray(profile.categoryParameters.devotionalSubcategories)) setDevotionalSubcategories(profile.categoryParameters.devotionalSubcategories);
+      }
       if (profile.businessHours && Object.keys(profile.businessHours).length > 0) {
         setBusinessHours(profile.businessHours);
       }
@@ -354,6 +418,41 @@ export const BusinessProfile: React.FC = () => {
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const categoryParams = {
+      gstRate: categoryGstRate,
+      foodPrepTime,
+      foodType,
+      packagingFee,
+      diningTables,
+      tableReservations,
+      cakePreorderHours,
+      biryaniBatchTimes,
+      meatCutType,
+      expressDeliveryTime,
+      morningSlotActive,
+      organicCertActive,
+      dairyColdStorage,
+      trialRoomAvailable,
+      returnPolicyDays,
+      customStitchingOffered,
+      serviceRadiusKm,
+      serviceRateType,
+      emergencySupport,
+      serviceWarrantyDays,
+      templeDirectDelivery,
+      panditLanguage,
+      electronicsWarrantyMonths,
+      imeiTrackingRequired,
+      openBoxInspection,
+      retailBulkDiscount,
+      giftWrappingOffered,
+      foodSubcategories,
+      grocerySubcategories,
+      fashionSubcategories,
+      serviceSubcategories,
+      devotionalSubcategories
+    };
+
     const updates: Partial<VendorProfile> = {
       businessName,
       ownerName,
@@ -371,6 +470,9 @@ export const BusinessProfile: React.FC = () => {
       village,
       pincode,
       deliveryRadiusKm: Number(deliveryRadiusKm),
+      deliveryMode: isSelfDelivery ? 'self_delivery' : deliveryMode,
+      isSelfDelivery,
+      isSelfPickup,
       minOrder: Number(minOrder),
       deliveryCharge: Number(deliveryCharge),
       estimatedDeliveryMinutes: Number(estimatedDeliveryMinutes),
@@ -378,7 +480,10 @@ export const BusinessProfile: React.FC = () => {
       storeServices,
       liveStatus: liveStatus as any,
       businessHours,
-      gstNumber,
+      hasGst,
+      gstPricingMode,
+      categoryParameters: categoryParams,
+      gstNumber: hasGst ? gstNumber : '',
       panNumber,
       aadhaarNumber,
       gstExpiry,
@@ -584,9 +689,23 @@ export const BusinessProfile: React.FC = () => {
     };
   };
 
-  const activeCategoryInfo = getCategoryDetails(
-    primaryCategory || profile.primaryCategory || profile.category || (loggedInUser as any)?.primaryCategory || (loggedInUser as any)?.category || 'Food & Restaurant'
-  );
+  const vendorCategories: string[] = (() => {
+    const list: string[] = [];
+    if (primaryCategory) list.push(primaryCategory);
+    if (profile.primaryCategory && !list.includes(profile.primaryCategory)) list.push(profile.primaryCategory);
+    if (profile.category && !list.includes(profile.category)) list.push(profile.category);
+    if (Array.isArray(profile.categories)) {
+      profile.categories.forEach(c => { if (c && !list.includes(c)) list.push(c); });
+    }
+    if ((loggedInUser as any)?.primaryCategory && !list.includes((loggedInUser as any).primaryCategory)) {
+      list.push((loggedInUser as any).primaryCategory);
+    }
+    if (list.length === 0) list.push('Food & Restaurant');
+    return list;
+  })();
+
+  const activeCategoryName = selectedCategoryTab || primaryCategory || profile.primaryCategory || profile.category || (loggedInUser as any)?.primaryCategory || (loggedInUser as any)?.category || 'Food & Restaurant';
+  const activeCategoryInfo = getCategoryDetails(activeCategoryName);
 
   const availableServices = ['Home Delivery', 'Pickup', 'Pre Orders', 'Subscription', 'Instant Delivery'];
   const availableTags = ['Fresh', 'Organic', '24x7', 'Home Delivery', 'Pickup', 'Express Delivery'];
@@ -804,7 +923,12 @@ export const BusinessProfile: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">Email Address</label>
+                      <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                        Business Email
+                        {(profile.kycStatus === 'Verified' || profile.verifiedBadge) && (
+                          <Badge variant="success" className="text-[9px] py-0 px-1 font-bold">Verified 🔒</Badge>
+                        )}
+                      </label>
                       <div className="border border-border/50 rounded-lg px-3 py-2 text-sm bg-secondary/30 text-foreground cursor-not-allowed opacity-80 font-mono">
                         {loggedInUser?.email || profile.email || '—'}
                       </div>
@@ -935,14 +1059,23 @@ export const BusinessProfile: React.FC = () => {
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">Support Email *</label>
+                      <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                        Business Email *
+                        {(profile.kycStatus === 'Verified' || profile.verifiedBadge) && (
+                          <Badge variant="purple" className="text-[9px] py-0 px-1 font-bold">Verified 🔒</Badge>
+                        )}
+                      </label>
                       <input
                         required
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                        disabled={profile.kycStatus === 'Verified' || profile.verifiedBadge}
+                        className={`border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring ${(profile.kycStatus === 'Verified' || profile.verifiedBadge) ? 'opacity-70 cursor-not-allowed bg-secondary/30' : ''}`}
                       />
+                      {(profile.kycStatus === 'Verified' || profile.verifiedBadge) && (
+                        <span className="text-[10px] text-muted-foreground font-medium">Verified business email cannot be edited.</span>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Contact Phone *</label>
@@ -996,36 +1129,214 @@ export const BusinessProfile: React.FC = () => {
                       />
                     </div>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">GSTIN</label>
-                      <input
-                        type="text"
-                        value={gstNumber}
-                        onChange={(e) => setGstNumber(e.target.value)}
-                        placeholder="GST Identification"
-                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
-                      />
+                {/* Section 1.2: GST & Tax Registration Settings */}
+                <div className="border-b border-border/50 pb-4 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span>🧾</span> GST &amp; Tax Registration Settings
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Configure GST applicability and pricing mode for customer catalog &amp; checkout.
+                      </p>
                     </div>
+                    <Badge variant={hasGst ? "success" : "secondary"} className="text-xs px-2.5 py-0.5 w-fit">
+                      {hasGst ? "GST Registered" : "Non-GST / Exempt"}
+                    </Badge>
+                  </div>
+
+                  {/* Yes / No GST Toggle */}
+                  <div className="p-4 rounded-2xl bg-secondary/20 border border-border/60 space-y-3">
+                    <label className="text-xs font-bold text-foreground block">
+                      Is your business GST Registered / Tax Applicable? *
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHasGst(true)}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${hasGst
+                          ? 'bg-primary/10 border-primary shadow-xs ring-1 ring-primary/40'
+                          : 'bg-background hover:bg-secondary/40 border-border opacity-70'
+                          }`}
+                      >
+                        <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${hasGst ? 'border-primary bg-primary' : 'border-muted-foreground'
+                          }`}>
+                          {hasGst && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span>Yes, GST Registered</span>
+                            <Badge variant="outline" className="text-[10px] py-0 px-1 border-primary/40 text-primary">Regular Taxpayer</Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            My business has a valid GSTIN. Products will calculate CGST &amp; SGST.
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasGst(false);
+                          setGstPricingMode('inclusive');
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${!hasGst
+                          ? 'bg-primary/10 border-primary shadow-xs ring-1 ring-primary/40'
+                          : 'bg-background hover:bg-secondary/40 border-border opacity-70'
+                          }`}
+                      >
+                        <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${!hasGst ? 'border-primary bg-primary' : 'border-muted-foreground'
+                          }`}>
+                          {!hasGst && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <span>No, Unregistered / Composition</span>
+                            <Badge variant="outline" className="text-[10px] py-0 px-1">Exempt</Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Composite dealer or below threshold. 0% GST (Non-GST / exempt items).
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Conditional GST Details if Yes */}
+                    {hasGst ? (
+                      <div className="mt-4 pt-4 border-t border-border/50 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                              <span>GSTIN (GST Identification Number) *</span>
+                              {gstNumber.length === 15 && (
+                                <span className="text-[10px] font-bold text-emerald-500">✓ Valid 15-char format</span>
+                              )}
+                            </label>
+                            <input
+                              required={hasGst}
+                              type="text"
+                              maxLength={15}
+                              value={gstNumber}
+                              onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                              placeholder="e.g. 37AAAAA0000A1Z5"
+                              className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground font-mono font-bold tracking-wider uppercase focus:ring-1 focus:ring-ring"
+                            />
+                            <span className="text-[10px] text-muted-foreground">State Code (2) + PAN (10) + Entity (1) + Z + Checksum (1)</span>
+                          </div>
+
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-foreground">
+                              GST Registration Expiry / Renewal Date (Optional)
+                            </label>
+                            <input
+                              type="date"
+                              value={gstExpiry}
+                              onChange={(e) => setGstExpiry(e.target.value)}
+                              className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                            />
+                            <span className="text-[10px] text-muted-foreground">Used for compliance renewal reminders</span>
+                          </div>
+                        </div>
+
+                        {/* Include or Exclude GST Selector */}
+                        <div className="p-3.5 bg-background rounded-xl border border-primary/20 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-extrabold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                              <span>💰</span> Default GST Pricing Mode (Include or Exclude in Product Price) *
+                            </label>
+                            <Badge variant={gstPricingMode === 'inclusive' ? 'purple' : 'warning'} className="text-[10px]">
+                              {gstPricingMode === 'inclusive' ? 'Inclusive Mode' : 'Exclusive Mode'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Choose whether the prices you enter in your catalog already include GST or if GST should be added on top at checkout.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setGstPricingMode('inclusive')}
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${gstPricingMode === 'inclusive'
+                                ? 'bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/30'
+                                : 'bg-secondary/20 hover:bg-secondary/40 border-border text-foreground'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <span>🏷️ Include in Price (Inclusive)</span>
+                                </span>
+                                {gstPricingMode === 'inclusive' && (
+                                  <span className="text-[10px] bg-purple-600 text-white font-bold px-1.5 py-0.2 rounded">Selected</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                The selling price you enter (e.g. ₹100) is the final amount the customer pays. CGST &amp; SGST are embedded inside the price.
+                              </p>
+                              <div className="mt-2 text-[10px] font-mono text-purple-600 dark:text-purple-300 bg-purple-500/10 p-1.5 rounded">
+                                Example: ₹100 @ 5% GST = Base ₹95.24 + CGST ₹2.38 + SGST ₹2.38 = Total ₹100
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setGstPricingMode('exclusive')}
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${gstPricingMode === 'exclusive'
+                                ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30'
+                                : 'bg-secondary/20 hover:bg-secondary/40 border-border text-foreground'
+                                }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <span>➕ Exclude from Price (Exclusive)</span>
+                                </span>
+                                {gstPricingMode === 'exclusive' && (
+                                  <span className="text-[10px] bg-amber-600 text-white font-bold px-1.5 py-0.2 rounded">Selected</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                The selling price you enter (e.g. ₹100) is the base price. CGST &amp; SGST will be added on top during customer checkout.
+                              </p>
+                              <div className="mt-2 text-[10px] font-mono text-amber-600 dark:text-amber-300 bg-amber-500/10 p-1.5 rounded">
+                                Example: ₹100 @ 5% GST = Base ₹100 + CGST ₹2.50 + SGST ₹2.50 = Total ₹105
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-muted/20 border border-border/50 rounded-xl text-xs text-muted-foreground flex items-start gap-2">
+                        <span className="text-base flex-shrink-0">ℹ️</span>
+                        <span>
+                          <strong>Non-GST Seller mode active:</strong> You are registered as an unregistered seller or composite vendor. Products added will default to 0% GST (Non-taxable / exempt) and invoices will not contain tax breakdowns.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PAN & Aadhaar */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted-foreground">PAN</label>
+                      <label className="text-xs font-bold text-muted-foreground">PAN (Permanent Account Number)</label>
                       <input
                         type="text"
+                        maxLength={10}
                         value={panNumber}
-                        onChange={(e) => setPanNumber(e.target.value)}
-                        placeholder="Permanent Account Number"
-                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                        onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                        placeholder="e.g. ABCDE1234F"
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground font-mono uppercase focus:ring-1 focus:ring-ring"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Aadhaar Card UIDAI</label>
                       <input
                         type="text"
+                        maxLength={12}
                         value={aadhaarNumber}
-                        onChange={(e) => setAadhaarNumber(e.target.value)}
+                        onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
                         placeholder="12-digit Aadhaar Number"
-                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring"
+                        className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground font-mono focus:ring-1 focus:ring-ring"
                       />
                     </div>
                   </div>
@@ -1158,8 +1469,117 @@ export const BusinessProfile: React.FC = () => {
 
                 {/* Section 3: Delivery Configuration */}
                 <div className="border-b border-border/50 pb-4 space-y-4">
-                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">3. Delivery & Radius parameters</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide flex items-center gap-2">
+                        <span>🚚</span> 3. Delivery &amp; Fulfillment Configuration
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Configure vendor self-delivery, customer self-pickup, delivery radius, and charges.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={isSelfDelivery ? "success" : "secondary"} className="text-xs">
+                        {isSelfDelivery ? "🛵 Self-Delivery Active" : "Platform Delivery"}
+                      </Badge>
+                      {isSelfPickup && (
+                        <Badge variant="purple" className="text-xs">
+                          🏪 Self-Pickup Enabled
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Self-Delivery & Pickup Enablement Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Self-Delivery Card */}
+                    <div className={`p-4 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 ${isSelfDelivery
+                      ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xs ring-1 ring-emerald-500/30'
+                      : 'bg-secondary/20 border-border opacity-85'
+                      }`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🛵</span>
+                          <div>
+                            <span className="font-extrabold text-foreground text-xs block">Vendor Self-Delivery</span>
+                            <span className="text-[10px] text-muted-foreground">Deliver orders using your own store delivery staff</span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          id="vendor-self-delivery"
+                          checked={isSelfDelivery}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setIsSelfDelivery(val);
+                            if (val) setDeliveryMode('self_delivery');
+                            else if (deliveryMode === 'self_delivery') setDeliveryMode('platform_delivery');
+                          }}
+                          className="h-5 w-5 rounded accent-emerald-500 cursor-pointer mt-0.5"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        When enabled, you can dispatch orders with your own delivery personnel or vehicles and mark orders as delivered directly from the Orders Hub.
+                      </p>
+                      {isSelfDelivery && (
+                        <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5">
+                          <span>✓ Store staff can dispatch &amp; complete deliveries directly in Orders Hub</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Self-Pickup Card */}
+                    <div className={`p-4 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 ${isSelfPickup
+                      ? 'bg-purple-500/10 border-purple-500/40 shadow-xs ring-1 ring-purple-500/30'
+                      : 'bg-secondary/20 border-border opacity-85'
+                      }`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🏪</span>
+                          <div>
+                            <span className="font-extrabold text-foreground text-xs block">Customer In-Store Pickup</span>
+                            <span className="text-[10px] text-muted-foreground">Customers collect orders directly at store counter</span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          id="customer-self-pickup"
+                          checked={isSelfPickup}
+                          onChange={(e) => setIsSelfPickup(e.target.checked)}
+                          className="h-5 w-5 rounded accent-purple-500 cursor-pointer mt-0.5"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Allow customers to pick up orders in person. If disabled, pickup options and badges are hidden cleanly from customer checkout.
+                      </p>
+                      {isSelfPickup && (
+                        <div className="p-2 rounded-lg bg-purple-500/15 border border-purple-500/20 text-[10px] font-bold text-purple-600 dark:text-purple-300 flex items-center gap-1.5">
+                          <span>✓ Click &amp; Collect counter pickup active for customers</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Primary Delivery Fulfillment Mode Selector */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-muted-foreground">Primary Delivery Fulfillment Mode *</label>
+                    <select
+                      value={deliveryMode}
+                      onChange={(e) => {
+                        const val = e.target.value as any;
+                        setDeliveryMode(val);
+                        if (val === 'self_delivery') setIsSelfDelivery(true);
+                      }}
+                      className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-ring font-semibold"
+                    >
+                      <option value="platform_delivery">🚚 Platform Delivery (ApexBee Partner Fleet)</option>
+                      <option value="self_delivery">🛵 Vendor Self-Delivery (Store Fleet / Own Delivery Boys)</option>
+                      <option value="pickup_only">🏪 In-Store Pickup Only (No Doorstep Delivery)</option>
+                    </select>
+                  </div>
+
+                  {/* Radius and Pricing Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-muted-foreground">Radius Limit (KM) *</label>
                       <input required type="number" min={1} value={deliveryRadiusKm} onChange={(e) => setDeliveryRadiusKm(Number(e.target.value))} className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
@@ -1203,9 +1623,75 @@ export const BusinessProfile: React.FC = () => {
 
                 {/* Section 5: Category-Specific Operational Parameters */}
                 <div className="border-b border-border/50 pb-4 space-y-4">
-                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide flex items-center gap-1.5">
-                    <span>{activeCategoryInfo.icon}</span> 5. Category Operational Parameters ({activeCategoryInfo.title})
-                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide flex items-center gap-1.5">
+                        <span>{activeCategoryInfo.icon}</span> 5. Category Operational Parameters ({activeCategoryInfo.title})
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Configure category-level operational formats, delivery rules, and tax parameters for {activeCategoryInfo.title}.
+                      </p>
+                    </div>
+
+                    {vendorCategories.length > 1 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Switch Category:</span>
+                        {vendorCategories.map(cat => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setSelectedCategoryTab(cat)}
+                            className={`px-2.5 py-1 text-xs rounded-lg font-bold border transition-all cursor-pointer ${activeCategoryName === cat
+                              ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                              : 'bg-secondary/40 text-muted-foreground border-border hover:bg-secondary/70'
+                              }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Category Default GST Configuration */}
+                  <div className="p-3.5 bg-primary/5 border border-primary/20 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                    <div>
+                      <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                        <span>🏷️ Category Default GST Rate</span>
+                        <Badge variant="purple" className="text-[10px] font-bold">
+                          {hasGst ? `${categoryGstRate}% GST` : '0% (Exempt)'}
+                        </Badge>
+                        {hasGst && (
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            (CGST: {(categoryGstRate / 2).toFixed(1)}% + SGST: {(categoryGstRate / 2).toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {hasGst
+                          ? `Default GST rate applied to newly created ${activeCategoryInfo.title} products (${gstPricingMode === 'inclusive' ? 'Inclusive in price' : 'Exclusive at checkout'}).`
+                          : 'GST is disabled on your profile. Category defaults to 0% Tax Exempt.'}
+                      </p>
+                    </div>
+
+                    {hasGst && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {[0, 3, 5, 12, 18, 28].map(rate => (
+                          <button
+                            key={rate}
+                            type="button"
+                            onClick={() => setCategoryGstRate(rate)}
+                            className={`px-2.5 py-1 text-xs rounded-lg font-extrabold border transition-all cursor-pointer ${categoryGstRate === rate
+                              ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                              : 'bg-background hover:bg-secondary text-foreground border-border'
+                              }`}
+                          >
+                            {rate}%
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   {activeCategoryInfo.title.includes('Food') ? (
                     <div className="space-y-4">
@@ -1215,10 +1701,12 @@ export const BusinessProfile: React.FC = () => {
                           <span>🍴 Select Food & Restaurant Formats (Select Multiple)</span>
                           <span className="text-[10px] bg-amber-500/20 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded font-mono">{foodSubcategories.length} Selected</span>
                         </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-2">
                           {[
                             { id: 'Dine-In Family Restaurant', label: '🍷 Dine-In Restaurant', desc: 'Table Capacity & Reservations' },
+                            { id: 'Street Food & Chaat', label: '🥘 Street Food & Chaat', desc: 'Fast Prep & Live Stalls' },
                             { id: 'Fast Food & QSR', label: '🍟 Fast Food & QSR', desc: 'Fast Prep & Self Counter' },
+                            { id: 'Tiffins & Meals', label: '🫓 Tiffins & Meals', desc: 'Breakfast & Thalis' },
                             { id: 'Café & Bakery', label: '☕ Café & Bakery', desc: 'Custom Cakes & Pastries' },
                             { id: 'Biryani & Cloud Kitchen', label: '🍲 Biryani & Cloud Kitchen', desc: 'Batch Timings & Family Buckets' },
                             { id: 'Ice Cream & Desserts', label: '🍦 Ice Cream & Desserts', desc: 'Thermal Cold Delivery' },
@@ -1534,7 +2022,7 @@ export const BusinessProfile: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  ) : (
+                  ) : activeCategoryInfo.title.includes('Devotional') || activeCategoryInfo.title.includes('Puja') ? (
                     <div className="space-y-4">
                       {/* Devotional Format Selection Bar */}
                       <div className="p-3.5 bg-orange-500/10 border border-orange-500/30 rounded-2xl space-y-2 text-left">
@@ -1588,12 +2076,119 @@ export const BusinessProfile: React.FC = () => {
                         )}
                       </div>
                     </div>
+                  ) : activeCategoryInfo.title.includes('Electronic') || activeCategoryInfo.title.includes('Mobile') ? (
+                    <div className="space-y-4">
+                      <div className="p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-cyan-700 dark:text-cyan-300 uppercase tracking-wider block">
+                          📱 Electronics &amp; Mobile Device Standards
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Operational parameters for tech gadgets, IMEI serialization, BIS safety certification, and brand warranties.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3.5 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Standard Brand Warranty</label>
+                          <select
+                            value={electronicsWarrantyMonths}
+                            onChange={(e) => setElectronicsWarrantyMonths(e.target.value)}
+                            className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold"
+                          >
+                            <option value="6 Months">🛡️ 6 Months Limited Warranty</option>
+                            <option value="12 Months">🛡️ 12 Months Standard Manufacturer Warranty</option>
+                            <option value="24 Months">🛡️ 24 Months Extended Care Warranty</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">IMEI / Serial Verification</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="checkbox"
+                              id="imei-track"
+                              checked={imeiTrackingRequired}
+                              onChange={(e) => setImeiTrackingRequired(e.target.checked)}
+                              className="rounded accent-cyan-500 h-4 w-4 cursor-pointer"
+                            />
+                            <label htmlFor="imei-track" className="text-xs font-bold text-foreground cursor-pointer">
+                              Log Serial/IMEI on Dispatch
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Open-Box Verification</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="checkbox"
+                              id="open-box"
+                              checked={openBoxInspection}
+                              onChange={(e) => setOpenBoxInspection(e.target.checked)}
+                              className="rounded accent-cyan-500 h-4 w-4 cursor-pointer"
+                            />
+                            <label htmlFor="open-box" className="text-xs font-bold text-foreground cursor-pointer">
+                              Open-Box Inspection at Delivery
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-3.5 bg-purple-500/10 border border-purple-500/30 rounded-2xl space-y-2 text-left">
+                        <label className="text-xs font-extrabold text-purple-700 dark:text-purple-300 uppercase tracking-wider block">
+                          🛍️ General Retail &amp; Superstore Parameters
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Operational defaults for general consumer goods, packaging, returns, and wholesale bulk tiers.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3.5 bg-purple-500/5 border border-purple-500/20 rounded-2xl">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-bold text-muted-foreground">Bulk Tier Incentive</label>
+                          <select
+                            value={retailBulkDiscount}
+                            onChange={(e) => setRetailBulkDiscount(e.target.value)}
+                            className="border border-border rounded-lg px-3 py-2 text-xs bg-background text-foreground font-semibold"
+                          >
+                            <option value="None">No Automatic Bulk Discount</option>
+                            <option value="5% over ₹2,000">🎉 5% Bulk Discount on Orders &gt; ₹2,000</option>
+                            <option value="10% over ₹5,000">🎉 10% Wholesale Discount on Orders &gt; ₹5,000</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Gift Wrapping Option</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="checkbox"
+                              id="gift-wrap"
+                              checked={giftWrappingOffered}
+                              onChange={(e) => setGiftWrappingOffered(e.target.checked)}
+                              className="rounded accent-purple-500 h-4 w-4 cursor-pointer"
+                            />
+                            <label htmlFor="gift-wrap" className="text-xs font-bold text-foreground cursor-pointer">
+                              Offer Gift Box Packaging
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1 justify-center">
+                          <label className="text-xs font-bold text-muted-foreground">Standard Return Window</label>
+                          <div className="p-2 bg-purple-500/10 border border-purple-500/30 rounded-xl text-xs font-bold text-purple-600 dark:text-purple-400">
+                            📦 7-Day Easy Replacement Policy
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
                 {/* Section 6: Social Links & WhatsApp Support */}
                 <div className="border-b border-border/50 pb-4 space-y-4">
-                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">5. Services & Discoverability Tags</h3>
+                  <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">6. Services &amp; Discoverability Tags</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-muted-foreground block">Offered Services</label>
@@ -1634,10 +2229,10 @@ export const BusinessProfile: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Section 6: Weekly Operating schedule */}
+                {/* Section 7: Weekly Operating schedule */}
                 <div className="space-y-4 pb-2">
                   <div className="flex justify-between items-center pb-1">
-                    <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">6. Operating Hours Weekly schedule</h3>
+                    <h3 className="font-extrabold text-foreground text-sm uppercase tracking-wide">7. Operating Hours Weekly schedule</h3>
                     <Button
                       type="button"
                       variant="outline"

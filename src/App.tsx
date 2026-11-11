@@ -1,7 +1,19 @@
+import { DailyNeedsWorkspace } from './pages/DailyNeedsWorkspace';
 import React from 'react';
+import { WaterWorkspace } from './pages/WaterWorkspace';
+import { isWaterBusiness } from './services/businessPortal';
+import { BusinessWorkspaceProvider, useBusinessWorkspace } from './context/BusinessWorkspaceContext';
+import { BusinessWorkspaceSelector } from './components/BusinessWorkspaceSelector';
+import { DairyWorkspace } from './pages/DairyWorkspace';
+import { BusinessOperations } from './pages/BusinessOperations';
+import { BundleBuilder } from './pages/BundleBuilder';
+import { BusinessWorkspaceHome } from './pages/BusinessWorkspaceHome';
 import { VendorProvider, useVendor } from './context/VendorContext';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
+import { VendorActionBar } from './components/VendorActionBar';
+import { OperationalAlertsProvider } from './context/OperationalAlertsContext';
+import { NewOrderPopup } from './components/OperationalAlerts';
 import { Dashboard } from './pages/Dashboard';
 import  {ProductManagement}  from './pages/Products';
 import { Inventory } from './pages/Inventory';
@@ -54,9 +66,14 @@ import { HyperlocalGrowth } from './pages/HyperlocalGrowth';
 import { EntrepreneurNetwork } from './pages/EntrepreneurNetwork';
 import { FranchiseConnect } from './pages/FranchiseConnect';
 import { BusinessAcademy } from './pages/BusinessAcademy';
+import { POS } from './pages/POS';
 
 const MainLayout: React.FC = () => {
   const { currentPage, isAuthenticated, authPage } = useVendor();
+  const { selected } = useBusinessWorkspace();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const closeMenu = React.useCallback(() => setMenuOpen(false), []);
 
   if (!isAuthenticated) {
     if (authPage === 'register') {
@@ -66,9 +83,35 @@ const MainLayout: React.FC = () => {
   }
 
   const renderActivePage = () => {
-    if (currentPage === 'dashboard') {
-      return <Dashboard />;
+    if (['pos', 'pos-billing', 'counter-pos'].includes(currentPage)) {
+      return <POS />;
     }
+
+    if (['dashboard', 'dairy-overview', 'water-overview'].includes(currentPage)) return <Dashboard />;
+
+    if (selected?.dailyNeedsProfile || selected?.kind === 'flowers') {
+      if (currentPage === 'daily-needs-reports') return <DailyNeedsWorkspace key={selected.id} reports />;
+      if (currentPage === 'daily-needs-stock' || currentPage === 'daily-needs-quality') return <BusinessOperations key={selected.id + currentPage} section={currentPage === 'daily-needs-stock' ? 'stock' : 'quality'} />;
+    }
+    if (currentPage.startsWith('daily-needs-')) return <BusinessWorkspaceHome />;
+    if (currentPage === 'flower-custom-orders') return selected?.kind === 'flowers'
+      ? <BusinessOperations key={selected.id + currentPage} customOrders /> : <BusinessWorkspaceHome />;
+    if (isWaterBusiness(selected)) {
+      if (currentPage === 'water-catalog') return <WaterWorkspace key={selected?.id} initialView="catalog" />;
+      if (currentPage === 'water-accounts') return <WaterWorkspace key={selected?.id} initialView="accounts" />;
+      if (currentPage === 'water-reports') return <WaterWorkspace key={selected?.id} initialView="reports" />;
+      if (currentPage === 'water-stock') return <BusinessOperations key={selected?.id} />;
+      const waterViews = { 'water-subscriptions': 'subscriptions', 'water-deliveries': 'deliveries', 'water-demand': 'demand', 'water-routes': 'routes', 'water-billing': 'billing', 'water-consumption': 'reports' } as const;
+      if (currentPage in waterViews) return <DairyWorkspace key={selected?.id} initialView={waterViews[currentPage as keyof typeof waterViews]} />;
+    }
+    if (currentPage.startsWith('water-')) return <BusinessWorkspaceHome />;
+    if (currentPage === 'business-operations') return <BusinessOperations key={selected?.id || 'none'} />;
+    if (currentPage === 'business-bundles') return <BundleBuilder key={selected?.id || 'none'} />;
+    if (currentPage.startsWith('dairy-')) {
+      const view = currentPage === 'dairy-subscriptions' ? 'subscriptions' : currentPage === 'dairy-deliveries' ? 'deliveries' : currentPage === 'dairy-demand' ? 'demand' : currentPage === 'dairy-stock' ? 'stock' : currentPage === 'dairy-routes' ? 'routes' : currentPage === 'dairy-ledger' ? 'ledger' : currentPage === 'dairy-billing' ? 'billing' : currentPage === 'dairy-reports' ? 'reports' : currentPage === 'dairy-reviews' ? 'reviews' : 'overview';
+      return <DairyWorkspace key={selected?.id || 'none'} initialView={view} />;
+    }
+    if (selected?.kind === 'food' && !['profile', 'support', 'security'].includes(currentPage)) return <BusinessWorkspaceHome />;
 
     // 'business' is the parent nav item for My Business section
     if (['business', 'profile', 'bank', 'documents'].includes(currentPage)) {
@@ -232,6 +275,7 @@ const MainLayout: React.FC = () => {
     }
 
     // New BOS Route Switchers
+    if (['b2b-buy','b2b-wholesalers','b2b-procurements','b2b-pos'].includes(currentPage)) return <ProcurementHub />;
     if (['b2b', 'b2b-buy', 'b2b-sell', 'b2b-rfq', 'b2b-deals', 'b2b-wholesalers', 'b2b-manufacturers', 'b2b-procurements', 'b2b-quotations', 'b2b-pos', 'b2b-trading'].includes(currentPage)) {
       return <B2BMarketplace />;
     }
@@ -268,19 +312,24 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="pos-shell flex h-dvh w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar Navigation */}
-      <Sidebar />
+      <Sidebar mobileOpen={menuOpen} desktopOpen={sidebarOpen} closeMobile={closeMenu} />
 
       {/* Main Panel Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full bg-slate-950">
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Navbar */}
-        <Navbar />
+        <Navbar menuOpen={menuOpen} openMenu={() => setMenuOpen(true)} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(open => !open)} />
+        <div className="pos-workbar">
+          <BusinessWorkspaceSelector />
+          <VendorActionBar />
+        </div>
 
         {/* Dynamic page container */}
-        <main className="flex-1 overflow-y-auto min-w-0 no-scrollbar bg-gradient-to-br from-blue-950 via-slate-950 to-blue-950 text-slate-100">
+        <main id="vendor-content" className="pos-content flex-1 overflow-y-auto min-w-0">
           {renderActivePage()}
         </main>
+        <NewOrderPopup />
       </div>
     </div>
   );
@@ -289,7 +338,7 @@ const MainLayout: React.FC = () => {
 function App() {
   return (
     <VendorProvider>
-      <MainLayout />
+      <BusinessWorkspaceProvider><OperationalAlertsProvider><MainLayout /></OperationalAlertsProvider></BusinessWorkspaceProvider>
     </VendorProvider>
   );
 }

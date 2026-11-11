@@ -1,15 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
 import { Bell, Check, CircleAlert, ShoppingCart, Award, Sparkles, FolderLock, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NeedsAttention } from './OperationalAlerts';
+import { useOperationalAlerts } from '../context/OperationalAlertsContext';
 
 export const NotificationCenter: React.FC = () => {
   const { notifications, markAsRead, markAllAsRead, setCurrentPage } = useVendor();
+  const { workspaces, select } = useBusinessWorkspace();
+  const { all: operational } = useOperationalAlerts();
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'All' | 'Orders' | 'Payments' | 'Approvals'>('All');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const attentionCount = operational.orders.length + operational.expiry.length;
 
   const filteredNotifications = notifications.filter(n => {
     if (activeFilter === 'Orders') return n.type === 'order';
@@ -56,6 +62,12 @@ export const NotificationCenter: React.FC = () => {
   const handleNotificationClick = (notif: any) => {
     markAsRead(notif.id);
     setIsOpen(false);
+    if (String(notif.eventCode || '').startsWith('dairy.') || notif.eventCode === 'business.request_received') {
+      const kind = String(notif.eventCode || '').startsWith('dairy.') ? 'dairy' : 'catalog';
+      const requestedId = new URLSearchParams(String(notif.deepLink || '').split('?')[1] || '').get('workspaceId');
+      const workspace = workspaces.find(space => space.id === requestedId && space.kind === kind) || workspaces.find(space => space.kind === kind);
+      if (workspace) { const target = String(notif.deepLink || '').split('#')[1]?.split('?')[0]; const allowed = ['dairy-demand', 'dairy-ledger', 'dairy-deliveries', 'dairy-subscriptions', 'dairy-billing']; select(workspace.id); setCurrentPage(kind === 'dairy' ? allowed.includes(target) ? target : 'dairy-demand' : 'business-operations'); return; }
+    }
     if (notif.type === 'order') {
       setCurrentPage('orders');
     } else if (notif.type === 'wallet') {
@@ -75,8 +87,11 @@ export const NotificationCenter: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2.5 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-all duration-200 cursor-pointer border-none bg-transparent"
         aria-label="Notifications"
+        aria-expanded={isOpen}
+        title={attentionCount ? `${attentionCount} items need attention` : 'Notifications'}
       >
         <Bell className="h-5 w-5" />
+        {attentionCount > 0 && <span aria-hidden="true" className="absolute bottom-1 left-1 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />}
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white ring-2 ring-slate-900 animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -91,7 +106,7 @@ export const NotificationCenter: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-3 w-84 sm:w-96 rounded-2xl border border-slate-700/80 bg-[#0F172A] p-4 shadow-2xl shadow-black/90 z-[999] flex flex-col max-h-[500px] text-white"
+            className="absolute -right-10 mt-3 w-[min(21rem,calc(100vw-1rem))] sm:right-0 sm:w-96 rounded-2xl border border-slate-700/80 bg-[#0F172A] p-4 shadow-2xl shadow-black/90 z-[999] flex flex-col max-h-[min(500px,calc(100dvh-5rem))] text-white"
             style={{ backgroundColor: '#0F172A' }}
           >
             {/* Header */}
@@ -141,13 +156,14 @@ export const NotificationCenter: React.FC = () => {
 
             {/* List */}
             <div className="overflow-y-auto pr-1 flex-1 flex flex-col gap-2 max-h-[340px]">
+              {activeFilter === 'All' && <NeedsAttention allBusinesses compact onNavigate={() => setIsOpen(false)} />}
               {filteredNotifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center text-slate-400 gap-2">
                   <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                     <Bell className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-bold text-slate-300">No notifications</span>
-                  <span className="text-[11px] text-slate-400">No alerts found in this category.</span>
+                  <span className="text-xs font-bold text-slate-300">No notification history</span>
+                  <span className="text-[11px] text-slate-400">No saved notifications in this category.</span>
                 </div>
               ) : (
                 filteredNotifications.map((notif) => (

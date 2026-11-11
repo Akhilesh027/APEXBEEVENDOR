@@ -1,5 +1,7 @@
+import { useBusinessWorkspace } from '../context/BusinessWorkspaceContext';
 import React, { useState, useEffect } from 'react';
 import { useVendor } from '../context/VendorContext';
+import { DairyOperationsCard } from '../components/DairyOperationsCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -18,7 +20,9 @@ import {
 } from 'recharts';
 
 export const Inventory: React.FC = () => {
-  const { products, updateProductStock, stats } = useVendor();
+  const { products: allProducts, updateProductStock, stats } = useVendor();
+  const { productIds } = useBusinessWorkspace();
+  const products = productIds ? allProducts.filter(p => productIds.includes(p.id)) : allProducts;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStockType, setFilterStockType] = useState<'all' | 'low' | 'out'>('all');
@@ -194,11 +198,14 @@ export const Inventory: React.FC = () => {
     .slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-6 p-6 overflow-y-auto no-scrollbar max-w-7xl mx-auto w-full text-left text-foreground">
+    <div className="pos-page flex flex-col gap-5 text-left text-foreground">
+      <StockExpiryAlerts />
+      <DairyOperationsCard mode="inventory" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5 text-left">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-foreground">Inventory Management</h1>
+          <p className="pos-eyebrow mb-1">Stock control</p>
+          <h1 className="pos-page-title">Inventory Management</h1>
           <p className="text-xs text-muted-foreground">Monitor stock health, execute bulk updates, and configure automatic alerts.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -868,3 +875,4 @@ export const Inventory: React.FC = () => {
 };
 
 export default Inventory;
+import { StockExpiryAlerts } from '../components/OperationalAlerts';

@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ children, className = '', ...props }) => (
-  <div className={`rounded-2xl border-none bg-slate-900/80 text-slate-100 shadow-xl backdrop-blur-md transition-all duration-300 ${className}`} {...props}>
+  <div className={`rounded-xl border border-border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
     {children}
   </div>
 );
@@ -19,7 +19,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ 
 );
 
 export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ children, className = '', ...props }) => (
-  <p className={`text-xs text-blue-200/80 ${className}`} {...props}>
+  <p className={`text-xs text-muted-foreground ${className}`} {...props}>
     {children}
   </p>
 );
