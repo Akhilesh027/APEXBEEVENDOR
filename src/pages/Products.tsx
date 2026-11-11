@@ -684,6 +684,8 @@ export const ProductManagement: React.FC = () => {
       isLocalDelivery: true,
       isPanIndia: false,
       minimumOrderQuantity: '1',
+      gstRate: '0',
+      gstPricingMode: 'inclusive',
     });
 
     setAttributeValues({});
@@ -1999,8 +2001,8 @@ export const ProductManagement: React.FC = () => {
                               key={slab}
                               onClick={() => setForm({ ...form, gstRate: slab })}
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer border ${String(form.gstRate) === slab
-                                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-xs scale-105'
-                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-xs scale-105'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                                 }`}
                             >
                               {slab}%
@@ -2442,12 +2444,12 @@ export const ProductManagement: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span
                     className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wide border shadow-xs ${selectedProduct.status === 'Live'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : selectedProduct.status === 'Awaiting Seller Approval'
-                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse'
-                          : selectedProduct.status === 'Rejected'
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : selectedProduct.status === 'Awaiting Seller Approval'
+                        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse'
+                        : selectedProduct.status === 'Rejected'
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                       }`}
                   >
                     {selectedProduct.status}
@@ -2489,8 +2491,8 @@ export const ProductManagement: React.FC = () => {
                     key={tab.id}
                     onClick={() => setViewModalTab(tab.id as any)}
                     className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${viewModalTab === tab.id
-                        ? 'bg-primary text-primary-foreground font-black shadow-sm'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      ? 'bg-primary text-primary-foreground font-black shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                       }`}
                   >
                     {tab.label}
